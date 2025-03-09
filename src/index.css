@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -32,22 +33,15 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 222.2 84% 4.9%;
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
 
     --sidebar-background: 0 0% 98%;
-
     --sidebar-foreground: 240 5.3% 26.1%;
-
     --sidebar-primary: 240 5.9% 10%;
-
     --sidebar-primary-foreground: 0 0% 98%;
-
     --sidebar-accent: 240 4.8% 95.9%;
-
     --sidebar-accent-foreground: 240 5.9% 10%;
-
     --sidebar-border: 220 13% 91%;
-
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
 
@@ -97,5 +91,48 @@
 
   body {
     @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+  
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+@layer components {
+  .pangea-button {
+    @apply px-6 py-3 rounded-md transition-all duration-300 font-medium;
+  }
+  
+  .pangea-button-primary {
+    @apply pangea-button bg-pangea text-white hover:bg-pangea-dark shadow-md hover:shadow-lg;
+  }
+  
+  .pangea-button-secondary {
+    @apply pangea-button bg-white text-pangea border border-pangea hover:bg-pangea-light;
+  }
+  
+  .pangea-button-ghost {
+    @apply pangea-button bg-transparent hover:bg-secondary text-foreground;
+  }
+  
+  .pangea-container {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+  
+  .pangea-section {
+    @apply py-16 sm:py-24;
+  }
+  
+  .pangea-section-title {
+    @apply text-4xl md:text-5xl font-bold tracking-tight mb-8 text-center;
+  }
+  
+  .pangea-card {
+    @apply bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden border border-border;
+  }
+  
+  .glassmorphism {
+    @apply bg-white/70 backdrop-blur-md border border-white/20;
   }
 }
