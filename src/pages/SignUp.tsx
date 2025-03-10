@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -15,6 +16,7 @@ import { UserDetailsForm } from '@/components/UserDetailsForm';
 const SignUp = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showUserDetails, setShowUserDetails] = useState(false);
+  const [activeTab, setActiveTab] = useState<string>("signup");
   
   useEffect(() => {
     // Scroll to top on initial load
@@ -60,6 +62,14 @@ const SignUp = () => {
     setShowUserDetails(false);
   };
 
+  const switchToSignIn = () => {
+    setActiveTab("signin");
+  };
+
+  const switchToSignUp = () => {
+    setActiveTab("signup");
+  };
+
   if (showUserDetails) {
     return (
       <div className="min-h-screen flex flex-col">
@@ -82,7 +92,7 @@ const SignUp = () => {
       
       <main className="flex-grow pt-24 pb-16 bg-gradient-to-b from-pangea-light/30 to-background">
         <div className="pangea-container max-w-md mx-auto">
-          <Tabs defaultValue="signup" className="animate-fade-in">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="animate-fade-in">
             <TabsList className="grid w-full grid-cols-2 mb-6">
               <TabsTrigger value="signup">Sign Up</TabsTrigger>
               <TabsTrigger value="signin">Sign In</TabsTrigger>
@@ -167,7 +177,7 @@ const SignUp = () => {
                     Already have an account?{" "}
                     <button 
                       className="text-pangea hover:underline"
-                      onClick={() => document.querySelector('[data-value="signin"]')?.click()}
+                      onClick={switchToSignIn}
                     >
                       Sign in
                     </button>
@@ -235,7 +245,7 @@ const SignUp = () => {
                     Don't have an account?{" "}
                     <button 
                       className="text-pangea hover:underline"
-                      onClick={() => document.querySelector('[data-value="signup"]')?.click()}
+                      onClick={switchToSignUp}
                     >
                       Sign up
                     </button>

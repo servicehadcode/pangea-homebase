@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { format } from 'date-fns';
 import { 
-  User, Mail, Phone, Briefcase, Calendar, Clock, FileText, 
+  User, Mail, Briefcase, Calendar, Clock, FileText, 
   Send, Plus, ArrowRight 
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -25,7 +25,6 @@ const InterviewPrep = () => {
   // Form state
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
   const [role, setRole] = useState('');
   const [jobDescription, setJobDescription] = useState('');
   const [additionalInfo, setAdditionalInfo] = useState('');
@@ -54,7 +53,7 @@ const InterviewPrep = () => {
     e.preventDefault();
     
     // Basic validation
-    if (!name || !email || !phone || !date || !time) {
+    if (!name || !email || !date || !time) {
       toast({
         title: "Missing information",
         description: "Please fill in all required fields.",
@@ -77,7 +76,6 @@ const InterviewPrep = () => {
       // Reset form
       setName('');
       setEmail('');
-      setPhone('');
       setRole('');
       setJobDescription('');
       setAdditionalInfo('');
@@ -155,21 +153,6 @@ const InterviewPrep = () => {
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
                           placeholder="Your email address"
-                          required
-                        />
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <Label htmlFor="phone" className="flex items-center gap-2">
-                          <Phone className="h-4 w-4" />
-                          Phone Number <span className="text-red-500">*</span>
-                        </Label>
-                        <Input 
-                          id="phone" 
-                          type="tel"
-                          value={phone}
-                          onChange={(e) => setPhone(e.target.value)}
-                          placeholder="Your phone number"
                           required
                         />
                       </div>

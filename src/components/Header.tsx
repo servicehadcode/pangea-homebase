@@ -36,7 +36,7 @@ const Header = () => {
   const navItems = [
     { name: 'About', href: '#about-section', onClick: scrollToAbout },
     { name: 'Problems', href: '/problems' },
-    { name: 'Interview Prep', href: '/interview-prep' },
+    { name: 'Request Interview', href: '/interview-prep' },
     { name: 'Contact', href: '/contact' },
   ];
 
