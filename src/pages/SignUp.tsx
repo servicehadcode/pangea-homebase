@@ -1,5 +1,4 @@
-
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,13 +6,15 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
-import { useEffect } from 'react';
+import { UserDetailsForm } from '@/components/UserDetailsForm';
 
 const SignUp = () => {
   const [isLoading, setIsLoading] = useState(false);
+  const [showUserDetails, setShowUserDetails] = useState(false);
   
   useEffect(() => {
     // Scroll to top on initial load
@@ -27,11 +28,9 @@ const SignUp = () => {
     // Simulate API call
     await new Promise((resolve) => setTimeout(resolve, 1000));
     
-    toast.success("Account created successfully! Please check your email to verify your account.", {
-      position: "bottom-right", 
-    });
-    
     setIsLoading(false);
+    // Show the additional details form after successful signup
+    setShowUserDetails(true);
   };
   
   const handleSignIn = async (e: React.FormEvent) => {
@@ -47,6 +46,35 @@ const SignUp = () => {
     
     setIsLoading(false);
   };
+
+  const handleDetailsSubmit = () => {
+    toast.success("Account created successfully! Please check your email to verify your account.", {
+      position: "bottom-right", 
+    });
+  };
+
+  const handleSkip = () => {
+    toast.success("Account created successfully! Please check your email to verify your account.", {
+      position: "bottom-right", 
+    });
+    setShowUserDetails(false);
+  };
+
+  if (showUserDetails) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        
+        <main className="flex-grow pt-24 pb-16 bg-gradient-to-b from-pangea-light/30 to-background">
+          <div className="pangea-container max-w-md mx-auto">
+            <UserDetailsForm onSubmit={handleDetailsSubmit} onSkip={handleSkip} />
+          </div>
+        </main>
+        
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col">
