@@ -19,8 +19,19 @@ import {
   AlertTriangle,
   FileText,
   Terminal,
-  ChevronLeft
+  ChevronLeft,
+  Users,
+  Clock,
+  GitBranch,
+  GitPullRequest,
+  Folder
 } from 'lucide-react';
+
+import CollaborationPanel from '@/components/problem/CollaborationPanel';
+import OverviewPanel from '@/components/problem/OverviewPanel';
+import SetupPanel from '@/components/problem/SetupPanel';
+import SubtaskPanel from '@/components/problem/SubtaskPanel';
+import HintPanel from '@/components/problem/HintPanel';
 
 // Sample problem data (would typically come from an API)
 const problemsData = {
@@ -38,9 +49,25 @@ dataset, train a model, test the model, run it on validation dataset to
 provide ACC and RMSE of the model. At the end of this whole process,
 the user should be able to call the model using an API end point.`,
       difficulty: "Intermediate",
+      estimatedTime: "20-25 hours",
+      repoUrl: "https://github.com/pangeacorp/student-connection-model",
       tags: ["Machine Learning", "Data Preprocessing", "API Development"],
+      collaborators: [],
+      setup: {
+        isCompleted: false,
+        steps: [
+          "Clone the github repo in local using this command: git clone https://github.com/pangeacorp/student-connection-model",
+          "Download csv dataset and add it in the repo",
+          "Run pip install –r requirements.txt in terminal",
+          "Install docker from docker.com",
+          "Install postman from postman.com",
+          "Setup docker container",
+          "Do a test end-to-end run"
+        ]
+      },
       steps: [
         {
+          id: "setup",
           title: "Setup",
           description: "Set up your environment and get the necessary resources.",
           subproblems: [
@@ -52,18 +79,26 @@ the user should be able to call the model using an API end point.`,
             "Setup docker container",
             "Do a test end-to-end run"
           ],
-          isCompleted: true
+          isCompleted: false,
+          assignedTo: "",
+          estimatedHours: 2,
+          reporter: "Pangea Admin"
         },
         {
-          title: "Dashboard",
+          id: "collaboration",
+          title: "Collaboration",
           description: "Set up collaboration and tracking tools.",
           subproblems: [
             "Add users to collaborate: 1 user adds other users in UI and they get automatic access to the github repo",
             "View progress"
           ],
-          isCompleted: false
+          isCompleted: false,
+          assignedTo: "",
+          estimatedHours: 1,
+          reporter: "Pangea Admin"
         },
         {
+          id: "analysis",
           title: "Problem Analysis",
           description: "Break down the problem into manageable sub-problems.",
           subproblems: [
@@ -74,9 +109,13 @@ the user should be able to call the model using an API end point.`,
             "Expose the model through an API",
             "Make a UI that takes input of required input features of the model and shows the prediction to the user on the UI."
           ],
-          isCompleted: false
+          isCompleted: false,
+          assignedTo: "",
+          estimatedHours: 10,
+          reporter: "Pangea Admin"
         },
         {
+          id: "dataset",
           title: "Dataset Analysis",
           description: "Analyze the given dataset to identify key attributes needed for training.",
           subproblems: [
@@ -86,13 +125,38 @@ the user should be able to call the model using an API end point.`,
             "Write a python code that does PCA on dataset",
             "Return python list of attributes"
           ],
-          isCompleted: false
+          acceptanceCriteria: [
+            "Dataset has been properly analyzed using correlation function",
+            "PCA has been performed to identify key attributes",
+            "A list of attributes needed for model training has been identified",
+            "Documentation of dataset analysis has been provided"
+          ],
+          isCompleted: false,
+          assignedTo: "",
+          estimatedHours: 5,
+          reporter: "Pangea Admin"
         },
         {
+          id: "implementation",
           title: "Implementation & Delivery",
           description: "Implement the solution and deliver the final product.",
-          subproblems: [],
-          isCompleted: false
+          subproblems: [
+            "Build the model architecture",
+            "Train the model with identified attributes",
+            "Create API endpoints to access the model",
+            "Build a simple web interface for testing",
+            "Document the process and results"
+          ],
+          acceptanceCriteria: [
+            "Working model with at least 85% accuracy",
+            "API endpoints properly documented and tested",
+            "Web interface for easy testing of the model",
+            "Comprehensive documentation of implementation details"
+          ],
+          isCompleted: false,
+          assignedTo: "",
+          estimatedHours: 8,
+          reporter: "Pangea Admin"
         }
       ],
       requirements: {
@@ -103,15 +167,79 @@ the user should be able to call the model using an API end point.`,
     // Additional problems would be defined here
   ],
   'software-dev': [
-    // Software development problems would be defined here
+    {
+      id: 1,
+      title: "E-commerce Product Recommendation System",
+      description: "Design and implement a microservice-based product recommendation engine for an e-commerce platform.",
+      longDescription: `Create a microservice based recommendation engine that analyzes user behavior, purchase history, and product similarities to provide personalized product recommendations. The system should use a combination of collaborative filtering, content-based filtering, and real-time analytics to suggest products that users are likely to be interested in. The recommendations should be exposed through a RESTful API that can be consumed by front-end applications.`,
+      difficulty: "Advanced",
+      estimatedTime: "25-30 hours",
+      repoUrl: "https://github.com/pangeacorp/ecommerce-recommendation",
+      tags: ["Microservices", "Docker", "API Design"],
+      collaborators: [],
+      setup: {
+        isCompleted: false,
+        steps: [
+          "Clone the github repo using: git clone https://github.com/pangeacorp/ecommerce-recommendation",
+          "Install Docker and Docker Compose",
+          "Run docker-compose up to start the development environment",
+          "Test the API using Postman or curl"
+        ]
+      },
+      steps: [
+        {
+          id: "setup",
+          title: "Setup & Environment",
+          description: "Set up the development environment and infrastructure.",
+          subproblems: [
+            "Clone the repository",
+            "Set up Docker containers",
+            "Configure database connections",
+            "Test basic infrastructure"
+          ],
+          isCompleted: false,
+          assignedTo: "",
+          estimatedHours: 3,
+          reporter: "Pangea Admin"
+        },
+        {
+          id: "datamodel",
+          title: "Data Modeling",
+          description: "Design the data model for products, users, and interactions.",
+          subproblems: [
+            "Design schema for product catalog",
+            "Design schema for user profiles",
+            "Design schema for user-product interactions",
+            "Implement database migrations"
+          ],
+          acceptanceCriteria: [
+            "Complete entity-relationship diagram",
+            "Implemented database schemas with proper indexing",
+            "Migration scripts for setting up test data",
+            "Documentation of data model design decisions"
+          ],
+          isCompleted: false,
+          assignedTo: "",
+          estimatedHours: 5,
+          reporter: "Pangea Admin"
+        },
+        // More steps would be defined here
+      ],
+      requirements: {
+        hardware: "Minimum 16GB RAM, quad-core processor, SSD with 100GB free space",
+        software: "Docker, Docker Compose, Node.js v14+, PostgreSQL, Redis"
+      }
+    },
+    // More software development problems would be defined here
   ]
 };
 
 const ProblemDetails = () => {
   const { category, id } = useParams<{ category: string; id: string }>();
   const navigate = useNavigate();
-  const [currentStep, setCurrentStep] = useState(0);
-  const [activeTab, setActiveTab] = useState('overview');
+  const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  const [activeTab, setActiveTab] = useState('collaboration');
+  const [showHintPanel, setShowHintPanel] = useState(false);
   
   // Find the problem based on the category and id
   const problem = problemsData[category as keyof typeof problemsData]?.find(
@@ -131,29 +259,29 @@ const ProblemDetails = () => {
   }
   
   const handleStepChange = (index: number) => {
-    setCurrentStep(index);
-    setActiveTab('step-details');
+    setCurrentStepIndex(index);
+    setActiveTab('subtask');
   };
   
   const handleNextStep = () => {
-    if (currentStep < problem.steps.length - 1) {
-      setCurrentStep(currentStep + 1);
+    if (currentStepIndex < problem.steps.length - 1) {
+      setCurrentStepIndex(currentStepIndex + 1);
     }
   };
   
   const handlePrevStep = () => {
-    if (currentStep > 0) {
-      setCurrentStep(currentStep - 1);
+    if (currentStepIndex > 0) {
+      setCurrentStepIndex(currentStepIndex - 1);
     }
   };
   
-  const currentStepData = problem.steps[currentStep];
+  const currentStepData = problem.steps[currentStepIndex];
   
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
       
-      <main className="flex-grow pt-28 pb-16">
+      <main className="flex-grow pt-28 pb-16 relative">
         <div className="pangea-container">
           <div className="mb-8">
             <Button 
@@ -176,6 +304,10 @@ const ProblemDetails = () => {
                   }>
                     {problem.difficulty}
                   </Badge>
+                  <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-200">
+                    <Clock className="h-4 w-4 mr-1" />
+                    {problem.estimatedTime}
+                  </Badge>
                   {problem.tags.map((tag, i) => (
                     <Badge key={i} variant="secondary">
                       {tag}
@@ -186,10 +318,10 @@ const ProblemDetails = () => {
               
               <div className="flex gap-2">
                 <Button variant="outline">
-                  Mark as Complete
+                  Track Progress
                 </Button>
                 <Button className="pangea-button-primary">
-                  {currentStepData.isCompleted ? 'Continue' : 'Start Problem'}
+                  Start Challenge
                 </Button>
               </div>
             </div>
@@ -199,14 +331,14 @@ const ProblemDetails = () => {
             <div className="md:col-span-1">
               <Card>
                 <CardHeader>
-                  <CardTitle>Progress</CardTitle>
+                  <CardTitle>Subtasks</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
                     {problem.steps.map((step, index) => (
                       <Button
                         key={index}
-                        variant={currentStep === index ? "default" : "ghost"}
+                        variant={currentStepIndex === index ? "default" : "ghost"}
                         className={`w-full justify-start ${step.isCompleted ? 'text-green-600' : ''}`}
                         onClick={() => handleStepChange(index)}
                       >
@@ -226,9 +358,13 @@ const ProblemDetails = () => {
                       <div className="h-3 w-3 rounded-full bg-green-500"></div>
                       <span>Completed</span>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 mb-2">
                       <div className="h-3 w-3 rounded-full bg-blue-500"></div>
                       <span>Current</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="h-3 w-3 rounded-full bg-gray-300"></div>
+                      <span>Not Started</span>
                     </div>
                   </div>
                 </CardContent>
@@ -237,276 +373,81 @@ const ProblemDetails = () => {
             
             <div className="md:col-span-3">
               <Tabs value={activeTab} onValueChange={setActiveTab}>
-                <TabsList className="grid grid-cols-3 mb-6">
+                <TabsList className="grid grid-cols-4 mb-6">
+                  <TabsTrigger value="collaboration">
+                    <Users className="h-4 w-4 mr-2" />
+                    Collaboration
+                  </TabsTrigger>
                   <TabsTrigger value="overview">
                     <FileText className="h-4 w-4 mr-2" />
                     Overview
                   </TabsTrigger>
-                  <TabsTrigger value="step-details">
-                    <List className="h-4 w-4 mr-2" />
-                    Step Details
+                  <TabsTrigger value="setup">
+                    <Folder className="h-4 w-4 mr-2" />
+                    Setup
                   </TabsTrigger>
-                  <TabsTrigger value="hints">
-                    <HelpCircle className="h-4 w-4 mr-2" />
-                    Hints & FAQ
+                  <TabsTrigger value="subtask">
+                    <List className="h-4 w-4 mr-2" />
+                    Subtask
                   </TabsTrigger>
                 </TabsList>
                 
+                <TabsContent value="collaboration">
+                  <CollaborationPanel 
+                    problem={problem} 
+                    category={category || ''}
+                  />
+                </TabsContent>
+                
                 <TabsContent value="overview">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Problem Overview</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div>
-                        <h3 className="text-lg font-medium mb-2">Description</h3>
-                        <p className="whitespace-pre-line">{problem.longDescription}</p>
-                      </div>
-                      
-                      <div>
-                        <h3 className="text-lg font-medium mb-2">Requirements</h3>
-                        <div className="space-y-2">
-                          <div className="p-4 bg-secondary/30 rounded-lg">
-                            <p className="font-medium">Hardware:</p>
-                            <p>{problem.requirements.hardware}</p>
-                          </div>
-                          <div className="p-4 bg-secondary/30 rounded-lg">
-                            <p className="font-medium">Software:</p>
-                            <p>{problem.requirements.software}</p>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div>
-                        <h3 className="text-lg font-medium mb-2">Steps Overview</h3>
-                        <div className="space-y-3">
-                          {problem.steps.map((step, index) => (
-                            <div 
-                              key={index}
-                              className={`p-4 rounded-lg border ${
-                                step.isCompleted 
-                                  ? 'border-green-200 bg-green-50' 
-                                  : currentStep === index
-                                    ? 'border-blue-200 bg-blue-50'
-                                    : 'border-gray-200 bg-gray-50'
-                              }`}
-                            >
-                              <div className="flex items-start gap-3">
-                                <div className={`flex-shrink-0 h-6 w-6 rounded-full flex items-center justify-center ${
-                                  step.isCompleted 
-                                    ? 'bg-green-500 text-white' 
-                                    : currentStep === index
-                                      ? 'bg-blue-500 text-white'
-                                      : 'bg-gray-200 text-gray-700'
-                                }`}>
-                                  {step.isCompleted ? <CheckCircle className="h-4 w-4" /> : index + 1}
-                                </div>
-                                <div>
-                                  <h4 className="font-medium">{step.title}</h4>
-                                  <p className="text-sm text-muted-foreground mt-1">{step.description}</p>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+                  <OverviewPanel 
+                    problem={problem} 
+                    currentStepIndex={currentStepIndex}
+                    onStepChange={handleStepChange}
+                  />
                 </TabsContent>
                 
-                <TabsContent value="step-details">
-                  <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                      <CardTitle className="flex items-center gap-2">
-                        <span>Step {currentStep + 1}: {currentStepData.title}</span>
-                        {currentStepData.isCompleted && (
-                          <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200">
-                            Completed
-                          </Badge>
-                        )}
-                      </CardTitle>
-                      <div className="flex items-center gap-2">
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={handlePrevStep}
-                          disabled={currentStep === 0}
-                        >
-                          <ChevronLeft className="h-4 w-4" />
-                        </Button>
-                        <span className="text-sm">
-                          {currentStep + 1} of {problem.steps.length}
-                        </span>
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={handleNextStep}
-                          disabled={currentStep === problem.steps.length - 1}
-                        >
-                          <ChevronRight className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                      <div>
-                        <h3 className="text-lg font-medium mb-2">Description</h3>
-                        <p>{currentStepData.description}</p>
-                      </div>
-                      
-                      {currentStepData.subproblems.length > 0 && (
-                        <div>
-                          <h3 className="text-lg font-medium mb-2">Sub-Problems</h3>
-                          <div className="space-y-3">
-                            {currentStepData.subproblems.map((subproblem, index) => (
-                              <div 
-                                key={index}
-                                className="p-4 bg-secondary/30 rounded-lg flex items-start gap-3"
-                              >
-                                <div className="h-6 w-6 rounded-full bg-secondary flex items-center justify-center flex-shrink-0">
-                                  {index + 1}
-                                </div>
-                                <div>
-                                  <p>{subproblem}</p>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                      
-                      <div className="bg-secondary/30 rounded-lg p-4">
-                        <h3 className="text-lg font-medium mb-2">Project Status</h3>
-                        <div className="space-y-3">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">PR Created:</span>
-                            <Badge variant="outline" className="text-amber-800 bg-amber-100">No</Badge>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">PR Merged:</span>
-                            <Badge variant="outline" className="text-amber-800 bg-amber-100">No</Badge>
-                          </div>
-                          <div>
-                            <span className="font-medium">Resolve PR comments:</span>
-                            <div className="mt-2">
-                              <textarea 
-                                className="w-full rounded-md border-gray-300 bg-white px-3 py-2 text-sm"
-                                rows={2}
-                                placeholder="Add comments here (required)"
-                              ></textarea>
-                            </div>
-                          </div>
-                          <div>
-                            <span className="font-medium">Deliverables:</span>
-                            <div className="mt-2">
-                              <textarea 
-                                className="w-full rounded-md border-gray-300 bg-white px-3 py-2 text-sm"
-                                rows={2}
-                                placeholder="List deliverables here (required)"
-                              ></textarea>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div className="flex justify-between pt-4">
-                        <Button 
-                          variant="outline"
-                          onClick={handlePrevStep}
-                          disabled={currentStep === 0}
-                        >
-                          Previous Step
-                        </Button>
-                        <div className="space-x-2">
-                          <Button variant="outline">
-                            Save Progress
-                          </Button>
-                          <Button 
-                            className="pangea-button-primary"
-                            onClick={handleNextStep}
-                            disabled={currentStep === problem.steps.length - 1}
-                          >
-                            {currentStep === problem.steps.length - 1 ? 'Complete' : 'Next Step'}
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+                <TabsContent value="setup">
+                  <SetupPanel 
+                    problem={problem} 
+                    onComplete={() => setActiveTab('subtask')}
+                  />
                 </TabsContent>
                 
-                <TabsContent value="hints">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Hints & FAQ</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
-                        <div className="bg-secondary/30 p-4 rounded-lg">
-                          <h3 className="flex items-center gap-2 font-medium mb-2">
-                            <HelpCircle className="h-5 w-5 text-pangea" />
-                            How do I get started with Docker?
-                          </h3>
-                          <p className="text-muted-foreground">
-                            Docker is a platform that uses containerization to make it easier to create, deploy, and run applications. To get started, download and install Docker Desktop from the official website, then use the Docker CLI to build and run containers.
-                          </p>
-                        </div>
-                        
-                        <div className="bg-secondary/30 p-4 rounded-lg">
-                          <h3 className="flex items-center gap-2 font-medium mb-2">
-                            <HelpCircle className="h-5 w-5 text-pangea" />
-                            What is PCA and when should I use it?
-                          </h3>
-                          <p className="text-muted-foreground">
-                            Principal Component Analysis (PCA) is a dimensionality-reduction technique that transforms a large set of variables into a smaller one that still contains most of the information. Use it when you want to reduce the number of features while preserving as much variance as possible.
-                          </p>
-                        </div>
-                        
-                        <div className="bg-secondary/30 p-4 rounded-lg">
-                          <h3 className="flex items-center gap-2 font-medium mb-2">
-                            <AlertTriangle className="h-5 w-5 text-amber-500" />
-                            Common pitfall: Overfitting
-                          </h3>
-                          <p className="text-muted-foreground">
-                            Be careful not to overfit your model to the training data. This can happen when your model learns the noise in the training data rather than the underlying pattern. Use techniques like cross-validation, regularization, or early stopping to prevent overfitting.
-                          </p>
-                        </div>
-                        
-                        <div className="bg-secondary/30 p-4 rounded-lg">
-                          <h3 className="flex items-center gap-2 font-medium mb-2">
-                            <Terminal className="h-5 w-5 text-pangea" />
-                            Useful code snippet
-                          </h3>
-                          <pre className="bg-gray-800 text-gray-100 p-3 rounded overflow-x-auto text-sm">
-{`# Performing PCA in Python
-from sklearn.decomposition import PCA
-import pandas as pd
-
-# Load your dataset
-data = pd.read_csv('dataset.csv')
-
-# Select features for PCA
-features = data.drop('channel', axis=1)
-
-# Standardize the features
-from sklearn.preprocessing import StandardScaler
-scaler = StandardScaler()
-scaled_features = scaler.fit_transform(features)
-
-# Apply PCA
-pca = PCA(n_components=5)  # Keep top 5 components
-pca_result = pca.fit_transform(scaled_features)
-
-# Variance explained by each component
-print(pca.explained_variance_ratio_)`}
-                          </pre>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+                <TabsContent value="subtask">
+                  <SubtaskPanel 
+                    step={currentStepData}
+                    onPrev={handlePrevStep}
+                    onNext={handleNextStep}
+                    isFirst={currentStepIndex === 0}
+                    isLast={currentStepIndex === problem.steps.length - 1}
+                  />
                 </TabsContent>
               </Tabs>
             </div>
           </div>
         </div>
+        
+        {/* Floating Help Button */}
+        <div className="fixed bottom-8 right-8">
+          <Button 
+            onClick={() => setShowHintPanel(!showHintPanel)} 
+            className="rounded-full h-12 w-12 p-0 shadow-lg"
+          >
+            <HelpCircle className="h-6 w-6" />
+          </Button>
+        </div>
+        
+        {/* Hint Panel */}
+        {showHintPanel && (
+          <div className="fixed bottom-24 right-8 w-80 z-50">
+            <HintPanel 
+              problem={problem}
+              currentStep={currentStepData}
+              onClose={() => setShowHintPanel(false)}
+            />
+          </div>
+        )}
       </main>
       
       <Footer />
