@@ -23,12 +23,14 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
 import { ProblemCard } from '@/components/ProblemCard';
 import { SubmitProblemForm } from '@/components/SubmitProblemForm';
+import { ProblemFilters } from '@/components/ProblemFilters';
 
 const Problems = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('data-science');
   const [showSubmitForm, setShowSubmitForm] = useState(false);
+  const [difficultyFilter, setDifficultyFilter] = useState('all');
 
   useEffect(() => {
     // Scroll to top on initial load
@@ -42,6 +44,10 @@ const Problems = () => {
       duration: 5000,
     });
     setShowSubmitForm(false);
+  };
+
+  const resetFilters = () => {
+    setDifficultyFilter('all');
   };
 
   // Sample problems data for demonstration
@@ -62,6 +68,15 @@ const Problems = () => {
       difficulty: "Advanced",
       tags: ["Classification", "Feature Engineering", "Model Deployment"],
       steps: 4,
+      isCompleted: false,
+    },
+    {
+      id: 3,
+      title: "Data Visualization Dashboard",
+      description: "Create an interactive dashboard to visualize key metrics from a dataset.",
+      difficulty: "Beginner",
+      tags: ["Data Visualization", "Dashboard", "Analytics"],
+      steps: 3,
       isCompleted: false,
     },
     // More samples would be added here
@@ -86,8 +101,28 @@ const Problems = () => {
       steps: 5,
       isCompleted: false,
     },
+    {
+      id: 3,
+      title: "Responsive Portfolio Website",
+      description: "Create a responsive portfolio website using modern web technologies.",
+      difficulty: "Beginner",
+      tags: ["HTML/CSS", "Responsive Design", "JavaScript"],
+      steps: 4,
+      isCompleted: false,
+    },
     // More samples would be added here
   ];
+
+  // Filter problems based on difficulty
+  const filterProblems = (problems: any[]) => {
+    if (difficultyFilter === 'all') {
+      return problems;
+    }
+    return problems.filter(problem => problem.difficulty === difficultyFilter);
+  };
+
+  const filteredDataScience = filterProblems(dataScience);
+  const filteredSoftwareDev = filterProblems(softwareDev);
 
   if (showSubmitForm) {
     return (
@@ -151,20 +186,52 @@ const Problems = () => {
               </Button>
             </div>
 
+            <ProblemFilters 
+              difficulty={difficultyFilter}
+              setDifficulty={setDifficultyFilter}
+              onReset={resetFilters}
+            />
+
             <TabsContent value="data-science" className="mt-6 space-y-6">
-              <div className="grid md:grid-cols-2 gap-6">
-                {dataScience.map(problem => (
-                  <ProblemCard key={problem.id} problem={problem} category="data-science" />
-                ))}
-              </div>
+              {filteredDataScience.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-muted-foreground">No problems match your current filters.</p>
+                  <Button 
+                    variant="outline" 
+                    className="mt-2"
+                    onClick={resetFilters}
+                  >
+                    Reset Filters
+                  </Button>
+                </div>
+              ) : (
+                <div className="grid md:grid-cols-2 gap-6">
+                  {filteredDataScience.map(problem => (
+                    <ProblemCard key={problem.id} problem={problem} category="data-science" />
+                  ))}
+                </div>
+              )}
             </TabsContent>
 
             <TabsContent value="software-dev" className="mt-6 space-y-6">
-              <div className="grid md:grid-cols-2 gap-6">
-                {softwareDev.map(problem => (
-                  <ProblemCard key={problem.id} problem={problem} category="software-dev" />
-                ))}
-              </div>
+              {filteredSoftwareDev.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-muted-foreground">No problems match your current filters.</p>
+                  <Button 
+                    variant="outline" 
+                    className="mt-2"
+                    onClick={resetFilters}
+                  >
+                    Reset Filters
+                  </Button>
+                </div>
+              ) : (
+                <div className="grid md:grid-cols-2 gap-6">
+                  {filteredSoftwareDev.map(problem => (
+                    <ProblemCard key={problem.id} problem={problem} category="software-dev" />
+                  ))}
+                </div>
+              )}
             </TabsContent>
           </Tabs>
 
