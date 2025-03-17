@@ -6,7 +6,6 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { 
-  Clock, 
   CheckCircle, 
   GitBranch, 
   GitPullRequest,
@@ -31,12 +30,6 @@ const OverviewPanel: React.FC<OverviewPanelProps> = ({
   const completedSteps = problem.steps.filter((step: any) => step.isCompleted).length;
   const progressPercentage = (completedSteps / problem.steps.length) * 100;
   
-  // Calculate total estimated time
-  const totalEstimatedHours = problem.steps.reduce(
-    (total: number, step: any) => total + (step.estimatedHours || 0), 
-    0
-  );
-  
   return (
     <Card>
       <CardHeader>
@@ -49,7 +42,7 @@ const OverviewPanel: React.FC<OverviewPanelProps> = ({
         {/* Project Status */}
         <div className="space-y-3">
           <h3 className="text-lg font-medium">Project Status</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="p-4 bg-secondary/30 rounded-lg">
               <div className="flex items-center gap-2 mb-2">
                 <CheckSquare className="h-5 w-5 text-pangea" />
@@ -59,15 +52,6 @@ const OverviewPanel: React.FC<OverviewPanelProps> = ({
               <div className="text-sm text-right text-muted-foreground">
                 {completedSteps}/{problem.steps.length} subtasks
               </div>
-            </div>
-            
-            <div className="p-4 bg-secondary/30 rounded-lg">
-              <div className="flex items-center gap-2 mb-2">
-                <Clock className="h-5 w-5 text-pangea" />
-                <span className="font-medium">Estimated Time</span>
-              </div>
-              <div className="text-2xl font-bold">{totalEstimatedHours} hrs</div>
-              <div className="text-sm text-muted-foreground">Total for all tasks</div>
             </div>
             
             <div className="p-4 bg-secondary/30 rounded-lg">
@@ -149,15 +133,6 @@ const OverviewPanel: React.FC<OverviewPanelProps> = ({
                         <span className="font-medium">{step.assignedTo}</span>
                       </div>
                     )}
-                    
-                    <Button 
-                      variant="link" 
-                      size="sm" 
-                      onClick={() => onStepChange(index)}
-                      className="mt-2 p-0 h-auto text-pangea"
-                    >
-                      View Details
-                    </Button>
                   </div>
                 </div>
               </div>

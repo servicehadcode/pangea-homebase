@@ -4,12 +4,14 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { 
   ClipboardCopy, 
   GitBranch, 
   CheckCircle,
   ExternalLink,
-  Download
+  Download,
+  HelpCircle
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 
@@ -23,11 +25,11 @@ const SetupPanel: React.FC<SetupPanelProps> = ({ problem, onComplete }) => {
   const [setupCompleted, setSetupCompleted] = useState(problem.setup.isCompleted);
   const [completedSteps, setCompletedSteps] = useState<{[key: number]: boolean}>({});
   
-  const handleCopyRepo = () => {
-    navigator.clipboard.writeText(problem.repoUrl);
+  const handleCopyCommand = () => {
+    navigator.clipboard.writeText(`git clone ${problem.repoUrl}`);
     toast({
-      title: "Repository URL Copied",
-      description: "The repository URL has been copied to your clipboard."
+      title: "Command Copied",
+      description: "The git clone command has been copied to your clipboard."
     });
   };
   
@@ -79,25 +81,109 @@ const SetupPanel: React.FC<SetupPanelProps> = ({ problem, onComplete }) => {
             {/* Repository Section */}
             <div className="space-y-3">
               <h3 className="text-lg font-medium">Repository</h3>
-              <div className="flex gap-2">
-                <Input
-                  value={problem.repoUrl}
-                  readOnly
-                  className="flex-1 font-mono text-sm"
-                />
-                <Button onClick={handleCopyRepo}>
-                  <ClipboardCopy className="h-4 w-4" />
-                </Button>
-              </div>
               <div className="flex gap-2 mt-2">
-                <Button variant="outline" className="flex-1">
-                  <GitBranch className="h-4 w-4 mr-2" />
-                  Clone Repository
-                </Button>
-                <Button variant="outline" className="flex-1">
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" className="flex-1">
+                      <GitBranch className="h-4 w-4 mr-2" />
+                      Clone Repository
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>Clone Repository</DialogTitle>
+                      <DialogDescription>
+                        Use this command to clone the repository to your local machine
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="flex items-center space-x-2 mt-4">
+                      <div className="grid flex-1 gap-2">
+                        <div className="flex items-center p-2 bg-secondary/30 rounded-md font-mono text-sm">
+                          git clone {problem.repoUrl}
+                        </div>
+                      </div>
+                      <Button size="sm" onClick={handleCopyCommand}>
+                        <ClipboardCopy className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <DialogFooter className="mt-4">
+                      <DialogClose asChild>
+                        <Button type="button" variant="secondary">
+                          Close
+                        </Button>
+                      </DialogClose>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+                
+                <Button 
+                  variant="outline" 
+                  className="flex-1"
+                  onClick={() => window.open('https://github.com/servicehadcode/pangea-homebase', '_blank')}
+                >
                   <ExternalLink className="h-4 w-4 mr-2" />
-                  Open in GitHub
+                  View in GitHub
                 </Button>
+                
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" className="flex-1">
+                      <HelpCircle className="h-4 w-4 mr-2" />
+                      Git Help
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-lg">
+                    <DialogHeader>
+                      <DialogTitle>Git Commands Help</DialogTitle>
+                      <DialogDescription>
+                        Here are some helpful git commands to get you started
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 my-4">
+                      <div className="space-y-2">
+                        <h4 className="font-medium">Clone to a specific folder</h4>
+                        <div className="p-2 bg-secondary/30 rounded-md font-mono text-sm">
+                          git clone {problem.repoUrl} your-folder-name
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <h4 className="font-medium">Create a new branch</h4>
+                        <div className="p-2 bg-secondary/30 rounded-md font-mono text-sm">
+                          git checkout -b your-branch-name
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <h4 className="font-medium">Stage your changes</h4>
+                        <div className="p-2 bg-secondary/30 rounded-md font-mono text-sm">
+                          git add .
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <h4 className="font-medium">Commit your changes</h4>
+                        <div className="p-2 bg-secondary/30 rounded-md font-mono text-sm">
+                          git commit -m "Your commit message"
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <h4 className="font-medium">Push your changes</h4>
+                        <div className="p-2 bg-secondary/30 rounded-md font-mono text-sm">
+                          git push origin your-branch-name
+                        </div>
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <DialogClose asChild>
+                        <Button type="button" variant="secondary">
+                          Close
+                        </Button>
+                      </DialogClose>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
               </div>
             </div>
             

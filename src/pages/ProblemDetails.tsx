@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Header from '@/components/Header';
@@ -26,17 +25,19 @@ import {
   GitPullRequest,
   Folder,
   Lock,
-  User
+  User,
+  Download
 } from 'lucide-react';
 
 import CollaborationPanel from '@/components/problem/CollaborationPanel';
 import OverviewPanel from '@/components/problem/OverviewPanel';
 import SetupPanel from '@/components/problem/SetupPanel';
 import SubtaskPanel from '@/components/problem/SubtaskPanel';
+import DataPanel from '@/components/problem/DataPanel';
 import HintPanel from '@/components/problem/HintPanel';
 import { useToast } from '@/components/ui/use-toast';
+import { recordUserSession } from '@/services/databaseService';
 
-// Sample problem data (would typically come from an API)
 const problemsData = {
   'data-science': [
     {
@@ -242,20 +243,20 @@ const ProblemDetails = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
-  const [activeTab, setActiveTab] = useState('collaboration');
+  const [activeTab, setActiveTab] = useState('overview');
   const [showHintPanel, setShowHintPanel] = useState(false);
   const [soloMode, setSoloMode] = useState(false);
   
   // Track completion status of each tab
   const [tabsCompleted, setTabsCompleted] = useState({
-    collaboration: false,
     overview: false,
+    collaboration: false,
     setup: false,
     subtask: false
   });
   
   // Define tab order for progression
-  const tabOrder = ['collaboration', 'overview', 'setup', 'subtask'];
+  const tabOrder = ['overview', 'collaboration', 'setup', 'subtask'];
   
   // Find the problem based on the category and id
   const problem = problemsData[category as keyof typeof problemsData]?.find(
@@ -267,8 +268,16 @@ const ProblemDetails = () => {
     
     if (!problem) {
       navigate('/problems');
+    } else {
+      // Record user session in database
+      recordUserSession({
+        problemId: id || '',
+        category: category || '',
+        startTime: new Date().toISOString(),
+        userId: 'anonymous' // Replace with actual user ID when authentication is implemented
+      });
     }
-  }, [problem, navigate]);
+  }, [problem, navigate, category, id]);
   
   if (!problem) {
     return null;
@@ -325,7 +334,7 @@ const ProblemDetails = () => {
       setActiveTab(value);
     } else {
       // Find the last incomplete tab
-      let lastIncompleteTab = 'collaboration';
+      let lastIncompleteTab = 'overview';
       for (const tab of tabOrder) {
         if (!tabsCompleted[tab as keyof typeof tabsCompleted]) {
           lastIncompleteTab = tab;
@@ -366,6 +375,9 @@ const ProblemDetails = () => {
   };
   
   const currentStepData = problem.steps[currentStepIndex];
+  
+  // Check if dataset is available
+  const hasDataset = problem.dataset && problem.dataset.isAvailable === true;
   
   return (
     <div className="min-h-screen flex flex-col">
@@ -454,6 +466,20 @@ const ProblemDetails = () => {
                   
                   <Separator className="my-4" />
                   
+                  {hasDataset && (
+                    <>
+                      <Button
+                        variant="ghost"
+                        className="w-full justify-start"
+                        onClick={() => setActiveTab('data')}
+                      >
+                        <Database className="h-4 w-4 mr-2" />
+                        <span>Dataset</span>
+                      </Button>
+                      <Separator className="my-4" />
+                    </>
+                  )}
+                  
                   <div className="text-sm text-muted-foreground">
                     <div className="flex items-center gap-2 mb-2">
                       <div className="h-3 w-3 rounded-full bg-green-500"></div>
@@ -475,23 +501,23 @@ const ProblemDetails = () => {
             <div className="md:col-span-3">
               <Tabs value={activeTab} onValueChange={handleTabChange}>
                 <TabsList className="grid grid-cols-4 mb-6">
-                  <TabsTrigger value="collaboration">
+                  <TabsTrigger value="overview">
+                    <FileText className="h-4 w-4 mr-2" />
+                    Overview
+                    {tabsCompleted.overview && <CheckCircle className="h-3 w-3 ml-1 text-green-600" />}
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="collaboration" 
+                    disabled={!isTabAccessible('collaboration')}
+                  >
                     {soloMode ? (
                       <User className="h-4 w-4 mr-2" />
                     ) : (
                       <Users className="h-4 w-4 mr-2" />
                     )}
                     {soloMode ? "Solo Mode" : "Collaboration"}
+                    {!isTabAccessible('collaboration') && <Lock className="h-3 w-3 ml-1" />}
                     {tabsCompleted.collaboration && <CheckCircle className="h-3 w-3 ml-1 text-green-600" />}
-                  </TabsTrigger>
-                  <TabsTrigger 
-                    value="overview" 
-                    disabled={!isTabAccessible('overview')}
-                  >
-                    <FileText className="h-4 w-4 mr-2" />
-                    Overview
-                    {!isTabAccessible('overview') && <Lock className="h-3 w-3 ml-1" />}
-                    {tabsCompleted.overview && <CheckCircle className="h-3 w-3 ml-1 text-green-600" />}
                   </TabsTrigger>
                   <TabsTrigger 
                     value="setup"
@@ -513,21 +539,21 @@ const ProblemDetails = () => {
                   </TabsTrigger>
                 </TabsList>
                 
-                <TabsContent value="collaboration">
-                  <CollaborationPanel 
-                    problem={problem} 
-                    category={category || ''}
-                    onComplete={() => completeTab('collaboration')}
-                    onSoloModeSelect={handleSoloModeSelect}
-                  />
-                </TabsContent>
-                
                 <TabsContent value="overview">
                   <OverviewPanel 
                     problem={problem} 
                     currentStepIndex={currentStepIndex}
                     onStepChange={handleStepChange}
                     onComplete={() => completeTab('overview')}
+                  />
+                </TabsContent>
+                
+                <TabsContent value="collaboration">
+                  <CollaborationPanel 
+                    problem={problem} 
+                    category={category || ''}
+                    onComplete={() => completeTab('collaboration')}
+                    onSoloModeSelect={handleSoloModeSelect}
                   />
                 </TabsContent>
                 
@@ -548,6 +574,12 @@ const ProblemDetails = () => {
                     onComplete={() => completeTab('subtask')}
                   />
                 </TabsContent>
+
+                {hasDataset && (
+                  <TabsContent value="data">
+                    <DataPanel dataset={problem.dataset} />
+                  </TabsContent>
+                )}
               </Tabs>
             </div>
           </div>
