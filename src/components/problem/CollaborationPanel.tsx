@@ -14,15 +14,24 @@ import {
   CheckCircle,
   XCircle,
   Users,
-  UserX
+  UserX,
+  Edit,
+  Check,
+  Loader2
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
+import { 
+  sendCollaborationInvite, 
+  updateCollaboratorStatus, 
+  updateCollaboratorName 
+} from '@/services/collaborationService';
 
 interface Collaborator {
   email: string;
   name: string;
   status: 'invited' | 'active';
   assignedTasks: string[];
+  isParent?: boolean;
 }
 
 interface CollaborationPanelProps {
@@ -45,15 +54,20 @@ const CollaborationPanel: React.FC<CollaborationPanelProps> = ({
       email: 'user@example.com',
       name: 'Current User',
       status: 'active',
-      assignedTasks: []
+      assignedTasks: [],
+      isParent: true
     }
   ]);
   const [taskAssignments, setTaskAssignments] = useState<{[key: string]: string}>({});
   const [hasAddedCollaborator, setHasAddedCollaborator] = useState(false);
   const [hasAssignedTask, setHasAssignedTask] = useState(false);
   const [selectedMode, setSelectedMode] = useState<'selection' | 'solo' | 'team'>('selection');
+  const [isInviting, setIsInviting] = useState(false);
+  const [editingName, setEditingName] = useState<string | null>(null);
+  const [newName, setNewName] = useState('');
+  const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
   
-  const handleAddCollaborator = () => {
+  const handleAddCollaborator = async () => {
     if (!newCollaboratorEmail.trim() || !newCollaboratorEmail.includes('@')) {
       toast({
         title: "Invalid Email",
@@ -72,21 +86,45 @@ const CollaborationPanel: React.FC<CollaborationPanelProps> = ({
       return;
     }
     
-    const newCollaborator: Collaborator = {
-      email: newCollaboratorEmail,
-      name: newCollaboratorEmail.split('@')[0],
-      status: 'invited',
-      assignedTasks: []
-    };
+    setIsInviting(true);
     
-    setCollaborators([...collaborators, newCollaborator]);
-    setNewCollaboratorEmail('');
-    setHasAddedCollaborator(true);
-    
-    toast({
-      title: "Invitation Sent",
-      description: `An invitation has been sent to ${newCollaboratorEmail}.`
-    });
+    try {
+      // Send invitation via microservice
+      const response = await sendCollaborationInvite(newCollaboratorEmail);
+      
+      if (response.success) {
+        const newCollaborator: Collaborator = {
+          email: newCollaboratorEmail,
+          name: newCollaboratorEmail.split('@')[0],
+          status: 'invited',
+          assignedTasks: [],
+          isParent: false
+        };
+        
+        setCollaborators([...collaborators, newCollaborator]);
+        setNewCollaboratorEmail('');
+        setHasAddedCollaborator(true);
+        
+        toast({
+          title: "Invitation Sent",
+          description: response.message
+        });
+      } else {
+        toast({
+          title: "Invitation Failed",
+          description: response.message,
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to send invitation. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsInviting(false);
+    }
   };
   
   const handleRemoveCollaborator = (email: string) => {
@@ -99,6 +137,12 @@ const CollaborationPanel: React.FC<CollaborationPanelProps> = ({
   };
   
   const handleAssignTask = (taskId: string, email: string) => {
+    // Skip assignment if task is one of the core tasks that should be available to all
+    const coreTaskIds = ["setup", "collaboration", "analysis"];
+    if (coreTaskIds.includes(taskId)) {
+      return;
+    }
+    
     setTaskAssignments({
       ...taskAssignments,
       [taskId]: email
@@ -158,6 +202,94 @@ const CollaborationPanel: React.FC<CollaborationPanelProps> = ({
       title: "Team Mode Selected",
       description: "You've chosen to collaborate with others on this problem."
     });
+  };
+
+  const handleEditName = (email: string, currentName: string) => {
+    setEditingName(email);
+    setNewName(currentName);
+  };
+
+  const handleSaveName = async (email: string) => {
+    if (newName.trim() === '') {
+      toast({
+        title: "Invalid Name",
+        description: "Name cannot be empty.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      const response = await updateCollaboratorName(email, newName);
+      
+      if (response.success) {
+        setCollaborators(
+          collaborators.map(c => 
+            c.email === email ? { ...c, name: newName } : c
+          )
+        );
+        
+        toast({
+          title: "Name Updated",
+          description: response.message
+        });
+      } else {
+        toast({
+          title: "Update Failed",
+          description: response.message,
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update name. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setEditingName(null);
+    }
+  };
+
+  const handleUpdateStatus = async (email: string, newStatus: 'invited' | 'active') => {
+    setUpdatingStatus(email);
+    
+    try {
+      const response = await updateCollaboratorStatus(email, newStatus);
+      
+      if (response.success) {
+        setCollaborators(
+          collaborators.map(c => 
+            c.email === email ? { ...c, status: newStatus } : c
+          )
+        );
+        
+        toast({
+          title: "Status Updated",
+          description: response.message
+        });
+      } else {
+        toast({
+          title: "Update Failed",
+          description: response.message,
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update status. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setUpdatingStatus(null);
+    }
+  };
+
+  // Determine if a task is assignable or a core task
+  const isAssignableTask = (taskId: string): boolean => {
+    const coreTaskIds = ["setup", "collaboration", "analysis"];
+    return !coreTaskIds.includes(taskId);
   };
 
   // Render the mode selection UI
@@ -295,10 +427,20 @@ const CollaborationPanel: React.FC<CollaborationPanelProps> = ({
               value={newCollaboratorEmail}
               onChange={(e) => setNewCollaboratorEmail(e.target.value)}
               className="flex-1"
+              disabled={isInviting}
             />
-            <Button onClick={handleAddCollaborator}>
-              <UserPlus className="h-4 w-4 mr-2" />
-              Invite
+            <Button onClick={handleAddCollaborator} disabled={isInviting}>
+              {isInviting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Inviting...
+                </>
+              ) : (
+                <>
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Invite
+                </>
+              )}
             </Button>
           </div>
         </div>
@@ -320,23 +462,78 @@ const CollaborationPanel: React.FC<CollaborationPanelProps> = ({
                     <User className="h-5 w-5" />
                   </div>
                   <div>
-                    <div className="font-medium">{collaborator.name}</div>
+                    {editingName === collaborator.email ? (
+                      <div className="flex items-center gap-2">
+                        <Input
+                          value={newName}
+                          onChange={(e) => setNewName(e.target.value)}
+                          className="h-8 w-36"
+                          autoFocus
+                        />
+                        <Button 
+                          size="sm" 
+                          variant="ghost" 
+                          onClick={() => handleSaveName(collaborator.email)}
+                        >
+                          <Check className="h-4 w-4 text-green-500" />
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="ghost" 
+                          onClick={() => setEditingName(null)}
+                        >
+                          <XCircle className="h-4 w-4 text-red-500" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1">
+                        <div className="font-medium">{collaborator.name}</div>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-6 w-6 p-0"
+                          onClick={() => handleEditName(collaborator.email, collaborator.name)}
+                        >
+                          <Edit className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    )}
                     <div className="text-sm text-muted-foreground">{collaborator.email}</div>
                   </div>
                 </div>
                 
                 <div className="flex items-center gap-2">
-                  <Badge variant={collaborator.status === 'active' ? 'default' : 'outline'}>
-                    {collaborator.status === 'active' ? 'Active' : 'Invited'}
-                  </Badge>
-                  {index !== 0 && (
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      onClick={() => handleRemoveCollaborator(collaborator.email)}
-                    >
-                      <UserMinus className="h-4 w-4 text-destructive" />
-                    </Button>
+                  {updatingStatus === collaborator.email ? (
+                    <div className="flex items-center gap-1">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span className="text-sm">Updating...</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <Badge 
+                        variant={collaborator.status === 'active' ? 'default' : 'outline'}
+                        className="cursor-pointer"
+                        onClick={() => {
+                          if (!collaborator.isParent) {
+                            handleUpdateStatus(
+                              collaborator.email, 
+                              collaborator.status === 'active' ? 'invited' : 'active'
+                            );
+                          }
+                        }}
+                      >
+                        {collaborator.status === 'active' ? 'Active' : 'Invited'}
+                      </Badge>
+                      {index !== 0 && (
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => handleRemoveCollaborator(collaborator.email)}
+                        >
+                          <UserMinus className="h-4 w-4 text-destructive" />
+                        </Button>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>
@@ -366,19 +563,30 @@ const CollaborationPanel: React.FC<CollaborationPanelProps> = ({
                 <p className="text-sm text-muted-foreground mb-4">{step.description}</p>
                 
                 <div className="flex items-center justify-between">
-                  <span className="text-sm">Assign to:</span>
-                  <div className="flex gap-2">
-                    {collaborators.map((collaborator, cIndex) => (
-                      <Button
-                        key={cIndex}
-                        variant={taskAssignments[step.id] === collaborator.email ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => handleAssignTask(step.id, collaborator.email)}
-                      >
-                        {collaborator.name.split(' ')[0]}
-                      </Button>
-                    ))}
-                  </div>
+                  {isAssignableTask(step.id) ? (
+                    <>
+                      <span className="text-sm">Assign to:</span>
+                      <div className="flex gap-2">
+                        {collaborators.map((collaborator, cIndex) => (
+                          <Button
+                            key={cIndex}
+                            variant={taskAssignments[step.id] === collaborator.email ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => handleAssignTask(step.id, collaborator.email)}
+                            disabled={!collaborators[0].isParent} // Only parent user can assign tasks
+                          >
+                            {collaborator.name.split(' ')[0]}
+                          </Button>
+                        ))}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="w-full text-center py-1">
+                      <Badge variant="secondary" className="bg-gray-100 text-gray-700">
+                        Available to all collaborators
+                      </Badge>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
