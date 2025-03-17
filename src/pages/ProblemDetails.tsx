@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Header from '@/components/Header';
@@ -24,7 +25,8 @@ import {
   GitBranch,
   GitPullRequest,
   Folder,
-  Lock
+  Lock,
+  User
 } from 'lucide-react';
 
 import CollaborationPanel from '@/components/problem/CollaborationPanel';
@@ -242,6 +244,7 @@ const ProblemDetails = () => {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [activeTab, setActiveTab] = useState('collaboration');
   const [showHintPanel, setShowHintPanel] = useState(false);
+  const [soloMode, setSoloMode] = useState(false);
   
   // Track completion status of each tab
   const [tabsCompleted, setTabsCompleted] = useState({
@@ -356,6 +359,11 @@ const ProblemDetails = () => {
       description: `You've completed the ${tabName} section!`
     });
   };
+
+  const handleSoloModeSelect = () => {
+    setSoloMode(true);
+    completeTab('collaboration');
+  };
   
   const currentStepData = problem.steps[currentStepIndex];
   
@@ -390,7 +398,18 @@ const ProblemDetails = () => {
                     <Clock className="h-4 w-4 mr-1" />
                     {problem.estimatedTime}
                   </Badge>
-                  {problem.tags.map((tag, i) => (
+                  {soloMode ? (
+                    <Badge variant="secondary">
+                      <User className="h-4 w-4 mr-1" />
+                      Solo Mode
+                    </Badge>
+                  ) : (
+                    <Badge variant="secondary">
+                      <Users className="h-4 w-4 mr-1" />
+                      Team Mode
+                    </Badge>
+                  )}
+                  {problem.tags.map((tag: string, i: number) => (
                     <Badge key={i} variant="secondary">
                       {tag}
                     </Badge>
@@ -417,7 +436,7 @@ const ProblemDetails = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
-                    {problem.steps.map((step, index) => (
+                    {problem.steps.map((step: any, index: number) => (
                       <Button
                         key={index}
                         variant={currentStepIndex === index ? "default" : "ghost"}
@@ -457,8 +476,12 @@ const ProblemDetails = () => {
               <Tabs value={activeTab} onValueChange={handleTabChange}>
                 <TabsList className="grid grid-cols-4 mb-6">
                   <TabsTrigger value="collaboration">
-                    <Users className="h-4 w-4 mr-2" />
-                    Collaboration
+                    {soloMode ? (
+                      <User className="h-4 w-4 mr-2" />
+                    ) : (
+                      <Users className="h-4 w-4 mr-2" />
+                    )}
+                    {soloMode ? "Solo Mode" : "Collaboration"}
                     {tabsCompleted.collaboration && <CheckCircle className="h-3 w-3 ml-1 text-green-600" />}
                   </TabsTrigger>
                   <TabsTrigger 
@@ -495,6 +518,7 @@ const ProblemDetails = () => {
                     problem={problem} 
                     category={category || ''}
                     onComplete={() => completeTab('collaboration')}
+                    onSoloModeSelect={handleSoloModeSelect}
                   />
                 </TabsContent>
                 

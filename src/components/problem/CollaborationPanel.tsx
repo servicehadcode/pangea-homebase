@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,7 +12,9 @@ import {
   User, 
   AlignLeft,
   CheckCircle,
-  XCircle
+  XCircle,
+  Users,
+  UserX
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 
@@ -26,9 +29,15 @@ interface CollaborationPanelProps {
   problem: any;
   category: string;
   onComplete: () => void;
+  onSoloModeSelect: () => void;
 }
 
-const CollaborationPanel: React.FC<CollaborationPanelProps> = ({ problem, category, onComplete }) => {
+const CollaborationPanel: React.FC<CollaborationPanelProps> = ({ 
+  problem, 
+  category, 
+  onComplete,
+  onSoloModeSelect
+}) => {
   const { toast } = useToast();
   const [newCollaboratorEmail, setNewCollaboratorEmail] = useState('');
   const [collaborators, setCollaborators] = useState<Collaborator[]>([
@@ -42,6 +51,7 @@ const CollaborationPanel: React.FC<CollaborationPanelProps> = ({ problem, catego
   const [taskAssignments, setTaskAssignments] = useState<{[key: string]: string}>({});
   const [hasAddedCollaborator, setHasAddedCollaborator] = useState(false);
   const [hasAssignedTask, setHasAssignedTask] = useState(false);
+  const [selectedMode, setSelectedMode] = useState<'selection' | 'solo' | 'team'>('selection');
   
   const handleAddCollaborator = () => {
     if (!newCollaboratorEmail.trim() || !newCollaboratorEmail.includes('@')) {
@@ -129,6 +139,144 @@ const CollaborationPanel: React.FC<CollaborationPanelProps> = ({ problem, catego
     }
   };
 
+  const handleSoloModeSelect = () => {
+    setSelectedMode('solo');
+    toast({
+      title: "Solo Mode Selected",
+      description: "You've chosen to work on this problem by yourself."
+    });
+    
+    // Wait a moment before completing to let the user see the toast
+    setTimeout(() => {
+      onSoloModeSelect();
+    }, 1000);
+  };
+
+  const handleTeamModeSelect = () => {
+    setSelectedMode('team');
+    toast({
+      title: "Team Mode Selected",
+      description: "You've chosen to collaborate with others on this problem."
+    });
+  };
+
+  // Render the mode selection UI
+  if (selectedMode === 'selection') {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-2xl">Project Collaboration</CardTitle>
+          <CardDescription>
+            Choose how you want to approach this problem
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Solo Mode Option */}
+            <div 
+              className="border rounded-lg p-6 hover:border-pangea hover:bg-pangea/5 cursor-pointer transition-colors"
+              onClick={handleSoloModeSelect}
+            >
+              <div className="flex flex-col items-center text-center">
+                <div className="h-16 w-16 rounded-full bg-gray-100 flex items-center justify-center mb-4">
+                  <User className="h-8 w-8 text-gray-600" />
+                </div>
+                <h3 className="text-xl font-medium mb-2">Work Solo</h3>
+                <p className="text-muted-foreground mb-4">
+                  Tackle this problem on your own at your own pace.
+                </p>
+                <ul className="text-sm text-left space-y-2 mb-6">
+                  <li className="flex items-start">
+                    <CheckCircle className="h-4 w-4 text-green-500 mr-2 mt-0.5" />
+                    <span>Full control over implementation</span>
+                  </li>
+                  <li className="flex items-start">
+                    <CheckCircle className="h-4 w-4 text-green-500 mr-2 mt-0.5" />
+                    <span>Work at your own schedule</span>
+                  </li>
+                  <li className="flex items-start">
+                    <CheckCircle className="h-4 w-4 text-green-500 mr-2 mt-0.5" />
+                    <span>Learn all aspects of the problem</span>
+                  </li>
+                </ul>
+                <Button variant="outline" className="w-full">
+                  Select Solo Mode
+                </Button>
+              </div>
+            </div>
+
+            {/* Team Mode Option */}
+            <div 
+              className="border rounded-lg p-6 hover:border-pangea hover:bg-pangea/5 cursor-pointer transition-colors"
+              onClick={handleTeamModeSelect}
+            >
+              <div className="flex flex-col items-center text-center">
+                <div className="h-16 w-16 rounded-full bg-gray-100 flex items-center justify-center mb-4">
+                  <Users className="h-8 w-8 text-gray-600" />
+                </div>
+                <h3 className="text-xl font-medium mb-2">Collaborate with Others</h3>
+                <p className="text-muted-foreground mb-4">
+                  Invite team members to collaborate on this problem.
+                </p>
+                <ul className="text-sm text-left space-y-2 mb-6">
+                  <li className="flex items-start">
+                    <CheckCircle className="h-4 w-4 text-green-500 mr-2 mt-0.5" />
+                    <span>Divide work between team members</span>
+                  </li>
+                  <li className="flex items-start">
+                    <CheckCircle className="h-4 w-4 text-green-500 mr-2 mt-0.5" />
+                    <span>Leverage different skills and perspectives</span>
+                  </li>
+                  <li className="flex items-start">
+                    <CheckCircle className="h-4 w-4 text-green-500 mr-2 mt-0.5" />
+                    <span>Complete the project faster</span>
+                  </li>
+                </ul>
+                <Button variant="outline" className="w-full">
+                  Select Team Mode
+                </Button>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Solo mode confirmation
+  if (selectedMode === 'solo') {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-2xl">Solo Mode Selected</CardTitle>
+          <CardDescription>
+            You've chosen to work on this problem by yourself
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="text-center py-8">
+          <div className="flex flex-col items-center">
+            <div className="h-20 w-20 rounded-full bg-gray-100 flex items-center justify-center mb-6">
+              <User className="h-10 w-10 text-gray-600" />
+            </div>
+            <h3 className="text-xl font-medium mb-4">Ready to Begin</h3>
+            <p className="text-muted-foreground max-w-md mx-auto mb-8">
+              You'll be working on this problem independently. All tasks will be assigned to you by default.
+            </p>
+          </div>
+        </CardContent>
+        <CardFooter className="flex justify-end pt-6">
+          <Button 
+            className="pangea-button-primary"
+            onClick={onSoloModeSelect}
+          >
+            Continue to Overview
+          </Button>
+        </CardFooter>
+      </Card>
+    );
+  }
+
+  // Team mode - show the original collaboration UI
   return (
     <Card>
       <CardHeader>
@@ -238,14 +386,13 @@ const CollaborationPanel: React.FC<CollaborationPanelProps> = ({ problem, catego
         </div>
       </CardContent>
       <CardFooter className="flex justify-between pt-6">
-        <div className="text-sm text-muted-foreground">
-          {hasAddedCollaborator || hasAssignedTask ? 
-            <span className="flex items-center text-green-600">
-              <CheckCircle className="h-4 w-4 mr-1" /> Ready to continue
-            </span> : 
-            <span>Add collaborators or assign tasks to continue</span>
-          }
-        </div>
+        <Button 
+          variant="outline" 
+          onClick={() => setSelectedMode('selection')}
+        >
+          <UserX className="h-4 w-4 mr-2" />
+          Switch to Solo Mode
+        </Button>
         <Button 
           className="pangea-button-primary"
           onClick={handleSaveAssignments}
