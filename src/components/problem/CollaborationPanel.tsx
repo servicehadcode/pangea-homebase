@@ -1,6 +1,5 @@
-
 import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -26,9 +25,10 @@ interface Collaborator {
 interface CollaborationPanelProps {
   problem: any;
   category: string;
+  onComplete: () => void;
 }
 
-const CollaborationPanel: React.FC<CollaborationPanelProps> = ({ problem, category }) => {
+const CollaborationPanel: React.FC<CollaborationPanelProps> = ({ problem, category, onComplete }) => {
   const { toast } = useToast();
   const [newCollaboratorEmail, setNewCollaboratorEmail] = useState('');
   const [collaborators, setCollaborators] = useState<Collaborator[]>([
@@ -40,6 +40,8 @@ const CollaborationPanel: React.FC<CollaborationPanelProps> = ({ problem, catego
     }
   ]);
   const [taskAssignments, setTaskAssignments] = useState<{[key: string]: string}>({});
+  const [hasAddedCollaborator, setHasAddedCollaborator] = useState(false);
+  const [hasAssignedTask, setHasAssignedTask] = useState(false);
   
   const handleAddCollaborator = () => {
     if (!newCollaboratorEmail.trim() || !newCollaboratorEmail.includes('@')) {
@@ -69,6 +71,7 @@ const CollaborationPanel: React.FC<CollaborationPanelProps> = ({ problem, catego
     
     setCollaborators([...collaborators, newCollaborator]);
     setNewCollaboratorEmail('');
+    setHasAddedCollaborator(true);
     
     toast({
       title: "Invitation Sent",
@@ -100,10 +103,30 @@ const CollaborationPanel: React.FC<CollaborationPanelProps> = ({ problem, catego
       )
     );
     
+    setHasAssignedTask(true);
+    
     toast({
       title: "Task Assigned",
       description: `Task assigned to ${email}.`
     });
+  };
+
+  const handleSaveAssignments = () => {
+    toast({
+      title: "Assignments Saved",
+      description: "Task assignments have been saved successfully."
+    });
+    
+    // If we have at least added a collaborator or assigned a task, enable completion
+    if (hasAddedCollaborator || hasAssignedTask || Object.keys(taskAssignments).length > 0) {
+      onComplete();
+    } else {
+      toast({
+        title: "Action Required",
+        description: "Please add at least one collaborator or assign a task before proceeding.",
+        variant: "destructive"
+      });
+    }
   };
 
   return (
@@ -213,13 +236,23 @@ const CollaborationPanel: React.FC<CollaborationPanelProps> = ({ problem, catego
             ))}
           </div>
         </div>
-        
-        <div className="flex justify-end mt-6">
-          <Button className="pangea-button-primary">
-            Save Assignments
-          </Button>
-        </div>
       </CardContent>
+      <CardFooter className="flex justify-between pt-6">
+        <div className="text-sm text-muted-foreground">
+          {hasAddedCollaborator || hasAssignedTask ? 
+            <span className="flex items-center text-green-600">
+              <CheckCircle className="h-4 w-4 mr-1" /> Ready to continue
+            </span> : 
+            <span>Add collaborators or assign tasks to continue</span>
+          }
+        </div>
+        <Button 
+          className="pangea-button-primary"
+          onClick={handleSaveAssignments}
+        >
+          Complete & Continue
+        </Button>
+      </CardFooter>
     </Card>
   );
 };

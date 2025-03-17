@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -18,12 +18,14 @@ interface OverviewPanelProps {
   problem: any;
   currentStepIndex: number;
   onStepChange: (index: number) => void;
+  onComplete: () => void;
 }
 
 const OverviewPanel: React.FC<OverviewPanelProps> = ({ 
   problem, 
   currentStepIndex, 
-  onStepChange 
+  onStepChange,
+  onComplete
 }) => {
   // Calculate progress
   const completedSteps = problem.steps.filter((step: any) => step.isCompleted).length;
@@ -163,6 +165,14 @@ const OverviewPanel: React.FC<OverviewPanelProps> = ({
           </div>
         </div>
       </CardContent>
+      <CardFooter className="flex justify-end pt-6">
+        <Button 
+          className="pangea-button-primary"
+          onClick={onComplete}
+        >
+          I've Reviewed the Overview
+        </Button>
+      </CardFooter>
     </Card>
   );
 };

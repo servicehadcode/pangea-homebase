@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Header from '@/components/Header';
@@ -24,7 +23,8 @@ import {
   Clock,
   GitBranch,
   GitPullRequest,
-  Folder
+  Folder,
+  Lock
 } from 'lucide-react';
 
 import CollaborationPanel from '@/components/problem/CollaborationPanel';
@@ -32,6 +32,7 @@ import OverviewPanel from '@/components/problem/OverviewPanel';
 import SetupPanel from '@/components/problem/SetupPanel';
 import SubtaskPanel from '@/components/problem/SubtaskPanel';
 import HintPanel from '@/components/problem/HintPanel';
+import { useToast } from '@/components/ui/use-toast';
 
 // Sample problem data (would typically come from an API)
 const problemsData = {
@@ -237,9 +238,21 @@ the user should be able to call the model using an API end point.`,
 const ProblemDetails = () => {
   const { category, id } = useParams<{ category: string; id: string }>();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [activeTab, setActiveTab] = useState('collaboration');
   const [showHintPanel, setShowHintPanel] = useState(false);
+  
+  // Track completion status of each tab
+  const [tabsCompleted, setTabsCompleted] = useState({
+    collaboration: false,
+    overview: false,
+    setup: false,
+    subtask: false
+  });
+  
+  // Define tab order for progression
+  const tabOrder = ['collaboration', 'overview', 'setup', 'subtask'];
   
   // Find the problem based on the category and id
   const problem = problemsData[category as keyof typeof problemsData]?.find(
@@ -260,7 +273,9 @@ const ProblemDetails = () => {
   
   const handleStepChange = (index: number) => {
     setCurrentStepIndex(index);
-    setActiveTab('subtask');
+    if (tabsCompleted.setup) {
+      setActiveTab('subtask');
+    }
   };
   
   const handleNextStep = () => {
@@ -273,6 +288,73 @@ const ProblemDetails = () => {
     if (currentStepIndex > 0) {
       setCurrentStepIndex(currentStepIndex - 1);
     }
+  };
+  
+  const isTabAccessible = (tabName: string) => {
+    const currentIndex = tabOrder.indexOf(activeTab);
+    const targetIndex = tabOrder.indexOf(tabName);
+    
+    // Previous tabs are always accessible
+    if (targetIndex < currentIndex) return true;
+    
+    // Current tab is accessible
+    if (targetIndex === currentIndex) return true;
+    
+    // Next tab is accessible if previous tab is completed
+    if (targetIndex === currentIndex + 1) {
+      const previousTab = tabOrder[currentIndex];
+      return tabsCompleted[previousTab as keyof typeof tabsCompleted];
+    }
+    
+    // Other future tabs require all previous tabs to be completed
+    for (let i = 0; i < targetIndex; i++) {
+      const prevTab = tabOrder[i];
+      if (!tabsCompleted[prevTab as keyof typeof tabsCompleted]) {
+        return false;
+      }
+    }
+    
+    return true;
+  };
+  
+  const handleTabChange = (value: string) => {
+    if (isTabAccessible(value)) {
+      setActiveTab(value);
+    } else {
+      // Find the last incomplete tab
+      let lastIncompleteTab = 'collaboration';
+      for (const tab of tabOrder) {
+        if (!tabsCompleted[tab as keyof typeof tabsCompleted]) {
+          lastIncompleteTab = tab;
+          break;
+        }
+      }
+      
+      toast({
+        title: "Tab locked",
+        description: `You need to complete the ${lastIncompleteTab} section first.`,
+        variant: "destructive"
+      });
+    }
+  };
+  
+  const completeTab = (tabName: string) => {
+    setTabsCompleted(prev => ({
+      ...prev,
+      [tabName]: true
+    }));
+    
+    // Auto advance to next tab if available
+    const currentIndex = tabOrder.indexOf(tabName);
+    if (currentIndex < tabOrder.length - 1) {
+      const nextTab = tabOrder[currentIndex + 1];
+      setActiveTab(nextTab);
+    }
+    
+    toast({
+      title: "Section Completed",
+      description: `You've completed the ${tabName} section!`
+    });
   };
   
   const currentStepData = problem.steps[currentStepIndex];
@@ -372,23 +454,39 @@ const ProblemDetails = () => {
             </div>
             
             <div className="md:col-span-3">
-              <Tabs value={activeTab} onValueChange={setActiveTab}>
+              <Tabs value={activeTab} onValueChange={handleTabChange}>
                 <TabsList className="grid grid-cols-4 mb-6">
                   <TabsTrigger value="collaboration">
                     <Users className="h-4 w-4 mr-2" />
                     Collaboration
+                    {tabsCompleted.collaboration && <CheckCircle className="h-3 w-3 ml-1 text-green-600" />}
                   </TabsTrigger>
-                  <TabsTrigger value="overview">
+                  <TabsTrigger 
+                    value="overview" 
+                    disabled={!isTabAccessible('overview')}
+                  >
                     <FileText className="h-4 w-4 mr-2" />
                     Overview
+                    {!isTabAccessible('overview') && <Lock className="h-3 w-3 ml-1" />}
+                    {tabsCompleted.overview && <CheckCircle className="h-3 w-3 ml-1 text-green-600" />}
                   </TabsTrigger>
-                  <TabsTrigger value="setup">
+                  <TabsTrigger 
+                    value="setup"
+                    disabled={!isTabAccessible('setup')}
+                  >
                     <Folder className="h-4 w-4 mr-2" />
                     Setup
+                    {!isTabAccessible('setup') && <Lock className="h-3 w-3 ml-1" />}
+                    {tabsCompleted.setup && <CheckCircle className="h-3 w-3 ml-1 text-green-600" />}
                   </TabsTrigger>
-                  <TabsTrigger value="subtask">
+                  <TabsTrigger 
+                    value="subtask"
+                    disabled={!isTabAccessible('subtask')}
+                  >
                     <List className="h-4 w-4 mr-2" />
                     Subtask
+                    {!isTabAccessible('subtask') && <Lock className="h-3 w-3 ml-1" />}
+                    {tabsCompleted.subtask && <CheckCircle className="h-3 w-3 ml-1 text-green-600" />}
                   </TabsTrigger>
                 </TabsList>
                 
@@ -396,6 +494,7 @@ const ProblemDetails = () => {
                   <CollaborationPanel 
                     problem={problem} 
                     category={category || ''}
+                    onComplete={() => completeTab('collaboration')}
                   />
                 </TabsContent>
                 
@@ -404,13 +503,14 @@ const ProblemDetails = () => {
                     problem={problem} 
                     currentStepIndex={currentStepIndex}
                     onStepChange={handleStepChange}
+                    onComplete={() => completeTab('overview')}
                   />
                 </TabsContent>
                 
                 <TabsContent value="setup">
                   <SetupPanel 
                     problem={problem} 
-                    onComplete={() => setActiveTab('subtask')}
+                    onComplete={() => completeTab('setup')}
                   />
                 </TabsContent>
                 
@@ -421,6 +521,7 @@ const ProblemDetails = () => {
                     onNext={handleNextStep}
                     isFirst={currentStepIndex === 0}
                     isLast={currentStepIndex === problem.steps.length - 1}
+                    onComplete={() => completeTab('subtask')}
                   />
                 </TabsContent>
               </Tabs>

@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
@@ -24,6 +24,7 @@ interface SubtaskPanelProps {
   onNext: () => void;
   isFirst: boolean;
   isLast: boolean;
+  onComplete?: () => void;
 }
 
 const SubtaskPanel: React.FC<SubtaskPanelProps> = ({ 
@@ -31,7 +32,8 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
   onPrev,
   onNext,
   isFirst,
-  isLast
+  isLast,
+  onComplete
 }) => {
   const { toast } = useToast();
   const [branchCreated, setBranchCreated] = useState(false);
@@ -77,7 +79,7 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
     if (!prComments.trim()) {
       toast({
         title: "PR Comments Required",
-        description: "Please add comments resolving PR feedback.",
+        description: "Please add comments addressing PR feedback.",
         variant: "destructive"
       });
       return;
@@ -97,7 +99,12 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
       description: `You have completed: ${step.title}`
     });
     
-    onNext();
+    // If we're at the last step and have onComplete callback, call it
+    if (isLast && onComplete) {
+      onComplete();
+    } else {
+      onNext();
+    }
   };
   
   return (
@@ -248,36 +255,35 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
               />
             </div>
           </CardContent>
+          <CardFooter className="flex justify-between pt-4">
+            <Button 
+              variant="outline"
+              onClick={onPrev}
+              disabled={isFirst}
+              className="flex items-center"
+            >
+              <ChevronLeft className="h-4 w-4 mr-1" />
+              Previous Subtask
+            </Button>
+            
+            {isLast ? (
+              <Button 
+                className="pangea-button-primary flex items-center"
+                onClick={handleComplete}
+              >
+                Complete Task
+              </Button>
+            ) : (
+              <Button 
+                className="pangea-button-primary flex items-center"
+                onClick={handleComplete}
+              >
+                Complete & Next
+                <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            )}
+          </CardFooter>
         </Card>
-        
-        <div className="flex justify-between pt-4">
-          <Button 
-            variant="outline"
-            onClick={onPrev}
-            disabled={isFirst}
-            className="flex items-center"
-          >
-            <ChevronLeft className="h-4 w-4 mr-1" />
-            Previous Subtask
-          </Button>
-          
-          {isLast ? (
-            <Button 
-              className="pangea-button-primary flex items-center"
-              onClick={handleComplete}
-            >
-              Complete Task
-            </Button>
-          ) : (
-            <Button 
-              className="pangea-button-primary flex items-center"
-              onClick={handleComplete}
-            >
-              Complete & Next
-              <ChevronRight className="h-4 w-4 ml-1" />
-            </Button>
-          )}
-        </div>
       </div>
     </div>
   );
