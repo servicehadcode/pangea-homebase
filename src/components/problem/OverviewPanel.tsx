@@ -105,56 +105,6 @@ const OverviewPanel: React.FC<OverviewPanelProps> = ({
             </div>
           </div>
         </div>
-        
-        <Separator />
-        
-        {/* Subtasks Overview */}
-        <div className="space-y-3">
-          <h3 className="text-lg font-medium">Subtasks Overview</h3>
-          
-          <div className="space-y-4">
-            {actualSubtasks.map((step: any, index: number) => (
-              <div 
-                key={index}
-                className={`p-4 rounded-lg border ${
-                  step.isCompleted 
-                    ? 'border-green-200 bg-green-50' 
-                    : currentStepIndex === problem.steps.indexOf(step)
-                      ? 'border-blue-200 bg-blue-50'
-                      : 'border-gray-200 bg-gray-50'
-                }`}
-              >
-                <div className="flex items-start gap-3">
-                  <div className={`flex-shrink-0 h-6 w-6 rounded-full flex items-center justify-center ${
-                    step.isCompleted 
-                      ? 'bg-green-500 text-white' 
-                      : currentStepIndex === problem.steps.indexOf(step)
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-gray-200 text-gray-700'
-                  }`}>
-                    {step.isCompleted ? <CheckCircle className="h-4 w-4" /> : index + 1}
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex justify-between items-start">
-                      <h4 className="font-medium">{step.title}</h4>
-                      <Badge variant="outline">
-                        {step.estimatedHours} hrs
-                      </Badge>
-                    </div>
-                    <p className="text-sm text-muted-foreground mt-1">{step.description}</p>
-                    
-                    {step.assignedTo && (
-                      <div className="mt-2 text-sm">
-                        <span className="text-muted-foreground">Assigned to: </span>
-                        <span className="font-medium">{step.assignedTo}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
       </CardContent>
       <CardFooter className="flex justify-end pt-6">
         <Button 

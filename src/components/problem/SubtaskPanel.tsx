@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -32,6 +31,7 @@ interface SubtaskPanelProps {
   onComplete?: () => void;
   isSoloMode: boolean;
   sessionId?: string;
+  username?: string;
 }
 
 const SubtaskPanel: React.FC<SubtaskPanelProps> = ({ 
@@ -42,27 +42,37 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
   isLast,
   onComplete,
   isSoloMode,
-  sessionId
+  sessionId,
+  username = 'User'
 }) => {
   const { toast } = useToast();
   const [branchCreated, setBranchCreated] = useState(false);
   const [prCreated, setPrCreated] = useState(false);
   const [prComments, setPrComments] = useState('');
   const [deliverables, setDeliverables] = useState('');
-  const [reporter, setReporter] = useState(step.reporter || 'Pangea Admin');
-  const [assignee, setAssignee] = useState(step.assignedTo || 'Unassigned');
+  
+  const defaultAssignee = isSoloMode ? username : (step.assignedTo || 'Unassigned');
+  const defaultReporter = isSoloMode ? username : (step.reporter || 'Pangea Admin');
+  
+  const [reporter, setReporter] = useState(defaultReporter);
+  const [assignee, setAssignee] = useState(defaultAssignee);
   const [isEditingReporter, setIsEditingReporter] = useState(false);
   const [isEditingAssignee, setIsEditingAssignee] = useState(false);
   
-  // Reset form fields when step changes
   useEffect(() => {
     setBranchCreated(false);
     setPrCreated(false);
     setPrComments('');
     setDeliverables('');
-    setReporter(step.reporter || 'Pangea Admin');
-    setAssignee(step.assignedTo || 'Unassigned');
-  }, [step]);
+    
+    const newAssignee = isSoloMode ? username : (step.assignedTo || 'Unassigned');
+    const newReporter = isSoloMode ? username : (step.reporter || 'Pangea Admin');
+    setReporter(newReporter);
+    setAssignee(newAssignee);
+    
+    setIsEditingReporter(false);
+    setIsEditingAssignee(false);
+  }, [step, isSoloMode, username]);
   
   const handleCreateBranch = () => {
     setBranchCreated(true);
@@ -149,19 +159,17 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
       return;
     }
     
-    // Store subtask data in database
     if (sessionId) {
-      // Generate a random subtask ID for this demo
       const subtaskId = Math.random().toString(36).substring(2, 15);
       
-      // Update session progress in the database
-      updateSessionProgress(sessionId, 50); // Example progress value
+      updateSessionProgress(sessionId, 50);
       
-      // In a real app, we would store the full details including PR comments and deliverables
       console.log('Storing subtask data:', {
         subtaskId,
         sessionId,
         title: step.title,
+        assignee,
+        reporter,
         prComments,
         deliverables,
         completedAt: new Date().toISOString()
@@ -173,7 +181,6 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
       description: `You have completed: ${step.title}`
     });
     
-    // If we're at the last step and have onComplete callback, call it
     if (isLast && onComplete) {
       onComplete();
     } else {
@@ -196,7 +203,6 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
   
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      {/* Left column - Description and criteria */}
       <div className="space-y-6">
         <Card>
           <CardHeader>
@@ -251,7 +257,6 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
         </Card>
       </div>
       
-      {/* Right column - Implementation and status */}
       <div className="space-y-6">
         <Card>
           <CardHeader>

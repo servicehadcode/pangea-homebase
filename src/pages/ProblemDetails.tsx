@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
+import { Progress } from '@/components/ui/progress';
 import { 
   ArrowLeft, 
   CheckCircle, 
@@ -306,6 +307,7 @@ const ProblemDetails = () => {
   const [soloMode, setSoloMode] = useState(false);
   const [hasDataset, setHasDataset] = useState(false);
   const [sessionId, setSessionId] = useState<string | undefined>(undefined);
+  const [username, setUsername] = useState<string>('User');
   
   const [tabsCompleted, setTabsCompleted] = useState({
     overview: false,
@@ -327,6 +329,11 @@ const ProblemDetails = () => {
   };
   
   const actualSubtasks = getActualSubtasks();
+  
+  const completedSubtasks = actualSubtasks.filter((step: any) => step.isCompleted).length;
+  const progressPercentage = actualSubtasks.length > 0 
+    ? (completedSubtasks / actualSubtasks.length) * 100 
+    : 0;
   
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -460,8 +467,9 @@ const ProblemDetails = () => {
     });
   };
 
-  const handleSoloModeSelect = () => {
+  const handleSoloModeSelect = (name: string) => {
     setSoloMode(true);
+    setUsername(name || 'User');
     completeTab('collaboration');
   };
   
@@ -536,42 +544,42 @@ const ProblemDetails = () => {
             <div className="md:col-span-1">
               <Card>
                 <CardHeader>
-                  <CardTitle>Subtasks</CardTitle>
+                  <CardTitle>Progress</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-2">
-                    {activeTab === 'subtask' && tabsCompleted.setup ? (
-                      actualSubtasks.map((step: any, index: number) => (
-                        <Button
-                          key={index}
-                          variant={currentStepIndex === index ? "default" : "ghost"}
-                          className={`w-full justify-start ${step.isCompleted ? 'text-green-600' : ''}`}
-                          onClick={() => handleStepChange(index)}
-                        >
-                          {step.isCompleted && <CheckCircle className="h-4 w-4 mr-2" />}
-                          {!step.isCompleted && <div className="h-4 w-4 rounded-full border border-current mr-2 flex items-center justify-center">
-                            {index + 1}
-                          </div>}
-                          <span className="truncate">{step.title}</span>
-                        </Button>
-                      ))
-                    ) : (
-                      problem.steps.map((step: any, index: number) => (
-                        <Button
-                          key={index}
-                          variant={currentStepIndex === problem.steps.indexOf(step) ? "default" : "ghost"}
-                          className={`w-full justify-start ${step.isCompleted ? 'text-green-600' : ''}`}
-                          onClick={() => handleStepChange(problem.steps.indexOf(step))}
-                        >
-                          {step.isCompleted && <CheckCircle className="h-4 w-4 mr-2" />}
-                          {!step.isCompleted && <div className="h-4 w-4 rounded-full border border-current mr-2 flex items-center justify-center">
-                            {index + 1}
-                          </div>}
-                          <span className="truncate">{step.title}</span>
-                        </Button>
-                      ))
-                    )}
-                  </div>
+                  {activeTab === 'subtask' && tabsCompleted.setup ? (
+                    <div className="space-y-4">
+                      <div className="p-4 bg-secondary/30 rounded-lg">
+                        <h3 className="font-medium mb-2">Subtask Progress</h3>
+                        <Progress value={progressPercentage} className="h-2 mb-2" />
+                        <div className="text-sm text-right text-muted-foreground">
+                          {completedSubtasks}/{actualSubtasks.length} subtasks
+                        </div>
+                      </div>
+                      
+                      <div className="p-4 bg-secondary/30 rounded-lg">
+                        <h3 className="font-medium mb-2">Current Subtask</h3>
+                        <div className="text-sm font-medium">
+                          {currentActualSubtask?.title || 'No subtask selected'}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="p-4 bg-secondary/30 rounded-lg">
+                        <h3 className="font-medium mb-2">Setup Progress</h3>
+                        <Progress 
+                          value={tabsCompleted.overview ? 33 : 0 + 
+                                 tabsCompleted.collaboration ? 33 : 0 + 
+                                 tabsCompleted.setup ? 34 : 0} 
+                          className="h-2 mb-2" 
+                        />
+                        <div className="text-sm text-muted-foreground">
+                          Complete all setup steps to start working on subtasks
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   
                   <Separator className="my-4" />
                   
@@ -580,7 +588,10 @@ const ProblemDetails = () => {
                       <Button
                         variant="ghost"
                         className="w-full justify-start"
-                        onClick={() => setActiveTab('data')}
+                        onClick={() => {
+                          setPreviousTab(activeTab);
+                          setActiveTab('data');
+                        }}
                       >
                         <Database className="h-4 w-4 mr-2" />
                         <span>Dataset</span>
@@ -683,6 +694,7 @@ const ProblemDetails = () => {
                     onComplete={() => completeTab('subtask')}
                     isSoloMode={soloMode}
                     sessionId={sessionId}
+                    username={username}
                   />
                 </TabsContent>
 
