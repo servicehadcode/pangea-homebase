@@ -33,12 +33,17 @@ export const ProblemCard: React.FC<ProblemProps> = ({ problem, category }) => {
   };
 
   return (
-    <Card className="h-full flex flex-col hover:shadow-md transition-all duration-300 overflow-hidden border border-border animate-fade-in">
+    <Card className={`h-full flex flex-col hover:shadow-md transition-all duration-300 overflow-hidden border border-border animate-fade-in ${problem.isCompleted ? 'border-green-200 bg-green-50/30' : ''}`}>
       <CardHeader className="pb-2">
         <div className="flex justify-between items-start">
           <CardTitle className="text-xl">{problem.title}</CardTitle>
           {problem.isCompleted && (
-            <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0" />
+            <div className="flex items-center">
+              <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200 mr-1">
+                Completed
+              </Badge>
+              <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0" />
+            </div>
           )}
         </div>
         <div className="flex items-center gap-2 mt-2">
@@ -65,7 +70,7 @@ export const ProblemCard: React.FC<ProblemProps> = ({ problem, category }) => {
           onClick={handleViewProblem} 
           className="w-full flex items-center justify-between pangea-button-primary"
         >
-          <span>{problem.isCompleted ? 'Continue' : 'Start Problem'}</span>
+          <span>{problem.isCompleted ? 'Review Solution' : 'Start Problem'}</span>
           <ChevronRight className="h-4 w-4" />
         </Button>
       </CardFooter>

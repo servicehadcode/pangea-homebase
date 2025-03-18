@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '@/components/Header';
@@ -33,9 +32,40 @@ const Problems = () => {
   const [difficultyFilter, setDifficultyFilter] = useState('all');
 
   useEffect(() => {
-    // Scroll to top on initial load
     window.scrollTo(0, 0);
+    
+    const completedProblems = JSON.parse(localStorage.getItem('completedProblems') || '{}');
+    
+    if (Object.keys(completedProblems).length > 0) {
+      setDataScience(prev => prev.map(problem => ({
+        ...problem,
+        isCompleted: completedProblems[`data-science-${problem.id}`] || false
+      })));
+      
+      setSoftwareDev(prev => prev.map(problem => ({
+        ...problem,
+        isCompleted: completedProblems[`software-dev-${problem.id}`] || false
+      })));
+    }
   }, []);
+
+  useEffect(() => {
+    const completedProblems: Record<string, boolean> = {};
+    
+    dataScience.forEach(problem => {
+      if (problem.isCompleted) {
+        completedProblems[`data-science-${problem.id}`] = true;
+      }
+    });
+    
+    softwareDev.forEach(problem => {
+      if (problem.isCompleted) {
+        completedProblems[`software-dev-${problem.id}`] = true;
+      }
+    });
+    
+    localStorage.setItem('completedProblems', JSON.stringify(completedProblems));
+  }, [dataScience, softwareDev]);
 
   const handleSubmitProblem = (data: any) => {
     toast({
@@ -50,8 +80,7 @@ const Problems = () => {
     setDifficultyFilter('all');
   };
 
-  // Sample problems data for demonstration
-  const dataScience = [
+  const [dataScience, setDataScience] = useState([
     {
       id: 1,
       title: "Student Connection Channel Prediction",
@@ -79,10 +108,9 @@ const Problems = () => {
       steps: 3,
       isCompleted: false,
     },
-    // More samples would be added here
-  ];
+  ]);
 
-  const softwareDev = [
+  const [softwareDev, setSoftwareDev] = useState([
     {
       id: 1,
       title: "E-commerce Product Recommendation System",
@@ -110,10 +138,8 @@ const Problems = () => {
       steps: 4,
       isCompleted: false,
     },
-    // More samples would be added here
-  ];
+  ]);
 
-  // Filter problems based on difficulty
   const filterProblems = (problems: any[]) => {
     if (difficultyFilter === 'all') {
       return problems;

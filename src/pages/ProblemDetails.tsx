@@ -29,6 +29,7 @@ import SetupPanel from '@/components/problem/SetupPanel';
 import SubtaskPanel from '@/components/problem/SubtaskPanel';
 import DataPanel from '@/components/problem/DataPanel';
 import HintPanel from '@/components/problem/HintPanel';
+import SummaryPanel from '@/components/problem/SummaryPanel';
 import { useToast } from '@/components/ui/use-toast';
 import { recordUserSession, checkDatasetAvailability, updateSessionProgress } from '@/services/databaseService';
 
@@ -308,6 +309,8 @@ const ProblemDetails = () => {
   const [hasDataset, setHasDataset] = useState(false);
   const [sessionId, setSessionId] = useState<string | undefined>(undefined);
   const [username, setUsername] = useState<string>('User');
+  const [showSummary, setShowSummary] = useState(false);
+  const [completedSubtasksCount, setCompletedSubtasksCount] = useState(0);
   
   const [tabsCompleted, setTabsCompleted] = useState({
     overview: false,
@@ -329,11 +332,6 @@ const ProblemDetails = () => {
   };
   
   const actualSubtasks = getActualSubtasks();
-  
-  const completedSubtasks = actualSubtasks.filter((step: any) => step.isCompleted).length;
-  const progressPercentage = actualSubtasks.length > 0 
-    ? (completedSubtasks / actualSubtasks.length) * 100 
-    : 0;
   
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -477,7 +475,48 @@ const ProblemDetails = () => {
     setActiveTab(previousTab);
   };
   
+  const handleCompleteSubtask = (skipMode = false) => {
+    if (!skipMode) {
+      setCompletedSubtasksCount(prev => prev + 1);
+    }
+    
+    const isLastSubtask = currentStepIndex === actualSubtasks.length - 1;
+    
+    if (isLastSubtask) {
+      setShowSummary(true);
+    } else {
+      handleNextStep();
+    }
+  };
+  
+  const handleBackToProblems = () => {
+    if (problem) {
+      problem.isCompleted = true;
+    }
+    
+    navigate('/problems');
+  };
+  
   const currentActualSubtask = actualSubtasks[currentStepIndex];
+  
+  if (showSummary) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        <main className="flex-grow pt-28 pb-16">
+          <div className="pangea-container max-w-4xl mx-auto">
+            <SummaryPanel 
+              problem={problem}
+              completedSubtasks={completedSubtasksCount}
+              totalSubtasks={actualSubtasks.length}
+              onBackToProblems={handleBackToProblems}
+            />
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
   
   return (
     <div className="min-h-screen flex flex-col">
@@ -551,9 +590,12 @@ const ProblemDetails = () => {
                     <div className="space-y-4">
                       <div className="p-4 bg-secondary/30 rounded-lg">
                         <h3 className="font-medium mb-2">Subtask Progress</h3>
-                        <Progress value={progressPercentage} className="h-2 mb-2" />
+                        <Progress 
+                          value={(completedSubtasksCount / actualSubtasks.length) * 100} 
+                          className="h-2 mb-2" 
+                        />
                         <div className="text-sm text-right text-muted-foreground">
-                          {completedSubtasks}/{actualSubtasks.length} subtasks
+                          {completedSubtasksCount}/{actualSubtasks.length} subtasks
                         </div>
                       </div>
                       
@@ -569,9 +611,11 @@ const ProblemDetails = () => {
                       <div className="p-4 bg-secondary/30 rounded-lg">
                         <h3 className="font-medium mb-2">Setup Progress</h3>
                         <Progress 
-                          value={tabsCompleted.overview ? 33 : 0 + 
-                                 tabsCompleted.collaboration ? 33 : 0 + 
-                                 tabsCompleted.setup ? 34 : 0} 
+                          value={
+                            (tabsCompleted.overview ? 33 : 0) + 
+                            (tabsCompleted.collaboration ? 33 : 0) + 
+                            (tabsCompleted.setup ? 34 : 0)
+                          } 
                           className="h-2 mb-2" 
                         />
                         <div className="text-sm text-muted-foreground">
@@ -691,7 +735,20 @@ const ProblemDetails = () => {
                     onNext={handleNextStep}
                     isFirst={currentStepIndex === 0}
                     isLast={currentStepIndex === actualSubtasks.length - 1}
-                    onComplete={() => completeTab('subtask')}
+                    onComplete={() => {
+                      if (currentStepIndex === actualSubtasks.length - 1) {
+                        handleCompleteSubtask(false);
+                      } else {
+                        handleCompleteSubtask(false);
+                      }
+                    }}
+                    onSkip={() => {
+                      if (currentStepIndex === actualSubtasks.length - 1) {
+                        handleCompleteSubtask(true);
+                      } else {
+                        handleCompleteSubtask(true);
+                      }
+                    }}
                     isSoloMode={soloMode}
                     sessionId={sessionId}
                     username={username}

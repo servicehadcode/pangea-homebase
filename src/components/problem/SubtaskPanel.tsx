@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,9 +27,10 @@ interface SubtaskPanelProps {
   step: any;
   onPrev: () => void;
   onNext: () => void;
+  onComplete: () => void;
+  onSkip: () => void;
   isFirst: boolean;
   isLast: boolean;
-  onComplete?: () => void;
   isSoloMode: boolean;
   sessionId?: string;
   username?: string;
@@ -41,6 +43,7 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
   isFirst,
   isLast,
   onComplete,
+  onSkip,
   isSoloMode,
   sessionId,
   username = 'User'
@@ -181,11 +184,7 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
       description: `You have completed: ${step.title}`
     });
     
-    if (isLast && onComplete) {
-      onComplete();
-    } else {
-      onNext();
-    }
+    onComplete();
   };
   
   const handleSkip = () => {
@@ -194,11 +193,7 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
       description: `You have skipped: ${step.title}`
     });
     
-    if (isLast && onComplete) {
-      onComplete();
-    } else {
-      onNext();
-    }
+    onSkip();
   };
   
   return (
