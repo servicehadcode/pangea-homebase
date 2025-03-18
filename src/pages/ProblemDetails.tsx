@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Header from '@/components/Header';
@@ -36,7 +37,7 @@ import SubtaskPanel from '@/components/problem/SubtaskPanel';
 import DataPanel from '@/components/problem/DataPanel';
 import HintPanel from '@/components/problem/HintPanel';
 import { useToast } from '@/components/ui/use-toast';
-import { recordUserSession } from '@/services/databaseService';
+import { recordUserSession, checkDatasetAvailability } from '@/services/databaseService';
 
 const problemsData = {
   'data-science': [
@@ -57,6 +58,70 @@ the user should be able to call the model using an API end point.`,
       repoUrl: "https://github.com/pangeacorp/student-connection-model",
       tags: ["Machine Learning", "Data Preprocessing", "API Development"],
       collaborators: [],
+      dataset: {
+        isAvailable: true,
+        metadata: {
+          name: "Student Connection Dataset",
+          description: "Dataset containing student preferences for communication channels",
+          rows: 1000,
+          columns: 10,
+          fileType: "CSV",
+          lastUpdated: "2023-05-15",
+          size: "2.4 MB"
+        },
+        files: [
+          {
+            name: "student_connection_data.csv",
+            format: "csv",
+            size: "2.4 MB",
+            url: "/datasets/student_connection_data.csv"
+          },
+          {
+            name: "data_description.json",
+            format: "json",
+            size: "14 KB",
+            url: "/datasets/data_description.json"
+          }
+        ],
+        sampleData: [
+          {
+            "student_id": "ST001",
+            "age": 19,
+            "major": "Computer Science",
+            "year": 2,
+            "location": "On-campus",
+            "device_preference": "Mobile",
+            "time_zone": "EST",
+            "response_time": 3.5,
+            "communication_frequency": "High",
+            "channel": "Slack"
+          },
+          {
+            "student_id": "ST002",
+            "age": 21,
+            "major": "Biology",
+            "year": 3,
+            "location": "Off-campus",
+            "device_preference": "Laptop",
+            "time_zone": "PST",
+            "response_time": 6.2,
+            "communication_frequency": "Medium",
+            "channel": "Email"
+          },
+          {
+            "student_id": "ST003",
+            "age": 20,
+            "major": "Psychology",
+            "year": 2,
+            "location": "On-campus",
+            "device_preference": "Mobile",
+            "time_zone": "CST",
+            "response_time": 1.8,
+            "communication_frequency": "High",
+            "channel": "WhatsApp"
+          }
+        ]
+      },
       setup: {
         isCompleted: false,
         steps: [
@@ -181,6 +246,9 @@ the user should be able to call the model using an API end point.`,
       repoUrl: "https://github.com/pangeacorp/ecommerce-recommendation",
       tags: ["Microservices", "Docker", "API Design"],
       collaborators: [],
+      dataset: {
+        isAvailable: false
+      },
       setup: {
         isCompleted: false,
         steps: [
@@ -246,6 +314,7 @@ const ProblemDetails = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [showHintPanel, setShowHintPanel] = useState(false);
   const [soloMode, setSoloMode] = useState(false);
+  const [hasDataset, setHasDataset] = useState(false);
   
   // Track completion status of each tab
   const [tabsCompleted, setTabsCompleted] = useState({
@@ -276,6 +345,14 @@ const ProblemDetails = () => {
         startTime: new Date().toISOString(),
         userId: 'anonymous' // Replace with actual user ID when authentication is implemented
       });
+      
+      // Check if dataset is available
+      const checkDataset = async () => {
+        const isAvailable = await checkDatasetAvailability(id || '');
+        setHasDataset(isAvailable);
+      };
+      
+      checkDataset();
     }
   }, [problem, navigate, category, id]);
   
@@ -376,9 +453,6 @@ const ProblemDetails = () => {
   
   const currentStepData = problem.steps[currentStepIndex];
   
-  // Check if dataset is available
-  const hasDataset = problem.dataset && problem.dataset.isAvailable === true;
-  
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
@@ -466,7 +540,7 @@ const ProblemDetails = () => {
                   
                   <Separator className="my-4" />
                   
-                  {hasDataset && (
+                  {(problem.dataset && problem.dataset.isAvailable) && (
                     <>
                       <Button
                         variant="ghost"
@@ -575,7 +649,7 @@ const ProblemDetails = () => {
                   />
                 </TabsContent>
 
-                {hasDataset && (
+                {problem.dataset && problem.dataset.isAvailable && (
                   <TabsContent value="data">
                     <DataPanel dataset={problem.dataset} />
                   </TabsContent>

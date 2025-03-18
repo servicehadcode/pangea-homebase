@@ -9,7 +9,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
   Download,
   FileJson,
-  FileCsv,
+  Files,
   Database,
   AlertTriangle,
   Info,
@@ -142,17 +142,6 @@ const DataPanel: React.FC<DatasetProps> = ({ dataset }) => {
                     <p className="text-2xl font-medium">{dataset.metadata.size}</p>
                   </div>
                 </div>
-                
-                <div className="p-4 border rounded-lg space-y-2">
-                  <div className="flex justify-between">
-                    <span className="font-medium">File Type:</span>
-                    <span>{dataset.metadata.fileType}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="font-medium">Last Updated:</span>
-                    <span>{dataset.metadata.lastUpdated}</span>
-                  </div>
-                </div>
               </div>
             )}
           </TabsContent>
@@ -164,7 +153,7 @@ const DataPanel: React.FC<DatasetProps> = ({ dataset }) => {
                   <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
                     <div className="flex items-center gap-3">
                       {file.format === 'csv' ? (
-                        <FileCsv className="h-6 w-6 text-green-600" />
+                        <Files className="h-6 w-6 text-green-600" />
                       ) : file.format === 'json' ? (
                         <FileJson className="h-6 w-6 text-blue-600" />
                       ) : (

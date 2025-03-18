@@ -9,8 +9,7 @@ import {
   CheckCircle, 
   GitBranch, 
   GitPullRequest,
-  CheckSquare,
-  CalendarClock
+  CheckSquare
 } from 'lucide-react';
 
 interface OverviewPanelProps {
@@ -42,25 +41,14 @@ const OverviewPanel: React.FC<OverviewPanelProps> = ({
         {/* Project Status */}
         <div className="space-y-3">
           <h3 className="text-lg font-medium">Project Status</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="p-4 bg-secondary/30 rounded-lg">
-              <div className="flex items-center gap-2 mb-2">
-                <CheckSquare className="h-5 w-5 text-pangea" />
-                <span className="font-medium">Progress</span>
-              </div>
-              <Progress value={progressPercentage} className="h-2 mb-2" />
-              <div className="text-sm text-right text-muted-foreground">
-                {completedSteps}/{problem.steps.length} subtasks
-              </div>
+          <div className="p-4 bg-secondary/30 rounded-lg">
+            <div className="flex items-center gap-2 mb-2">
+              <CheckSquare className="h-5 w-5 text-pangea" />
+              <span className="font-medium">Progress</span>
             </div>
-            
-            <div className="p-4 bg-secondary/30 rounded-lg">
-              <div className="flex items-center gap-2 mb-2">
-                <CalendarClock className="h-5 w-5 text-pangea" />
-                <span className="font-medium">Timeline</span>
-              </div>
-              <div className="text-lg font-medium">{problem.estimatedTime}</div>
-              <div className="text-sm text-muted-foreground">Recommended timeframe</div>
+            <Progress value={progressPercentage} className="h-2 mb-2" />
+            <div className="text-sm text-right text-muted-foreground">
+              {completedSteps}/{problem.steps.length} subtasks
             </div>
           </div>
         </div>
