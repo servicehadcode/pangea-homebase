@@ -1,10 +1,13 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Input } from '@/components/ui/input';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -12,11 +15,13 @@ import {
   User, 
   GitBranch, 
   GitPullRequest,
-  List,
   CheckSquare,
-  MessageSquare
+  HelpCircle,
+  Edit
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
+import { updateCollaboratorName } from '@/services/collaborationService';
+import { updateSessionProgress } from '@/services/databaseService';
 
 interface SubtaskPanelProps {
   step: any;
@@ -25,6 +30,8 @@ interface SubtaskPanelProps {
   isFirst: boolean;
   isLast: boolean;
   onComplete?: () => void;
+  isSoloMode: boolean;
+  sessionId?: string;
 }
 
 const SubtaskPanel: React.FC<SubtaskPanelProps> = ({ 
@@ -33,13 +40,29 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
   onNext,
   isFirst,
   isLast,
-  onComplete
+  onComplete,
+  isSoloMode,
+  sessionId
 }) => {
   const { toast } = useToast();
   const [branchCreated, setBranchCreated] = useState(false);
   const [prCreated, setPrCreated] = useState(false);
   const [prComments, setPrComments] = useState('');
   const [deliverables, setDeliverables] = useState('');
+  const [reporter, setReporter] = useState(step.reporter || 'Pangea Admin');
+  const [assignee, setAssignee] = useState(step.assignedTo || 'Unassigned');
+  const [isEditingReporter, setIsEditingReporter] = useState(false);
+  const [isEditingAssignee, setIsEditingAssignee] = useState(false);
+  
+  // Reset form fields when step changes
+  useEffect(() => {
+    setBranchCreated(false);
+    setPrCreated(false);
+    setPrComments('');
+    setDeliverables('');
+    setReporter(step.reporter || 'Pangea Admin');
+    setAssignee(step.assignedTo || 'Unassigned');
+  }, [step]);
   
   const handleCreateBranch = () => {
     setBranchCreated(true);
@@ -64,6 +87,38 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
       title: "Pull Request Created",
       description: `Created PR: Implement ${step.title}`
     });
+  };
+  
+  const handleUpdateName = async (type: 'reporter' | 'assignee', newName: string) => {
+    try {
+      const response = await updateCollaboratorName(
+        type === 'reporter' ? 'reporter@example.com' : 'assignee@example.com', 
+        newName
+      );
+      
+      if (response.success) {
+        toast({ title: "Name Updated", description: response.message });
+        if (type === 'reporter') {
+          setReporter(newName);
+          setIsEditingReporter(false);
+        } else {
+          setAssignee(newName);
+          setIsEditingAssignee(false);
+        }
+      } else {
+        toast({ 
+          title: "Update Failed", 
+          description: response.message,
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      toast({ 
+        title: "Error", 
+        description: "Failed to update name. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
   
   const handleComplete = () => {
@@ -94,12 +149,44 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
       return;
     }
     
+    // Store subtask data in database
+    if (sessionId) {
+      // Generate a random subtask ID for this demo
+      const subtaskId = Math.random().toString(36).substring(2, 15);
+      
+      // Update session progress in the database
+      updateSessionProgress(sessionId, 50); // Example progress value
+      
+      // In a real app, we would store the full details including PR comments and deliverables
+      console.log('Storing subtask data:', {
+        subtaskId,
+        sessionId,
+        title: step.title,
+        prComments,
+        deliverables,
+        completedAt: new Date().toISOString()
+      });
+    }
+    
     toast({
       title: "Subtask Completed",
       description: `You have completed: ${step.title}`
     });
     
     // If we're at the last step and have onComplete callback, call it
+    if (isLast && onComplete) {
+      onComplete();
+    } else {
+      onNext();
+    }
+  };
+  
+  const handleSkip = () => {
+    toast({
+      title: "Subtask Skipped",
+      description: `You have skipped: ${step.title}`
+    });
+    
     if (isLast && onComplete) {
       onComplete();
     } else {
@@ -173,28 +260,74 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
           <CardContent className="space-y-4">
             <div className="flex flex-wrap gap-3">
               <div className="flex-1 min-w-[120px]">
-                <span className="text-sm text-muted-foreground">Estimated Time</span>
-                <div className="flex items-center mt-1">
-                  <Clock className="h-4 w-4 mr-1 text-pangea" />
-                  <span className="font-medium">{step.estimatedHours} hours</span>
-                </div>
-              </div>
-              
-              <div className="flex-1 min-w-[120px]">
                 <span className="text-sm text-muted-foreground">Reporter</span>
-                <div className="flex items-center mt-1">
+                <div className="flex items-center mt-1 group">
                   <User className="h-4 w-4 mr-1 text-pangea" />
-                  <span className="font-medium">{step.reporter}</span>
+                  {isEditingReporter ? (
+                    <div className="flex gap-2 items-center w-full">
+                      <Input 
+                        value={reporter} 
+                        onChange={(e) => setReporter(e.target.value)}
+                        className="h-7 py-1 text-sm"
+                      />
+                      <Button 
+                        size="sm" 
+                        className="h-7 px-2"
+                        onClick={() => handleUpdateName('reporter', reporter)}
+                      >
+                        Save
+                      </Button>
+                    </div>
+                  ) : (
+                    <>
+                      <span className="font-medium">{reporter}</span>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 ml-1"
+                        onClick={() => setIsEditingReporter(true)}
+                      >
+                        <Edit className="h-3 w-3" />
+                      </Button>
+                    </>
+                  )}
                 </div>
               </div>
               
               <div className="flex-1 min-w-[120px]">
                 <span className="text-sm text-muted-foreground">Assignee</span>
-                <div className="flex items-center mt-1">
+                <div className="flex items-center mt-1 group">
                   <User className="h-4 w-4 mr-1 text-pangea" />
-                  <span className="font-medium">
-                    {step.assignedTo || "Unassigned"}
-                  </span>
+                  {isEditingAssignee ? (
+                    <div className="flex gap-2 items-center w-full">
+                      <Input 
+                        value={assignee} 
+                        onChange={(e) => setAssignee(e.target.value)}
+                        className="h-7 py-1 text-sm"
+                      />
+                      <Button 
+                        size="sm" 
+                        className="h-7 px-2"
+                        onClick={() => handleUpdateName('assignee', assignee)}
+                      >
+                        Save
+                      </Button>
+                    </div>
+                  ) : (
+                    <>
+                      <span className="font-medium">
+                        {assignee}
+                      </span>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 ml-1"
+                        onClick={() => setIsEditingAssignee(true)}
+                      >
+                        <Edit className="h-3 w-3" />
+                      </Button>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -266,22 +399,44 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
               Previous Subtask
             </Button>
             
-            {isLast ? (
-              <Button 
-                className="pangea-button-primary flex items-center"
-                onClick={handleComplete}
-              >
-                Complete Task
-              </Button>
-            ) : (
-              <Button 
-                className="pangea-button-primary flex items-center"
-                onClick={handleComplete}
-              >
-                Complete & Next
-                <ChevronRight className="h-4 w-4 ml-1" />
-              </Button>
-            )}
+            <div className="flex gap-2 items-center">
+              {!isSoloMode && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button 
+                        variant="outline"
+                        onClick={handleSkip}
+                        className="flex items-center"
+                      >
+                        Skip
+                        <HelpCircle className="h-4 w-4 ml-1" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Skip if this task was not assigned to you</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+              
+              {isLast ? (
+                <Button 
+                  className="pangea-button-primary flex items-center"
+                  onClick={handleComplete}
+                >
+                  Complete Task
+                </Button>
+              ) : (
+                <Button 
+                  className="pangea-button-primary flex items-center"
+                  onClick={handleComplete}
+                >
+                  Complete & Next
+                  <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
+              )}
+            </div>
           </CardFooter>
         </Card>
       </div>

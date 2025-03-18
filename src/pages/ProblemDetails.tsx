@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Header from '@/components/Header';
@@ -10,24 +9,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { 
   ArrowLeft, 
-  ChevronRight, 
   CheckCircle, 
-  Code, 
   Database,
   List,
   HelpCircle,
-  AlertTriangle,
   FileText,
-  Terminal,
   ChevronLeft,
   Users,
   Clock,
-  GitBranch,
-  GitPullRequest,
   Folder,
   Lock,
-  User,
-  Download
+  User
 } from 'lucide-react';
 
 import CollaborationPanel from '@/components/problem/CollaborationPanel';
@@ -37,7 +29,7 @@ import SubtaskPanel from '@/components/problem/SubtaskPanel';
 import DataPanel from '@/components/problem/DataPanel';
 import HintPanel from '@/components/problem/HintPanel';
 import { useToast } from '@/components/ui/use-toast';
-import { recordUserSession, checkDatasetAvailability } from '@/services/databaseService';
+import { recordUserSession, checkDatasetAvailability, updateSessionProgress } from '@/services/databaseService';
 
 const problemsData = {
   'data-science': [
@@ -233,7 +225,6 @@ the user should be able to call the model using an API end point.`,
         software: "Software requirements – Docker, Postman, etc"
       }
     },
-    // Additional problems would be defined here
   ],
   'software-dev': [
     {
@@ -295,14 +286,12 @@ the user should be able to call the model using an API end point.`,
           estimatedHours: 5,
           reporter: "Pangea Admin"
         },
-        // More steps would be defined here
       ],
       requirements: {
         hardware: "Minimum 16GB RAM, quad-core processor, SSD with 100GB free space",
         software: "Docker, Docker Compose, Node.js v14+, PostgreSQL, Redis"
       }
     },
-    // More software development problems would be defined here
   ]
 };
 
@@ -312,11 +301,12 @@ const ProblemDetails = () => {
   const { toast } = useToast();
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [activeTab, setActiveTab] = useState('overview');
+  const [previousTab, setPreviousTab] = useState('subtask');
   const [showHintPanel, setShowHintPanel] = useState(false);
   const [soloMode, setSoloMode] = useState(false);
   const [hasDataset, setHasDataset] = useState(false);
+  const [sessionId, setSessionId] = useState<string | undefined>(undefined);
   
-  // Track completion status of each tab
   const [tabsCompleted, setTabsCompleted] = useState({
     overview: false,
     collaboration: false,
@@ -324,13 +314,19 @@ const ProblemDetails = () => {
     subtask: false
   });
   
-  // Define tab order for progression
   const tabOrder = ['overview', 'collaboration', 'setup', 'subtask'];
   
-  // Find the problem based on the category and id
   const problem = problemsData[category as keyof typeof problemsData]?.find(
     p => p.id === parseInt(id || '0')
   );
+  
+  const getActualSubtasks = () => {
+    if (!problem) return [];
+    const systemTasks = ['setup', 'collaboration', 'analysis'];
+    return problem.steps.filter((step: any) => !systemTasks.includes(step.id));
+  };
+  
+  const actualSubtasks = getActualSubtasks();
   
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -338,15 +334,19 @@ const ProblemDetails = () => {
     if (!problem) {
       navigate('/problems');
     } else {
-      // Record user session in database
-      recordUserSession({
-        problemId: id || '',
-        category: category || '',
-        startTime: new Date().toISOString(),
-        userId: 'anonymous' // Replace with actual user ID when authentication is implemented
-      });
+      const initSession = async () => {
+        const newSessionId = await recordUserSession({
+          problemId: id || '',
+          category: category || '',
+          startTime: new Date().toISOString(),
+          userId: 'anonymous' // Replace with actual user ID when authentication is implemented
+        });
+        
+        setSessionId(newSessionId);
+      };
       
-      // Check if dataset is available
+      initSession();
+      
       const checkDataset = async () => {
         const isAvailable = await checkDatasetAvailability(id || '');
         setHasDataset(isAvailable);
@@ -361,14 +361,15 @@ const ProblemDetails = () => {
   }
   
   const handleStepChange = (index: number) => {
-    setCurrentStepIndex(index);
     if (tabsCompleted.setup) {
+      setCurrentStepIndex(index);
       setActiveTab('subtask');
     }
   };
   
   const handleNextStep = () => {
-    if (currentStepIndex < problem.steps.length - 1) {
+    const maxIndex = actualSubtasks.length - 1;
+    if (currentStepIndex < maxIndex) {
       setCurrentStepIndex(currentStepIndex + 1);
     }
   };
@@ -383,19 +384,17 @@ const ProblemDetails = () => {
     const currentIndex = tabOrder.indexOf(activeTab);
     const targetIndex = tabOrder.indexOf(tabName);
     
-    // Previous tabs are always accessible
+    if (tabName === 'data') return hasDataset;
+    
     if (targetIndex < currentIndex) return true;
     
-    // Current tab is accessible
     if (targetIndex === currentIndex) return true;
     
-    // Next tab is accessible if previous tab is completed
     if (targetIndex === currentIndex + 1) {
       const previousTab = tabOrder[currentIndex];
       return tabsCompleted[previousTab as keyof typeof tabsCompleted];
     }
     
-    // Other future tabs require all previous tabs to be completed
     for (let i = 0; i < targetIndex; i++) {
       const prevTab = tabOrder[i];
       if (!tabsCompleted[prevTab as keyof typeof tabsCompleted]) {
@@ -407,10 +406,15 @@ const ProblemDetails = () => {
   };
   
   const handleTabChange = (value: string) => {
+    if (value === 'data') {
+      setPreviousTab(activeTab);
+      setActiveTab('data');
+      return;
+    }
+    
     if (isTabAccessible(value)) {
       setActiveTab(value);
     } else {
-      // Find the last incomplete tab
       let lastIncompleteTab = 'overview';
       for (const tab of tabOrder) {
         if (!tabsCompleted[tab as keyof typeof tabsCompleted]) {
@@ -433,7 +437,17 @@ const ProblemDetails = () => {
       [tabName]: true
     }));
     
-    // Auto advance to next tab if available
+    if (sessionId) {
+      const progressMap: {[key: string]: number} = {
+        overview: 25,
+        collaboration: 50,
+        setup: 75,
+        subtask: 100
+      };
+      
+      updateSessionProgress(sessionId, progressMap[tabName] || 0);
+    }
+    
     const currentIndex = tabOrder.indexOf(tabName);
     if (currentIndex < tabOrder.length - 1) {
       const nextTab = tabOrder[currentIndex + 1];
@@ -451,7 +465,11 @@ const ProblemDetails = () => {
     completeTab('collaboration');
   };
   
-  const currentStepData = problem.steps[currentStepIndex];
+  const handleReturnFromDataTab = () => {
+    setActiveTab(previousTab);
+  };
+  
+  const currentActualSubtask = actualSubtasks[currentStepIndex];
   
   return (
     <div className="min-h-screen flex flex-col">
@@ -522,25 +540,42 @@ const ProblemDetails = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
-                    {problem.steps.map((step: any, index: number) => (
-                      <Button
-                        key={index}
-                        variant={currentStepIndex === index ? "default" : "ghost"}
-                        className={`w-full justify-start ${step.isCompleted ? 'text-green-600' : ''}`}
-                        onClick={() => handleStepChange(index)}
-                      >
-                        {step.isCompleted && <CheckCircle className="h-4 w-4 mr-2" />}
-                        {!step.isCompleted && <div className="h-4 w-4 rounded-full border border-current mr-2 flex items-center justify-center">
-                          {index + 1}
-                        </div>}
-                        <span className="truncate">{step.title}</span>
-                      </Button>
-                    ))}
+                    {activeTab === 'subtask' && tabsCompleted.setup ? (
+                      actualSubtasks.map((step: any, index: number) => (
+                        <Button
+                          key={index}
+                          variant={currentStepIndex === index ? "default" : "ghost"}
+                          className={`w-full justify-start ${step.isCompleted ? 'text-green-600' : ''}`}
+                          onClick={() => handleStepChange(index)}
+                        >
+                          {step.isCompleted && <CheckCircle className="h-4 w-4 mr-2" />}
+                          {!step.isCompleted && <div className="h-4 w-4 rounded-full border border-current mr-2 flex items-center justify-center">
+                            {index + 1}
+                          </div>}
+                          <span className="truncate">{step.title}</span>
+                        </Button>
+                      ))
+                    ) : (
+                      problem.steps.map((step: any, index: number) => (
+                        <Button
+                          key={index}
+                          variant={currentStepIndex === problem.steps.indexOf(step) ? "default" : "ghost"}
+                          className={`w-full justify-start ${step.isCompleted ? 'text-green-600' : ''}`}
+                          onClick={() => handleStepChange(problem.steps.indexOf(step))}
+                        >
+                          {step.isCompleted && <CheckCircle className="h-4 w-4 mr-2" />}
+                          {!step.isCompleted && <div className="h-4 w-4 rounded-full border border-current mr-2 flex items-center justify-center">
+                            {index + 1}
+                          </div>}
+                          <span className="truncate">{step.title}</span>
+                        </Button>
+                      ))
+                    )}
                   </div>
                   
                   <Separator className="my-4" />
                   
-                  {(problem.dataset && problem.dataset.isAvailable) && (
+                  {hasDataset && (
                     <>
                       <Button
                         variant="ghost"
@@ -640,26 +675,35 @@ const ProblemDetails = () => {
                 
                 <TabsContent value="subtask">
                   <SubtaskPanel 
-                    step={currentStepData}
+                    step={currentActualSubtask}
                     onPrev={handlePrevStep}
                     onNext={handleNextStep}
                     isFirst={currentStepIndex === 0}
-                    isLast={currentStepIndex === problem.steps.length - 1}
+                    isLast={currentStepIndex === actualSubtasks.length - 1}
                     onComplete={() => completeTab('subtask')}
+                    isSoloMode={soloMode}
+                    sessionId={sessionId}
                   />
                 </TabsContent>
 
-                {problem.dataset && problem.dataset.isAvailable && (
-                  <TabsContent value="data">
-                    <DataPanel dataset={problem.dataset} />
-                  </TabsContent>
-                )}
+                <TabsContent value="data">
+                  <div className="mb-4">
+                    <Button 
+                      variant="outline"
+                      onClick={handleReturnFromDataTab}
+                      className="flex items-center"
+                    >
+                      <ChevronLeft className="h-4 w-4 mr-1" />
+                      Return to {previousTab.charAt(0).toUpperCase() + previousTab.slice(1)}
+                    </Button>
+                  </div>
+                  <DataPanel dataset={problem.dataset} />
+                </TabsContent>
               </Tabs>
             </div>
           </div>
         </div>
         
-        {/* Floating Help Button */}
         <div className="fixed bottom-8 right-8">
           <Button 
             onClick={() => setShowHintPanel(!showHintPanel)} 
@@ -669,12 +713,11 @@ const ProblemDetails = () => {
           </Button>
         </div>
         
-        {/* Hint Panel */}
         {showHintPanel && (
           <div className="fixed bottom-24 right-8 w-80 z-50">
             <HintPanel 
               problem={problem}
-              currentStep={currentStepData}
+              currentStep={activeTab === 'subtask' ? currentActualSubtask : problem.steps[currentStepIndex]}
               onClose={() => setShowHintPanel(false)}
             />
           </div>

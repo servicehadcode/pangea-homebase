@@ -7,8 +7,6 @@ import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { 
   CheckCircle, 
-  GitBranch, 
-  GitPullRequest,
   CheckSquare
 } from 'lucide-react';
 
@@ -25,9 +23,17 @@ const OverviewPanel: React.FC<OverviewPanelProps> = ({
   onStepChange,
   onComplete
 }) => {
-  // Calculate progress
-  const completedSteps = problem.steps.filter((step: any) => step.isCompleted).length;
-  const progressPercentage = (completedSteps / problem.steps.length) * 100;
+  // Filter out system tasks (setup, collaboration, problem analysis)
+  const systemTasks = ['setup', 'collaboration', 'analysis'];
+  const actualSubtasks = problem.steps.filter((step: any) => 
+    !systemTasks.includes(step.id)
+  );
+  
+  // Calculate progress based on actual subtasks only
+  const completedSteps = actualSubtasks.filter((step: any) => step.isCompleted).length;
+  const progressPercentage = actualSubtasks.length > 0 
+    ? (completedSteps / actualSubtasks.length) * 100 
+    : 0;
   
   return (
     <Card>
@@ -48,7 +54,7 @@ const OverviewPanel: React.FC<OverviewPanelProps> = ({
             </div>
             <Progress value={progressPercentage} className="h-2 mb-2" />
             <div className="text-sm text-right text-muted-foreground">
-              {completedSteps}/{problem.steps.length} subtasks
+              {completedSteps}/{actualSubtasks.length} subtasks
             </div>
           </div>
         </div>
@@ -80,18 +86,40 @@ const OverviewPanel: React.FC<OverviewPanelProps> = ({
         
         <Separator />
         
-        {/* Steps Overview */}
+        {/* Setup Section */}
+        <div className="space-y-3">
+          <h3 className="text-lg font-medium">Setup</h3>
+          <div className="p-4 border rounded-lg">
+            <div className="flex items-start gap-3">
+              <div className={`flex-shrink-0 h-6 w-6 rounded-full flex items-center justify-center ${
+                problem.setup.isCompleted 
+                  ? 'bg-green-500 text-white' 
+                  : 'bg-gray-200 text-gray-700'
+              }`}>
+                {problem.setup.isCompleted ? <CheckCircle className="h-4 w-4" /> : 1}
+              </div>
+              <div>
+                <h4 className="font-medium">Environment Setup</h4>
+                <p className="text-sm text-muted-foreground">Set up your development environment and get ready to work</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <Separator />
+        
+        {/* Subtasks Overview */}
         <div className="space-y-3">
           <h3 className="text-lg font-medium">Subtasks Overview</h3>
           
           <div className="space-y-4">
-            {problem.steps.map((step: any, index: number) => (
+            {actualSubtasks.map((step: any, index: number) => (
               <div 
                 key={index}
                 className={`p-4 rounded-lg border ${
                   step.isCompleted 
                     ? 'border-green-200 bg-green-50' 
-                    : currentStepIndex === index
+                    : currentStepIndex === problem.steps.indexOf(step)
                       ? 'border-blue-200 bg-blue-50'
                       : 'border-gray-200 bg-gray-50'
                 }`}
@@ -100,7 +128,7 @@ const OverviewPanel: React.FC<OverviewPanelProps> = ({
                   <div className={`flex-shrink-0 h-6 w-6 rounded-full flex items-center justify-center ${
                     step.isCompleted 
                       ? 'bg-green-500 text-white' 
-                      : currentStepIndex === index
+                      : currentStepIndex === problem.steps.indexOf(step)
                         ? 'bg-blue-500 text-white'
                         : 'bg-gray-200 text-gray-700'
                   }`}>
