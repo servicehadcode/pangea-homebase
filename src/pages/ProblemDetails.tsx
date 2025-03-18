@@ -490,9 +490,9 @@ const ProblemDetails = () => {
   };
   
   const handleBackToProblems = () => {
-    if (problem) {
-      problem.isCompleted = true;
-    }
+    const completedProblems = JSON.parse(localStorage.getItem('completedProblems') || '{}');
+    completedProblems[`${category}-${problem.id}`] = true;
+    localStorage.setItem('completedProblems', JSON.stringify(completedProblems));
     
     navigate('/problems');
   };
