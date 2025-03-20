@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -21,6 +21,12 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { 
+  getAvailableTimeSlots, 
+  scheduleInterview,
+  InterviewTimeSlot,
+  InterviewRequestData
+} from '@/services/interviewService';
 
 const formSchema = z.object({
   firstName: z.string().min(2, { message: 'First name must be at least 2 characters' }),
@@ -33,12 +39,6 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
-// Dummy booked time slots for demo purposes
-const bookedTimeSlots: { [date: string]: string[] } = {
-  '2023-09-10': ['8:00 AM', '10:00 AM'],
-  '2023-09-17': ['9:00 AM', '2:00 PM'],
-};
-
 type ProfessionalInterviewRequestProps = {
   onGoBack: () => void;
 };
@@ -46,6 +46,8 @@ type ProfessionalInterviewRequestProps = {
 export const ProfessionalInterviewRequest = ({ onGoBack }: ProfessionalInterviewRequestProps) => {
   const { toast } = useToast();
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [timeSlots, setTimeSlots] = useState<InterviewTimeSlot[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -65,38 +67,62 @@ export const ProfessionalInterviewRequest = ({ onGoBack }: ProfessionalInterview
   
   const selectedDate = form.watch('date');
   
-  const timeSlots = [
-    '8:00 AM', '8:30 AM', '9:00 AM', '9:30 AM', 
-    '10:00 AM', '10:30 AM', '11:00 AM', '11:30 AM',
-    '12:00 PM', '12:30 PM', '1:00 PM', '1:30 PM',
-    '2:00 PM', '2:30 PM', '3:00 PM', '3:30 PM'
-  ];
-  
-  const formatDateKey = (date: Date) => {
-    return `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
-  };
-  
-  const getAvailableTimeSlots = (date: Date) => {
-    const dateKey = formatDateKey(date);
-    const booked = bookedTimeSlots[dateKey] || [];
-    return timeSlots.filter(slot => !booked.includes(slot));
-  };
-  
-  const availableTimeSlots = selectedDate ? getAvailableTimeSlots(selectedDate) : [];
-  
-  const onSubmit = (data: FormValues) => {
-    // Simulate API request
-    console.log('Interview request data:', data);
+  // Load available time slots when the component mounts
+  useEffect(() => {
+    const loadTimeSlots = async () => {
+      setIsLoading(true);
+      try {
+        const slots = await getAvailableTimeSlots();
+        setTimeSlots(slots);
+      } catch (error) {
+        console.error("Error loading time slots:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load available time slots",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
     
-    // In a real app, this would send the data to a backend service
-    setTimeout(() => {
-      toast({
-        title: "Interview Request Submitted",
-        description: `Your interview is scheduled for ${format(data.date, 'EEEE, MMMM d')} at ${data.timeSlot}`,
-      });
+    loadTimeSlots();
+  }, [toast]);
+  
+  const getAvailableTimeSlotsForDate = (date: Date) => {
+    const dateStr = date.toISOString().split('T')[0];
+    return timeSlots
+      .filter(slot => slot.date === dateStr && !slot.isBooked)
+      .map(slot => slot.time);
+  };
+  
+  const availableTimeSlots = selectedDate ? getAvailableTimeSlotsForDate(selectedDate) : [];
+  
+  const onSubmit = async (data: FormValues) => {
+    setIsLoading(true);
+    
+    try {
+      // Call the scheduling service
+      const success = await scheduleInterview(data as InterviewRequestData);
       
-      setIsSubmitted(true);
-    }, 1000);
+      if (success) {
+        toast({
+          title: "Interview Request Submitted",
+          description: `Your interview is scheduled for ${format(data.date, 'EEEE, MMMM d')} at ${data.timeSlot}`,
+        });
+        
+        setIsSubmitted(true);
+      }
+    } catch (error) {
+      console.error("Error scheduling interview:", error);
+      toast({
+        title: "Submission Error",
+        description: "Failed to schedule your interview. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
   
   if (isSubmitted) {
@@ -280,9 +306,16 @@ export const ProfessionalInterviewRequest = ({ onGoBack }: ProfessionalInterview
             <Button 
               type="submit" 
               className="pangea-button-primary w-full"
-              disabled={!selectedDate || availableTimeSlots.length === 0}
+              disabled={!selectedDate || availableTimeSlots.length === 0 || isLoading}
             >
-              Submit Request
+              {isLoading ? (
+                <>
+                  <div className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full mr-2"></div>
+                  Processing...
+                </>
+              ) : (
+                "Submit Request"
+              )}
             </Button>
           </form>
         </Form>

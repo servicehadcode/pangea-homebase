@@ -5,43 +5,13 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Progress } from '@/components/ui/progress';
 import { Mic, MicOff, Send, ArrowLeft, CheckCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-
-type InterviewQuestion = {
-  id: string;
-  question: string;
-  topic: string;
-};
-
-const dummyQuestions: { [key: string]: InterviewQuestion[] } = {
-  spark: [
-    { id: 'spark-1', question: 'What is Apache Spark and how does it differ from Hadoop MapReduce?', topic: 'Spark' },
-    { id: 'spark-2', question: 'Explain RDDs in Spark and their key operations.', topic: 'Spark' },
-  ],
-  python: [
-    { id: 'python-1', question: 'What are Python generators and why are they useful?', topic: 'Python' },
-    { id: 'python-2', question: 'Explain list comprehensions in Python with examples.', topic: 'Python' },
-  ],
-  etl: [
-    { id: 'etl-1', question: 'Describe the ETL process and its importance in data engineering.', topic: 'ETL' },
-    { id: 'etl-2', question: 'What challenges might you face in an ETL pipeline and how would you address them?', topic: 'ETL' },
-  ],
-  aws: [
-    { id: 'aws-1', question: 'Compare and contrast AWS S3 and EBS storage options.', topic: 'AWS Services' },
-    { id: 'aws-2', question: 'Explain how AWS Lambda works and its use cases.', topic: 'AWS Services' },
-  ],
-  airflow: [
-    { id: 'airflow-1', question: 'What is Apache Airflow and why is it used for workflow orchestration?', topic: 'Airflow' },
-    { id: 'airflow-2', question: 'Explain DAGs in Airflow and how you would design one for a data pipeline.', topic: 'Airflow' },
-  ],
-  docker: [
-    { id: 'docker-1', question: 'What are containers and how do they differ from virtual machines?', topic: 'Docker' },
-    { id: 'docker-2', question: 'Explain Docker volumes and when you would use them.', topic: 'Docker' },
-  ],
-  behavioral: [
-    { id: 'behavioral-1', question: 'Describe a challenging project you worked on and how you overcame obstacles.', topic: 'Behavioral' },
-    { id: 'behavioral-2', question: 'How do you handle conflicting priorities or tight deadlines?', topic: 'Behavioral' },
-  ],
-};
+import { 
+  fetchInterviewQuestions, 
+  transcribeSpeech, 
+  evaluateAnswer,
+  InterviewQuestion,
+  InterviewFeedback
+} from '@/services/interviewService';
 
 type SelfSupervisedInterviewProps = {
   selectedSkills: string[];
@@ -58,61 +28,96 @@ export const SelfSupervisedInterview = ({
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isEvaluating, setIsEvaluating] = useState(false);
-  const [feedback, setFeedback] = useState('');
+  const [feedback, setFeedback] = useState<InterviewFeedback | null>(null);
   const [isComplete, setIsComplete] = useState(false);
+  const [questions, setQuestions] = useState<InterviewQuestion[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   
-  // Build questions list based on selected skills
-  const questions = selectedSkills.flatMap(skill => dummyQuestions[skill] || []);
-  const currentQuestion = questions[currentQuestionIndex];
+  // Reference for the audio recorder
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
   
-  // Mock recording functionality
-  let recordingInterval = useRef<NodeJS.Timeout | null>(null);
-  
-  const startRecording = () => {
-    setIsRecording(true);
-    setTranscribedText('');
-    
-    toast({
-      title: "Recording started",
-      description: "Your answer is being recorded",
-    });
-    
-    // Simulate speech-to-text with placeholder text appearing over time
-    const placeholderAnswers: { [key: string]: string } = {
-      'spark-1': "Apache Spark is a distributed computing engine for big data processing. Unlike Hadoop MapReduce, Spark uses in-memory processing which makes it much faster for iterative algorithms and interactive data analysis. Spark supports multiple programming languages and provides a unified engine for batch, streaming, and machine learning workloads.",
-      'python-1': "Python generators are functions that return an iterator that yields items one at a time. They use the yield keyword instead of return. Generators are memory efficient because they generate values on-the-fly rather than storing an entire sequence in memory. This makes them ideal for working with large datasets or infinite sequences.",
-      'etl-1': "ETL stands for Extract, Transform, Load. It's a process used to collect data from various sources, transform it to suit operational needs, and load it into a destination database or data warehouse. The ETL process is crucial for data integration, migration, and building analytics pipelines.",
+  // Fetch questions when component mounts
+  useEffect(() => {
+    const loadQuestions = async () => {
+      setIsLoading(true);
+      try {
+        const fetchedQuestions = await fetchInterviewQuestions(selectedSkills);
+        setQuestions(fetchedQuestions);
+      } catch (error) {
+        console.error("Error loading questions:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load interview questions",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
     };
     
-    const defaultAnswer = "This is a simulated answer for demonstration purposes. In a real implementation, this would be your actual spoken response transcribed to text using speech recognition technology.";
-    const answer = placeholderAnswers[currentQuestion?.id] || defaultAnswer;
-    
-    // Simulate speech-to-text with text appearing gradually
-    let charIndex = 0;
-    recordingInterval.current = setInterval(() => {
-      if (charIndex <= answer.length) {
-        setTranscribedText(answer.substring(0, charIndex));
-        charIndex += 3;
-      } else {
-        stopRecording();
-      }
-    }, 50);
+    loadQuestions();
+  }, [selectedSkills, toast]);
+  
+  const currentQuestion = questions[currentQuestionIndex];
+  
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+      
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+      
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
+        
+        // Process the recording
+        setTranscribedText("Transcribing your answer...");
+        const text = await transcribeSpeech(audioBlob);
+        setTranscribedText(text);
+        
+        // Close audio tracks
+        stream.getTracks().forEach(track => track.stop());
+      };
+      
+      mediaRecorder.start();
+      setIsRecording(true);
+      setTranscribedText('');
+      
+      toast({
+        title: "Recording started",
+        description: "Your answer is being recorded",
+      });
+    } catch (error) {
+      console.error('Error accessing microphone:', error);
+      toast({
+        title: "Microphone Error",
+        description: "Could not access your microphone. Please check permissions.",
+        variant: "destructive",
+      });
+    }
   };
   
   const stopRecording = () => {
-    if (recordingInterval.current) {
-      clearInterval(recordingInterval.current);
-      recordingInterval.current = null;
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      
+      toast({
+        title: "Recording stopped",
+        description: "You can review your answer before submitting",
+      });
     }
-    setIsRecording(false);
-    
-    toast({
-      title: "Recording stopped",
-      description: "You can review your answer before submitting",
-    });
   };
   
-  const submitAnswer = () => {
+  const submitAnswer = async () => {
     if (isRecording) {
       stopRecording();
     }
@@ -120,11 +125,20 @@ export const SelfSupervisedInterview = ({
     setIsSubmitted(true);
     setIsEvaluating(true);
     
-    // Simulate evaluation delay
-    setTimeout(() => {
+    try {
+      // Call evaluation service
+      const result = await evaluateAnswer(currentQuestion, transcribedText);
+      setFeedback(result);
+    } catch (error) {
+      console.error("Error evaluating answer:", error);
+      toast({
+        title: "Evaluation Error",
+        description: "Failed to evaluate your answer",
+        variant: "destructive",
+      });
+    } finally {
       setIsEvaluating(false);
-      setFeedback("Your answer demonstrates a good understanding of the core concepts. Consider adding more specific examples to strengthen your response. Overall, this is a solid answer that covers the main points effectively.");
-    }, 1500);
+    }
   };
   
   const nextQuestion = () => {
@@ -132,7 +146,7 @@ export const SelfSupervisedInterview = ({
       setCurrentQuestionIndex(prev => prev + 1);
       setTranscribedText('');
       setIsSubmitted(false);
-      setFeedback('');
+      setFeedback(null);
     } else {
       setIsComplete(true);
     }
@@ -141,11 +155,32 @@ export const SelfSupervisedInterview = ({
   // Clean up on unmount
   useEffect(() => {
     return () => {
-      if (recordingInterval.current) {
-        clearInterval(recordingInterval.current);
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        mediaRecorderRef.current.stop();
       }
     };
   }, []);
+  
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="animate-spin h-8 w-8 border-4 border-pangea border-t-transparent rounded-full mr-3"></div>
+        <p>Loading interview questions...</p>
+      </div>
+    );
+  }
+  
+  if (questions.length === 0) {
+    return (
+      <div className="text-center py-8">
+        <h2 className="text-2xl font-bold mb-4">No Questions Available</h2>
+        <p className="text-muted-foreground mb-6">
+          We couldn't find any questions for your selected skills. Please try selecting different skills.
+        </p>
+        <Button onClick={onGoBack}>Back to Skill Selection</Button>
+      </div>
+    );
+  }
   
   if (isComplete) {
     return (
@@ -163,7 +198,7 @@ export const SelfSupervisedInterview = ({
             setCurrentQuestionIndex(0);
             setTranscribedText('');
             setIsSubmitted(false);
-            setFeedback('');
+            setFeedback(null);
             setIsComplete(false);
           }}>
             Restart Interview
@@ -263,9 +298,49 @@ export const SelfSupervisedInterview = ({
                 <div className="animate-spin h-6 w-6 border-2 border-pangea border-t-transparent rounded-full mr-2"></div>
                 <span>Evaluating your answer...</span>
               </div>
+            ) : feedback ? (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold">Score:</span>
+                  <span className={`font-bold ${
+                    feedback.score >= 90 ? "text-green-500" : 
+                    feedback.score >= 80 ? "text-yellow-500" : 
+                    "text-red-500"
+                  }`}>
+                    {feedback.score}/100
+                  </span>
+                </div>
+                
+                <div>
+                  <h4 className="font-semibold mb-2">Strengths:</h4>
+                  <ul className="list-disc pl-5 space-y-1">
+                    {feedback.strengths.map((strength, index) => (
+                      <li key={index} className="text-green-700 dark:text-green-400">
+                        <span className="text-foreground">{strength}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                
+                <div>
+                  <h4 className="font-semibold mb-2">Areas for Improvement:</h4>
+                  <ul className="list-disc pl-5 space-y-1">
+                    {feedback.improvements.map((improvement, index) => (
+                      <li key={index} className="text-amber-700 dark:text-amber-400">
+                        <span className="text-foreground">{improvement}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                
+                <div>
+                  <h4 className="font-semibold mb-2">Overall Feedback:</h4>
+                  <p className="bg-muted/20 p-3 rounded-md">{feedback.overallFeedback}</p>
+                </div>
+              </div>
             ) : (
               <div className="p-4 bg-muted/20 rounded-md">
-                {feedback}
+                No feedback available
               </div>
             )}
           </CardContent>

@@ -5,9 +5,10 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { ArrowRight } from 'lucide-react';
 
-type Skill = {
+export type Skill = {
   id: string;
   name: string;
+  description: string;
 };
 
 type SkillSelectionProps = {
@@ -18,13 +19,41 @@ export const SkillSelection = ({ onStartInterview }: SkillSelectionProps) => {
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
 
   const skills: Skill[] = [
-    { id: 'spark', name: 'Spark' },
-    { id: 'python', name: 'Python' },
-    { id: 'etl', name: 'ETL' },
-    { id: 'aws', name: 'AWS Services' },
-    { id: 'airflow', name: 'Airflow' },
-    { id: 'docker', name: 'Docker' },
-    { id: 'behavioral', name: 'Behavioral' },
+    { 
+      id: 'spark', 
+      name: 'Spark', 
+      description: 'Apache Spark is a unified analytics engine for large-scale data processing'
+    },
+    { 
+      id: 'python', 
+      name: 'Python', 
+      description: 'Python programming language and its ecosystem for data engineering' 
+    },
+    { 
+      id: 'etl', 
+      name: 'ETL', 
+      description: 'Extract, Transform, Load processes and best practices' 
+    },
+    { 
+      id: 'aws', 
+      name: 'AWS Services', 
+      description: 'Amazon Web Services cloud infrastructure and data services' 
+    },
+    { 
+      id: 'airflow', 
+      name: 'Airflow', 
+      description: 'Apache Airflow workflow management platform' 
+    },
+    { 
+      id: 'docker', 
+      name: 'Docker', 
+      description: 'Containerization technology for applications' 
+    },
+    { 
+      id: 'behavioral', 
+      name: 'Behavioral', 
+      description: 'Soft skills, teamwork, and professional behavior in the workplace' 
+    },
   ];
 
   const handleSkillToggle = (skillId: string) => {
@@ -44,15 +73,28 @@ export const SkillSelection = ({ onStartInterview }: SkillSelectionProps) => {
       
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mb-8">
         {skills.map(skill => (
-          <div key={skill.id} className="flex items-center space-x-2 border p-4 rounded-md hover:bg-muted/20 transition-colors">
-            <Checkbox 
-              id={skill.id} 
-              checked={selectedSkills.includes(skill.id)}
-              onCheckedChange={() => handleSkillToggle(skill.id)}
-            />
-            <Label htmlFor={skill.id} className="cursor-pointer flex-grow">
-              {skill.name}
-            </Label>
+          <div 
+            key={skill.id} 
+            className={`flex flex-col border p-4 rounded-md transition-colors ${
+              selectedSkills.includes(skill.id) 
+                ? 'bg-primary/10 border-primary/30' 
+                : 'hover:bg-muted/20'
+            }`}
+            onClick={() => handleSkillToggle(skill.id)}
+          >
+            <div className="flex items-center space-x-2">
+              <Checkbox 
+                id={skill.id} 
+                checked={selectedSkills.includes(skill.id)}
+                onCheckedChange={() => handleSkillToggle(skill.id)}
+              />
+              <Label htmlFor={skill.id} className="cursor-pointer font-medium">
+                {skill.name}
+              </Label>
+            </div>
+            <p className="text-sm text-muted-foreground mt-2 ml-6">
+              {skill.description}
+            </p>
           </div>
         ))}
       </div>
