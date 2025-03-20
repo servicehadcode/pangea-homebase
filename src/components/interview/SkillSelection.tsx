@@ -87,6 +87,9 @@ export const SkillSelection = ({ onStartInterview }: SkillSelectionProps) => {
                 id={skill.id} 
                 checked={selectedSkills.includes(skill.id)}
                 onCheckedChange={() => handleSkillToggle(skill.id)}
+                // Stop propagation to prevent double-toggling when clicking directly on checkbox
+                onClick={(e) => e.stopPropagation()}
+                className="cursor-pointer"
               />
               <Label htmlFor={skill.id} className="cursor-pointer font-medium">
                 {skill.name}
