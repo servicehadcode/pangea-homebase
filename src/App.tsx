@@ -8,7 +8,7 @@ import Index from "./pages/Index";
 import SignUp from "./pages/SignUp";
 import Problems from "./pages/Problems";
 import ProblemDetails from "./pages/ProblemDetails";
-import RequestInterview from "./pages/RequestInterview";
+import InterviewPrep from "./pages/InterviewPrep";
 import Contact from "./pages/Contact";
 import NotFound from "./pages/NotFound";
 
@@ -25,7 +25,7 @@ const App = () => (
           <Route path="/signup" element={<SignUp />} />
           <Route path="/problems" element={<Problems />} />
           <Route path="/problems/:category/:id" element={<ProblemDetails />} />
-          <Route path="/request-interview" element={<RequestInterview />} />
+          <Route path="/interview-prep" element={<InterviewPrep />} />
           <Route path="/contact" element={<Contact />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
