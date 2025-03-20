@@ -29,6 +29,11 @@ const OverviewPanel: React.FC<OverviewPanelProps> = ({
     !systemTasks.includes(step.id)
   );
   
+  // Get preparation steps separately 
+  const setupStep = problem.steps.find((step: any) => step.id === 'setup');
+  const collaborationStep = problem.steps.find((step: any) => step.id === 'collaboration');
+  const analysisStep = problem.steps.find((step: any) => step.id === 'analysis');
+  
   // Calculate progress based on actual subtasks only
   const completedSteps = actualSubtasks.filter((step: any) => step.isCompleted).length;
   const progressPercentage = actualSubtasks.length > 0 
@@ -86,31 +91,73 @@ const OverviewPanel: React.FC<OverviewPanelProps> = ({
         
         <Separator />
         
-        {/* Setup Section */}
+        {/* Preparation Steps Section */}
         <div className="space-y-3">
-          <h3 className="text-lg font-medium">Setup</h3>
-          <div className="p-4 border rounded-lg">
-            <div className="flex items-start gap-3">
-              <div className={`flex-shrink-0 h-6 w-6 rounded-full flex items-center justify-center ${
-                problem.setup.isCompleted 
-                  ? 'bg-green-500 text-white' 
-                  : 'bg-gray-200 text-gray-700'
-              }`}>
-                {problem.setup.isCompleted ? <CheckCircle className="h-4 w-4" /> : 1}
-              </div>
-              <div>
-                <h4 className="font-medium">Environment Setup</h4>
-                <p className="text-sm text-muted-foreground">Set up your development environment and get ready to work</p>
+          <h3 className="text-lg font-medium">Preparation Steps</h3>
+          
+          {/* Setup */}
+          {setupStep && (
+            <div className="p-4 border rounded-lg">
+              <div className="flex items-start gap-3">
+                <div className={`flex-shrink-0 h-6 w-6 rounded-full flex items-center justify-center ${
+                  setupStep.isCompleted 
+                    ? 'bg-green-500 text-white' 
+                    : 'bg-gray-200 text-gray-700'
+                }`}>
+                  {setupStep.isCompleted ? <CheckCircle className="h-4 w-4" /> : 1}
+                </div>
+                <div>
+                  <h4 className="font-medium">Environment Setup</h4>
+                  <p className="text-sm text-muted-foreground">Set up your development environment and get ready to work</p>
+                </div>
               </div>
             </div>
-          </div>
+          )}
+          
+          {/* Collaboration */}
+          {collaborationStep && (
+            <div className="p-4 border rounded-lg">
+              <div className="flex items-start gap-3">
+                <div className={`flex-shrink-0 h-6 w-6 rounded-full flex items-center justify-center ${
+                  collaborationStep.isCompleted 
+                    ? 'bg-green-500 text-white' 
+                    : 'bg-gray-200 text-gray-700'
+                }`}>
+                  {collaborationStep.isCompleted ? <CheckCircle className="h-4 w-4" /> : 2}
+                </div>
+                <div>
+                  <h4 className="font-medium">Team Collaboration</h4>
+                  <p className="text-sm text-muted-foreground">Set up collaboration with your team members</p>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {/* Analysis */}
+          {analysisStep && (
+            <div className="p-4 border rounded-lg">
+              <div className="flex items-start gap-3">
+                <div className={`flex-shrink-0 h-6 w-6 rounded-full flex items-center justify-center ${
+                  analysisStep.isCompleted 
+                    ? 'bg-green-500 text-white' 
+                    : 'bg-gray-200 text-gray-700'
+                }`}>
+                  {analysisStep.isCompleted ? <CheckCircle className="h-4 w-4" /> : 3}
+                </div>
+                <div>
+                  <h4 className="font-medium">Problem Analysis</h4>
+                  <p className="text-sm text-muted-foreground">Analyze and understand the problem requirements</p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
         
         <Separator />
         
         {/* Subtasks Section */}
         <div className="space-y-3">
-          <h3 className="text-lg font-medium">Required Subtasks</h3>
+          <h3 className="text-lg font-medium">Implementation Subtasks</h3>
           <div className="space-y-2">
             {actualSubtasks.map((step: any, index: number) => (
               <div key={index} className="p-4 border rounded-lg">

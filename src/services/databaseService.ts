@@ -15,6 +15,20 @@ interface UserSession {
 }
 
 /**
+ * Interface for subtask completion data
+ */
+interface SubtaskCompletion {
+  subtaskId: string;
+  sessionId: string;
+  title: string;
+  assignee: string;
+  reporter: string;
+  prComments: string;
+  deliverables: string;
+  completedAt: string;
+}
+
+/**
  * Records a new user session in the database
  * @param sessionData Session data to record
  * @returns Promise with session ID
@@ -44,6 +58,48 @@ export const recordUserSession = async (sessionData: UserSession): Promise<strin
   // return result.rows[0].session_id;
   
   return sessionId;
+};
+
+/**
+ * Records a subtask completion in the database
+ * @param completionData Subtask completion data
+ * @returns Promise with success status
+ */
+export const recordSubtaskCompletion = async (completionData: SubtaskCompletion): Promise<boolean> => {
+  console.log('Recording subtask completion:', completionData);
+  
+  // Simulate database interaction
+  await new Promise(resolve => setTimeout(resolve, 250));
+  
+  // In a real app:
+  // 
+  // const query = `
+  //   INSERT INTO subtask_completions (
+  //     subtask_id, 
+  //     session_id, 
+  //     title, 
+  //     assignee, 
+  //     reporter, 
+  //     pr_comments, 
+  //     deliverables, 
+  //     completed_at
+  //   )
+  //   VALUES ($1, $2, $3, $4, $5, $6, $7, $8);
+  // `;
+  // 
+  // const values = [
+  //   completionData.subtaskId,
+  //   completionData.sessionId,
+  //   completionData.title,
+  //   completionData.assignee,
+  //   completionData.reporter,
+  //   completionData.prComments,
+  //   completionData.deliverables,
+  //   completionData.completedAt
+  // ];
+  // await db.query(query, values);
+  
+  return true;
 };
 
 /**

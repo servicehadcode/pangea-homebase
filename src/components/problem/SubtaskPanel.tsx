@@ -17,11 +17,12 @@ import {
   GitPullRequest,
   CheckSquare,
   HelpCircle,
-  Edit
+  Edit,
+  Info
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { updateCollaboratorName } from '@/services/collaborationService';
-import { updateSessionProgress } from '@/services/databaseService';
+import { updateSessionProgress, recordSubtaskCompletion } from '@/services/databaseService';
 
 interface SubtaskPanelProps {
   step: any;
@@ -29,11 +30,14 @@ interface SubtaskPanelProps {
   onNext: () => void;
   onComplete: () => void;
   onSkip: () => void;
+  onBackToSubtasks?: () => void;
   isFirst: boolean;
   isLast: boolean;
   isSoloMode: boolean;
+  isDatasetMode?: boolean;
   sessionId?: string;
   username?: string;
+  inviterName?: string;
 }
 
 const SubtaskPanel: React.FC<SubtaskPanelProps> = ({ 
@@ -44,9 +48,12 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
   isLast,
   onComplete,
   onSkip,
+  onBackToSubtasks,
   isSoloMode,
+  isDatasetMode = false,
   sessionId,
-  username = 'User'
+  username = 'User',
+  inviterName = 'Pangea Admin'
 }) => {
   const { toast } = useToast();
   const [branchCreated, setBranchCreated] = useState(false);
@@ -54,8 +61,9 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
   const [prComments, setPrComments] = useState('');
   const [deliverables, setDeliverables] = useState('');
   
+  // Default assignee and reporter based on mode
+  const defaultReporter = isSoloMode ? username : inviterName;
   const defaultAssignee = isSoloMode ? username : (step.assignedTo || 'Unassigned');
-  const defaultReporter = isSoloMode ? username : (step.reporter || 'Pangea Admin');
   
   const [reporter, setReporter] = useState(defaultReporter);
   const [assignee, setAssignee] = useState(defaultAssignee);
@@ -68,14 +76,15 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
     setPrComments('');
     setDeliverables('');
     
+    // Reset reporter and assignee when step changes
+    const newReporter = isSoloMode ? username : inviterName;
     const newAssignee = isSoloMode ? username : (step.assignedTo || 'Unassigned');
-    const newReporter = isSoloMode ? username : (step.reporter || 'Pangea Admin');
     setReporter(newReporter);
     setAssignee(newAssignee);
     
     setIsEditingReporter(false);
     setIsEditingAssignee(false);
-  }, [step, isSoloMode, username]);
+  }, [step, isSoloMode, username, inviterName]);
   
   const handleCreateBranch = () => {
     setBranchCreated(true);
@@ -134,7 +143,7 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
     }
   };
   
-  const handleComplete = () => {
+  const handleComplete = async () => {
     if (!prCreated) {
       toast({
         title: "Pull Request Required",
@@ -165,9 +174,11 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
     if (sessionId) {
       const subtaskId = Math.random().toString(36).substring(2, 15);
       
-      updateSessionProgress(sessionId, 50);
+      // Update session progress
+      await updateSessionProgress(sessionId, 50);
       
-      console.log('Storing subtask data:', {
+      // Store subtask completion data
+      await recordSubtaskCompletion({
         subtaskId,
         sessionId,
         title: step.title,
@@ -176,6 +187,16 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
         prComments,
         deliverables,
         completedAt: new Date().toISOString()
+      });
+      
+      console.log('Subtask completed and stored in database:', {
+        subtaskId,
+        sessionId,
+        title: step.title,
+        assignee,
+        reporter,
+        prComments,
+        deliverables
       });
     }
     
@@ -195,6 +216,34 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
     
     onSkip();
   };
+  
+  // Render a special view for dataset mode
+  if (isDatasetMode) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Dataset Exploration</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="mb-4">Explore the dataset for this problem.</p>
+          {/* Dataset exploration content would go here */}
+          <div className="p-4 bg-secondary/30 rounded-lg">
+            <p>The dataset is available for download and exploration.</p>
+          </div>
+        </CardContent>
+        <CardFooter>
+          <Button 
+            variant="outline"
+            onClick={onBackToSubtasks}
+            className="flex items-center"
+          >
+            <ChevronLeft className="h-4 w-4 mr-1" />
+            Back to Subtasks
+          </Button>
+        </CardFooter>
+      </Card>
+    );
+  }
   
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -407,10 +456,10 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
                       <Button 
                         variant="outline"
                         onClick={handleSkip}
-                        className="flex items-center"
+                        className="flex items-center gap-1"
                       >
                         Skip
-                        <HelpCircle className="h-4 w-4 ml-1" />
+                        <Info className="h-4 w-4 ml-1" />
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>

@@ -48,6 +48,9 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
+import OverviewPanel from '@/components/problem/OverviewPanel';
+import SubtaskPanel from '@/components/problem/SubtaskPanel';
+import { recordUserSession, updateSessionProgress, completeSession, checkDatasetAvailability } from '@/services/databaseService';
 
 const ProblemDetails = () => {
   const { category, id } = useParams();
@@ -74,77 +77,130 @@ const ProblemDetails = () => {
     explanation: '',
     githubLink: '',
   });
-
+  
+  const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  const [username, setUsername] = useState('Anonymous User');
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [isDatasetMode, setIsDatasetMode] = useState(false);
+  const [lastSubtaskIndex, setLastSubtaskIndex] = useState(0);
+  const [inviterName, setInviterName] = useState('Pangea Admin');
+  
   useEffect(() => {
     window.scrollTo(0, 0);
     
     const fetchData = async () => {
       setIsLoading(true);
       
-      // Simulate fetching problem data from an API
       await new Promise(resolve => setTimeout(resolve, 500));
       
       const data = {
         id: parseInt(id || '1', 10),
         title: `Problem ${id} Title`,
         description: "This is a detailed description of the problem. It includes background information, context, and specific requirements for solving the problem. The description should be comprehensive enough for someone to understand the problem without any prior knowledge.",
+        longDescription: "This is a more detailed description that provides comprehensive information about the problem, including background context, detailed requirements, and expected outcomes.",
         difficulty: "Intermediate",
         tags: ["Machine Learning", "Data Preprocessing", "API Development"],
+        requirements: {
+          hardware: "Any modern computer with at least 8GB RAM",
+          software: "Python 3.8+, Jupyter Notebook, Required libraries"
+        },
         steps: [
           {
-            id: 1,
-            title: "Step 1: Data Collection",
-            description: "Collect the necessary data from various sources. This may involve web scraping, API calls, or database queries.",
-            hints: ["Use Python's requests library for API calls.", "Consider using BeautifulSoup for web scraping."],
-            additionalResources: [
-              { title: "Requests Library Documentation", url: "https://requests.readthedocs.io" },
-              { title: "BeautifulSoup Documentation", url: "https://www.crummy.com/software/BeautifulSoup/bs4/doc/" }
+            id: 'setup',
+            title: "Environment Setup",
+            description: "Set up your development environment with the necessary tools and libraries.",
+            isCompleted: false,
+            subproblems: [
+              "Install Python 3.8+",
+              "Set up a virtual environment",
+              "Install required packages"
             ],
+            acceptanceCriteria: [
+              "All dependencies are installed",
+              "Environment is properly configured"
+            ]
           },
           {
-            id: 2,
-            title: "Step 2: Data Preprocessing",
-            description: "Clean and preprocess the data to handle missing values, outliers, and inconsistencies.",
-            hints: ["Use Pandas for data manipulation.", "Consider using Scikit-learn for data scaling."],
-            additionalResources: [
-              { title: "Pandas Documentation", url: "https://pandas.pydata.org/docs/" },
-              { title: "Scikit-learn Documentation", url: "https://scikit-learn.org/stable/documentation.html" }
+            id: 'collaboration',
+            title: "Team Collaboration",
+            description: "Configure collaboration settings for your team.",
+            isCompleted: false,
+            subproblems: [
+              "Set up version control",
+              "Configure collaboration tools",
+              "Define team roles"
             ],
+            acceptanceCriteria: [
+              "Team members are added to the project",
+              "Collaboration tools are configured"
+            ]
           },
           {
-            id: 3,
-            title: "Step 3: Model Training",
+            id: 'analysis',
+            title: "Problem Analysis",
+            description: "Analyze the problem requirements and constraints.",
+            isCompleted: false,
+            subproblems: [
+              "Review problem requirements",
+              "Identify constraints",
+              "Plan implementation strategy"
+            ],
+            acceptanceCriteria: [
+              "Requirements are understood",
+              "Implementation strategy is defined"
+            ]
+          },
+          {
+            id: '1',
+            title: "Data Collection",
+            description: "Collect the necessary data from various sources.",
+            isCompleted: false,
+            subproblems: [
+              "Identify data sources",
+              "Implement data collection methods",
+              "Validate collected data"
+            ],
+            acceptanceCriteria: [
+              "Data is collected from all sources",
+              "Data format is consistent",
+              "Data is validated"
+            ],
+            assignedTo: "Data Engineer"
+          },
+          {
+            id: '2',
+            title: "Data Preprocessing",
+            description: "Clean and preprocess the collected data.",
+            isCompleted: false,
+            subproblems: [
+              "Handle missing values",
+              "Normalize data",
+              "Feature engineering"
+            ],
+            acceptanceCriteria: [
+              "No missing values in critical fields",
+              "Data is properly normalized",
+              "Features are engineered as needed"
+            ],
+            assignedTo: "Data Scientist"
+          },
+          {
+            id: '3',
+            title: "Model Training",
             description: "Train a machine learning model using the preprocessed data.",
-            hints: ["Use Scikit-learn for model training.", "Consider using TensorFlow or PyTorch for deep learning models."],
-            additionalResources: [
-              { title: "Scikit-learn Documentation", url: "https://scikit-learn.org/stable/documentation.html" },
-              { title: "TensorFlow Documentation", url: "https://www.tensorflow.org/api_docs" },
-              { title: "PyTorch Documentation", url: "https://pytorch.org/docs/stable/index.html" }
+            isCompleted: false,
+            subproblems: [
+              "Select appropriate model",
+              "Implement training pipeline",
+              "Tune hyperparameters"
             ],
-          },
-          {
-            id: 4,
-            title: "Step 4: API Development",
-            description: "Develop an API to expose the trained model for predictions.",
-            hints: ["Use Flask or FastAPI for API development.", "Consider using Docker for containerization."],
-            additionalResources: [
-              { title: "Flask Documentation", url: "https://flask.palletsprojects.com/en/2.0.x/" },
-              { title: "FastAPI Documentation", url: "https://fastapi.tiangolo.com/" },
-              { title: "Docker Documentation", url: "https://docs.docker.com/" }
+            acceptanceCriteria: [
+              "Model is trained successfully",
+              "Performance metrics meet expectations",
+              "Training process is documented"
             ],
-          },
-          {
-            id: 5,
-            title: "Step 5: Deployment",
-            description: "Deploy the API to a cloud platform for production use.",
-            hints: ["Use AWS, Google Cloud, or Azure for deployment.", "Consider using Kubernetes for orchestration."],
-            additionalResources: [
-              { title: "AWS Documentation", url: "https://aws.amazon.com/documentation/" },
-              { title: "Google Cloud Documentation", url: "https://cloud.google.com/docs" },
-              { title: "Azure Documentation", url: "https://docs.microsoft.com/en-us/azure/" },
-              { title: "Kubernetes Documentation", url: "https://kubernetes.io/docs/home/" }
-            ],
-          },
+            assignedTo: "ML Engineer"
+          }
         ],
         solution: {
           description: "The solution involves collecting data, preprocessing it, training a machine learning model, developing an API, and deploying it to a cloud platform.",
@@ -198,7 +254,25 @@ const ProblemDetails = () => {
       setProblem(data);
       setIsLoading(false);
       
-      // Load completed steps from local storage
+      const newSessionId = await recordUserSession({
+        userId: "user123",
+        problemId: id || "1",
+        category: category || "data-science",
+        startTime: new Date().toISOString()
+      });
+      
+      setSessionId(newSessionId);
+      
+      const savedUsername = localStorage.getItem('username');
+      if (savedUsername) {
+        setUsername(savedUsername);
+      }
+      
+      const savedInviter = localStorage.getItem('inviterName');
+      if (savedInviter) {
+        setInviterName(savedInviter);
+      }
+      
       const savedSteps = localStorage.getItem(`problem-${data.id}-steps`);
       if (savedSteps) {
         setStepsCompleted(JSON.parse(savedSteps));
@@ -207,7 +281,6 @@ const ProblemDetails = () => {
     
     fetchData();
     
-    // Load completion status from local storage
     const completedProblems = JSON.parse(localStorage.getItem('completedProblems') || '{}');
     setIsCompleted(completedProblems[`${category}-${id}`] || false);
   }, [category, id]);
@@ -228,19 +301,29 @@ const ProblemDetails = () => {
       return rest;
     });
   };
+  
+  const getActualSubtasks = () => {
+    if (!problem) return [];
+    const systemTasks = ['setup', 'collaboration', 'analysis'];
+    return problem.steps.filter(step => !systemTasks.includes(step.id));
+  };
 
-  const allStepsCompleted = problem?.steps.every(step => stepsCompleted[step.id]);
+  const allStepsCompleted = problem && getActualSubtasks().every(step => stepsCompleted[step.id]);
 
   const handleCompleteProblem = () => {
     setShowConfirmation(true);
   };
 
-  const confirmCompleteProblem = () => {
+  const confirmCompleteProblem = async () => {
     const completedProblems = JSON.parse(localStorage.getItem('completedProblems') || '{}');
     completedProblems[`${category}-${id}`] = true;
     localStorage.setItem('completedProblems', JSON.stringify(completedProblems));
     setIsCompleted(true);
     setShowConfirmation(false);
+    
+    if (sessionId) {
+      await completeSession(sessionId);
+    }
     
     toast({
       title: "Problem Completed!",
@@ -258,6 +341,52 @@ const ProblemDetails = () => {
       title: "Problem Completion Undone",
       description: "You have marked this problem as incomplete.",
     });
+  };
+  
+  const handleNextStep = () => {
+    const actualSubtasks = getActualSubtasks();
+    if (currentStepIndex < actualSubtasks.length - 1) {
+      setCurrentStepIndex(currentStepIndex + 1);
+    }
+  };
+  
+  const handlePrevStep = () => {
+    if (currentStepIndex > 0) {
+      setCurrentStepIndex(currentStepIndex - 1);
+    }
+  };
+  
+  const handleCompleteStep = () => {
+    const actualSubtasks = getActualSubtasks();
+    const currentSubtask = actualSubtasks[currentStepIndex];
+    
+    setStepsCompleted(prev => ({ ...prev, [currentSubtask.id]: true }));
+    
+    if (currentStepIndex < actualSubtasks.length - 1) {
+      setCurrentStepIndex(currentStepIndex + 1);
+    }
+  };
+  
+  const handleSkipStep = () => {
+    const actualSubtasks = getActualSubtasks();
+    if (currentStepIndex < actualSubtasks.length - 1) {
+      setCurrentStepIndex(currentStepIndex + 1);
+    }
+  };
+  
+  const handleDatasetTab = async () => {
+    setLastSubtaskIndex(currentStepIndex);
+    setIsDatasetMode(true);
+    setActiveTab('dataset');
+  };
+  
+  const handleBackToSubtasks = () => {
+    setIsDatasetMode(false);
+    setActiveTab('subtasks');
+  };
+  
+  const handleStartSubtasks = () => {
+    setActiveTab('subtasks');
   };
 
   const renderStep = (step: any) => (
@@ -329,11 +458,9 @@ const ProblemDetails = () => {
     setSubmissionError('');
     setSubmissionSuccess(false);
 
-    // Simulate submission process
     await new Promise(resolve => setTimeout(resolve, 1500));
 
     try {
-      // Simulate successful submission
       if (submissionDetails.code.length < 10) {
         throw new Error('Code must be at least 10 characters long.');
       }
@@ -392,6 +519,11 @@ const ProblemDetails = () => {
     );
   }
 
+  const filteredSteps = problem ? getActualSubtasks() : [];
+  const currentSubtask = filteredSteps[currentStepIndex];
+  const isFirstSubtask = currentStepIndex === 0;
+  const isLastSubtask = currentStepIndex === filteredSteps.length - 1;
+
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
@@ -421,7 +553,8 @@ const ProblemDetails = () => {
             <Tabs defaultValue="overview" value={activeTab} onValueChange={setActiveTab} className="mb-6">
               <TabsList>
                 <TabsTrigger value="overview">Overview</TabsTrigger>
-                <TabsTrigger value="steps">Steps</TabsTrigger>
+                <TabsTrigger value="subtasks">Subtasks</TabsTrigger>
+                <TabsTrigger value="dataset">Dataset</TabsTrigger>
                 <TabsTrigger value="solution">Solution</TabsTrigger>
                 <TabsTrigger value="discussion">Discussion</TabsTrigger>
                 <TabsTrigger value="resources">Resources</TabsTrigger>
@@ -429,56 +562,47 @@ const ProblemDetails = () => {
               
               <Separator className="my-4" />
 
-              <TabsContent value="overview" className="space-y-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Problem Overview</CardTitle>
-                    <CardDescription>Understand the problem and its requirements.</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <p>{problem.description}</p>
-                  </CardContent>
-                </Card>
-                
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Key Concepts</CardTitle>
-                    <CardDescription>Learn about the key concepts involved in solving this problem.</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <ul className="list-disc pl-5">
-                      <li>Machine Learning</li>
-                      <li>Data Preprocessing</li>
-                      <li>API Development</li>
-                    </ul>
-                  </CardContent>
-                </Card>
+              <TabsContent value="overview">
+                <OverviewPanel 
+                  problem={problem}
+                  currentStepIndex={currentStepIndex}
+                  onStepChange={setCurrentStepIndex}
+                  onComplete={handleStartSubtasks}
+                />
               </TabsContent>
 
-              <TabsContent value="steps" className="space-y-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Steps to Solve</CardTitle>
-                    <CardDescription>Follow these steps to solve the problem.</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <Accordion type="single" collapsible>
-                      {problem.steps.map(step => renderStep(step))}
-                    </Accordion>
-                    
-                    {allStepsCompleted ? (
-                      <div className="mt-4 text-green-500 flex items-center gap-2">
-                        <CheckCircle className="h-5 w-5" />
-                        All steps completed!
-                      </div>
-                    ) : (
-                      <div className="mt-4 text-yellow-500 flex items-center gap-2">
-                        <Clock className="h-5 w-5" />
-                        Complete all steps to unlock the solution.
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
+              <TabsContent value="subtasks">
+                <SubtaskPanel 
+                  step={currentSubtask}
+                  onPrev={handlePrevStep}
+                  onNext={handleNextStep}
+                  onComplete={handleCompleteStep}
+                  onSkip={handleSkipStep}
+                  isFirst={isFirstSubtask}
+                  isLast={isLastSubtask}
+                  isSoloMode={collaborationMode === 'solo'}
+                  sessionId={sessionId}
+                  username={username}
+                  inviterName={inviterName}
+                />
+              </TabsContent>
+
+              <TabsContent value="dataset">
+                <SubtaskPanel 
+                  step={currentSubtask}
+                  onPrev={handlePrevStep}
+                  onNext={handleNextStep}
+                  onComplete={handleCompleteStep}
+                  onSkip={handleSkipStep}
+                  onBackToSubtasks={handleBackToSubtasks}
+                  isFirst={isFirstSubtask}
+                  isLast={isLastSubtask}
+                  isSoloMode={collaborationMode === 'solo'}
+                  isDatasetMode={true}
+                  sessionId={sessionId}
+                  username={username}
+                  inviterName={inviterName}
+                />
               </TabsContent>
 
               <TabsContent value="solution" className="space-y-4">
@@ -580,7 +704,6 @@ const ProblemDetails = () => {
       
       <Footer />
 
-      {/* Confirmation Dialog */}
       <Dialog open={showConfirmation} onOpenChange={setShowConfirmation}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
@@ -598,7 +721,6 @@ const ProblemDetails = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Submit Solution Modal */}
       <Dialog open={showSubmitModal} onOpenChange={setShowSubmitModal}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
