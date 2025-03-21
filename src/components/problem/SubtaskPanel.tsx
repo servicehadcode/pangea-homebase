@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { 
   ChevronLeft, 
@@ -18,11 +19,18 @@ import {
   CheckSquare,
   HelpCircle,
   Edit,
-  Info
+  Info,
+  AlertCircle,
+  Loader2
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { updateCollaboratorName } from '@/services/collaborationService';
-import { updateSessionProgress, recordSubtaskCompletion } from '@/services/databaseService';
+import { 
+  updateSessionProgress, 
+  recordSubtaskCompletion, 
+  getPRFeedback,
+  updatePRFeedbackStatus
+} from '@/services/databaseService';
 
 interface SubtaskPanelProps {
   step: any;
@@ -58,8 +66,11 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
   const { toast } = useToast();
   const [branchCreated, setBranchCreated] = useState(false);
   const [prCreated, setPrCreated] = useState(false);
-  const [prComments, setPrComments] = useState('');
   const [deliverables, setDeliverables] = useState('');
+  const [showPRFeedback, setShowPRFeedback] = useState(false);
+  const [prFeedback, setPRFeedback] = useState<any[]>([]);
+  const [isLoadingFeedback, setIsLoadingFeedback] = useState(false);
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
   
   // Default assignee and reporter based on mode
   const defaultReporter = isSoloMode ? username : inviterName;
@@ -70,11 +81,16 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
   const [isEditingReporter, setIsEditingReporter] = useState(false);
   const [isEditingAssignee, setIsEditingAssignee] = useState(false);
   
+  // State for acceptance criteria
+  const [acceptanceCriteria, setAcceptanceCriteria] = useState<{id: string; text: string; completed: boolean}[]>([]);
+  
   useEffect(() => {
     setBranchCreated(false);
     setPrCreated(false);
-    setPrComments('');
     setDeliverables('');
+    setPRFeedback([]);
+    setShowPRFeedback(false);
+    setHasAttemptedSubmit(false);
     
     // Reset reporter and assignee when step changes
     const newReporter = isSoloMode ? username : inviterName;
@@ -84,6 +100,19 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
     
     setIsEditingReporter(false);
     setIsEditingAssignee(false);
+    
+    // Initialize acceptance criteria
+    if (step.acceptanceCriteria) {
+      setAcceptanceCriteria(
+        step.acceptanceCriteria.map((criteria: string, index: number) => ({
+          id: `criteria-${index}`,
+          text: criteria,
+          completed: false
+        }))
+      );
+    } else {
+      setAcceptanceCriteria([]);
+    }
   }, [step, isSoloMode, username, inviterName]);
   
   const handleCreateBranch = () => {
@@ -94,7 +123,7 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
     });
   };
   
-  const handleCreatePR = () => {
+  const handleCreatePR = async () => {
     if (!branchCreated) {
       toast({
         title: "Branch Required",
@@ -105,6 +134,20 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
     }
     
     setPrCreated(true);
+    setIsLoadingFeedback(true);
+    
+    try {
+      // Get PR feedback from the service
+      const feedback = await getPRFeedback(step.id);
+      setPRFeedback(feedback);
+      setShowPRFeedback(true);
+    } catch (error) {
+      console.error('Error getting PR feedback:', error);
+      setPRFeedback([]);
+    } finally {
+      setIsLoadingFeedback(false);
+    }
+    
     toast({
       title: "Pull Request Created",
       description: `Created PR: Implement ${step.title}`
@@ -143,6 +186,35 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
     }
   };
   
+  const handleToggleFeedbackResolution = async (feedbackId: string, resolved: boolean) => {
+    try {
+      // Update the feedback status in the database
+      await updatePRFeedbackStatus(feedbackId, resolved);
+      
+      // Update the local state
+      setPRFeedback(prevFeedback => 
+        prevFeedback.map(item => 
+          item.id === feedbackId ? { ...item, resolved } : item
+        )
+      );
+    } catch (error) {
+      console.error('Error updating feedback status:', error);
+      toast({
+        title: "Update Failed",
+        description: "Failed to update feedback status.",
+        variant: "destructive"
+      });
+    }
+  };
+  
+  const handleToggleAcceptanceCriteria = (criteriaId: string, completed: boolean) => {
+    setAcceptanceCriteria(prevCriteria =>
+      prevCriteria.map(criteria =>
+        criteria.id === criteriaId ? { ...criteria, completed } : criteria
+      )
+    );
+  };
+  
   const handleComplete = async () => {
     if (!prCreated) {
       toast({
@@ -153,11 +225,14 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
       return;
     }
     
-    if (!prComments.trim()) {
+    // Check if all feedback is resolved
+    const hasUnresolvedFeedback = prFeedback.some(item => !item.resolved);
+    
+    if (hasUnresolvedFeedback && !hasAttemptedSubmit) {
+      setHasAttemptedSubmit(true);
       toast({
-        title: "PR Comments Required",
-        description: "Please add comments addressing PR feedback.",
-        variant: "destructive"
+        title: "Unresolved Feedback",
+        description: "There is unresolved PR feedback. It's recommended to resolve all feedback before completing this subtask. Click 'Complete & Next' again to proceed anyway.",
       });
       return;
     }
@@ -166,6 +241,18 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
       toast({
         title: "Deliverables Required",
         description: "Please list the deliverables for this subtask.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    // Check if all acceptance criteria are completed
+    const hasUncompletedCriteria = acceptanceCriteria.some(criteria => !criteria.completed);
+    
+    if (hasUncompletedCriteria) {
+      toast({
+        title: "Acceptance Criteria",
+        description: "Not all acceptance criteria have been checked. Please review them before completing this subtask.",
         variant: "destructive"
       });
       return;
@@ -184,7 +271,7 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
         title: step.title,
         assignee,
         reporter,
-        prComments,
+        prComments: JSON.stringify(prFeedback),
         deliverables,
         completedAt: new Date().toISOString()
       });
@@ -195,7 +282,7 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
         title: step.title,
         assignee,
         reporter,
-        prComments,
+        prFeedback,
         deliverables
       });
     }
@@ -277,20 +364,32 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
               </div>
             </div>
             
-            {step.acceptanceCriteria && (
+            {acceptanceCriteria.length > 0 && (
               <>
                 <Separator />
                 
                 <div>
                   <h4 className="font-medium mb-2">Acceptance Criteria</h4>
                   <div className="space-y-2">
-                    {step.acceptanceCriteria.map((criteria: string, index: number) => (
+                    {acceptanceCriteria.map((criteria) => (
                       <div 
-                        key={index}
-                        className="flex items-center gap-2 p-2 border rounded-md"
+                        key={criteria.id}
+                        className="flex items-start gap-2 p-2 border rounded-md"
                       >
-                        <CheckSquare className="h-4 w-4 text-pangea flex-shrink-0" />
-                        <p className="text-sm">{criteria}</p>
+                        <Checkbox
+                          id={criteria.id}
+                          checked={criteria.completed}
+                          onCheckedChange={(checked) => 
+                            handleToggleAcceptanceCriteria(criteria.id, !!checked)
+                          }
+                          className="mt-0.5"
+                        />
+                        <label
+                          htmlFor={criteria.id}
+                          className={`text-sm flex-1 ${criteria.completed ? 'line-through text-muted-foreground' : ''}`}
+                        >
+                          {criteria.text}
+                        </label>
                       </div>
                     ))}
                   </div>
@@ -416,16 +515,49 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
             
             <Separator />
             
-            <div className="space-y-3">
-              <h4 className="font-medium">PR Feedback</h4>
-              <Textarea
-                placeholder="Enter comments addressing PR feedback..."
-                value={prComments}
-                onChange={(e) => setPrComments(e.target.value)}
-                rows={3}
-                disabled={!prCreated}
-              />
-            </div>
+            {showPRFeedback && (
+              <div className="space-y-3">
+                <h4 className="font-medium">PR Feedback</h4>
+                
+                {isLoadingFeedback ? (
+                  <div className="flex items-center justify-center p-4">
+                    <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                    <span>Loading feedback...</span>
+                  </div>
+                ) : prFeedback.length > 0 ? (
+                  <div className="space-y-2">
+                    {prFeedback.map((feedback) => (
+                      <div 
+                        key={feedback.id}
+                        className="flex items-start gap-2 p-3 border rounded-md"
+                      >
+                        <Checkbox
+                          id={feedback.id}
+                          checked={feedback.resolved}
+                          onCheckedChange={(checked) => 
+                            handleToggleFeedbackResolution(feedback.id, !!checked)
+                          }
+                          className="mt-0.5"
+                        />
+                        <div className="flex-1">
+                          <label
+                            htmlFor={feedback.id}
+                            className={`font-medium ${feedback.resolved ? 'line-through text-muted-foreground' : ''}`}
+                          >
+                            {feedback.comment}
+                          </label>
+                          <p className="text-xs text-muted-foreground">From: {feedback.author}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-3 border rounded-md text-center text-muted-foreground">
+                    No feedback received for this PR.
+                  </div>
+                )}
+              </div>
+            )}
             
             <div className="space-y-3">
               <h4 className="font-medium">Deliverables</h4>

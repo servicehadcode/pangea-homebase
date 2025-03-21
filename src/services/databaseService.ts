@@ -29,6 +29,31 @@ interface SubtaskCompletion {
 }
 
 /**
+ * Interface for downloadable item
+ */
+interface DownloadableItem {
+  id: string;
+  problemId: string;
+  name: string;
+  description: string;
+  fileType: string;
+  url: string;
+  size: string;
+  uploadDate: string;
+}
+
+/**
+ * Interface for PR feedback
+ */
+interface PRFeedback {
+  id: string;
+  subtaskId: string;
+  comment: string;
+  author: string;
+  resolved: boolean;
+}
+
+/**
  * Records a new user session in the database
  * @param sessionData Session data to record
  * @returns Promise with session ID
@@ -180,4 +205,119 @@ export const checkDatasetAvailability = async (problemId: string): Promise<boole
   // Mock response - in a real app this would come from the database
   // For now, just return true for certain problem IDs
   return ['1', '3', '5'].includes(problemId);
+};
+
+/**
+ * Gets downloadable items for a problem
+ * @param problemId ID of the problem
+ * @returns Promise with array of downloadable items
+ */
+export const getDownloadableItems = async (problemId: string): Promise<DownloadableItem[]> => {
+  console.log(`Getting downloadable items for problem ${problemId}`);
+  
+  // Simulate database interaction
+  await new Promise(resolve => setTimeout(resolve, 300));
+  
+  // Mock data - in a real app this would come from the database
+  if (['1', '3'].includes(problemId)) {
+    return [
+      {
+        id: '1',
+        problemId,
+        name: 'Dataset.csv',
+        description: 'Main dataset for the problem',
+        fileType: 'csv',
+        url: '#',
+        size: '2.4 MB',
+        uploadDate: '2023-09-15'
+      },
+      {
+        id: '2',
+        problemId,
+        name: 'Documentation.pdf',
+        description: 'Additional documentation and guidelines',
+        fileType: 'pdf',
+        url: '#',
+        size: '1.2 MB',
+        uploadDate: '2023-09-16'
+      }
+    ];
+  }
+  
+  return [];
+};
+
+/**
+ * Gets PR feedback for a subtask
+ * @param subtaskId ID of the subtask
+ * @returns Promise with array of PR feedback items
+ */
+export const getPRFeedback = async (subtaskId: string): Promise<PRFeedback[]> => {
+  console.log(`Getting PR feedback for subtask ${subtaskId}`);
+  
+  // Simulate database interaction
+  await new Promise(resolve => setTimeout(resolve, 350));
+  
+  // Generate some random feedback based on subtask ID
+  const feedbackItems = [];
+  const feedbackCount = Math.floor(Math.random() * 3) + 1; // 1-3 feedback items
+  
+  for (let i = 1; i <= feedbackCount; i++) {
+    feedbackItems.push({
+      id: `${subtaskId}-feedback-${i}`,
+      subtaskId,
+      comment: `Consider improving the ${['performance', 'readability', 'error handling'][i % 3]} of your code.`,
+      author: ['Code Reviewer', 'Senior Developer', 'Tech Lead'][i % 3],
+      resolved: false
+    });
+  }
+  
+  return feedbackItems;
+};
+
+/**
+ * Updates PR feedback resolution status
+ * @param feedbackId ID of the feedback item
+ * @param resolved New resolution status
+ * @returns Promise with success status
+ */
+export const updatePRFeedbackStatus = async (feedbackId: string, resolved: boolean): Promise<boolean> => {
+  console.log(`Updating PR feedback ${feedbackId} resolution status to ${resolved}`);
+  
+  // Simulate database interaction
+  await new Promise(resolve => setTimeout(resolve, 200));
+  
+  return true;
+};
+
+/**
+ * Gets achievement data after problem completion
+ * @param problemId ID of the completed problem
+ * @param userId ID of the user
+ * @returns Promise with achievement data
+ */
+export const getAchievementData = async (problemId: string, userId: string): Promise<any> => {
+  console.log(`Getting achievement data for problem ${problemId} and user ${userId}`);
+  
+  // Simulate database interaction
+  await new Promise(resolve => setTimeout(resolve, 400));
+  
+  // Mock data - in a real app this would come from the database
+  return {
+    problemTitle: `Problem ${problemId}`,
+    experiencePoints: Math.floor(Math.random() * 100) + 50,
+    skillPoints: {
+      'Problem Solving': Math.floor(Math.random() * 20) + 10,
+      'Technical Skills': Math.floor(Math.random() * 20) + 10,
+      'Collaboration': Math.floor(Math.random() * 20) + 5
+    },
+    badges: [
+      {
+        name: 'Problem Solver',
+        description: 'Successfully completed a complex problem',
+        icon: '🏆'
+      }
+    ],
+    completedAt: new Date().toISOString()
+  };
 };

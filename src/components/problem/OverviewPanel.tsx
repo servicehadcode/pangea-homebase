@@ -1,28 +1,43 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { 
   CheckCircle, 
-  CheckSquare
+  CheckSquare,
+  ChevronLeft,
+  Download,
+  FileText,
+  FileSpreadsheet,
+  Loader2,
+  AlertCircle
 } from 'lucide-react';
+import { getDownloadableItems } from '@/services/databaseService';
+import { useToast } from '@/components/ui/use-toast';
 
 interface OverviewPanelProps {
   problem: any;
   currentStepIndex: number;
   onStepChange: (index: number) => void;
   onComplete: () => void;
+  onBack?: () => void;
 }
 
 const OverviewPanel: React.FC<OverviewPanelProps> = ({ 
   problem, 
   currentStepIndex, 
   onStepChange,
-  onComplete
+  onComplete,
+  onBack
 }) => {
+  const { toast } = useToast();
+  const [downloadableItems, setDownloadableItems] = useState<any[]>([]);
+  const [isLoadingItems, setIsLoadingItems] = useState<boolean>(false);
+
   // Filter out system tasks (setup, collaboration, problem analysis)
   const systemTasks = ['setup', 'collaboration', 'analysis'];
   const actualSubtasks = problem.steps.filter((step: any) => 
@@ -39,11 +54,72 @@ const OverviewPanel: React.FC<OverviewPanelProps> = ({
   const progressPercentage = actualSubtasks.length > 0 
     ? (completedSteps / actualSubtasks.length) * 100 
     : 0;
+
+  useEffect(() => {
+    const fetchDownloadableItems = async () => {
+      if (problem && problem.id) {
+        setIsLoadingItems(true);
+        try {
+          const items = await getDownloadableItems(problem.id.toString());
+          setDownloadableItems(items);
+        } catch (error) {
+          console.error('Error fetching downloadable items:', error);
+        } finally {
+          setIsLoadingItems(false);
+        }
+      }
+    };
+
+    fetchDownloadableItems();
+  }, [problem]);
+
+  const handleDownload = (item: any) => {
+    toast({
+      title: "Download Started",
+      description: `Downloading ${item.name}...`,
+    });
+    
+    // Simulate download
+    setTimeout(() => {
+      toast({
+        title: "Download Complete",
+        description: `${item.name} has been downloaded successfully.`,
+      });
+    }, 2000);
+  };
+
+  const handleCheckDownloadableItems = () => {
+    if (downloadableItems.length === 0) {
+      toast({
+        title: "No Items Available",
+        description: "There are no downloadable items for this problem.",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Items Available",
+        description: `${downloadableItems.length} downloadable items available for this problem.`,
+      });
+    }
+  };
   
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-2xl">Project Overview</CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-2xl">Project Overview</CardTitle>
+          {onBack && (
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={onBack}
+              className="flex items-center gap-1"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Back
+            </Button>
+          )}
+        </div>
         <CardDescription>
           A comprehensive view of the project, requirements, and progress
         </CardDescription>
@@ -87,6 +163,74 @@ const OverviewPanel: React.FC<OverviewPanelProps> = ({
               <p className="text-muted-foreground">{problem.requirements.software}</p>
             </div>
           </div>
+        </div>
+        
+        <Separator />
+        
+        {/* Downloadable Items Section */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-medium">Downloadable Items</h3>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={handleCheckDownloadableItems}
+              className="flex items-center gap-1"
+            >
+              <Download className="h-4 w-4" />
+              Check Items
+            </Button>
+          </div>
+
+          {isLoadingItems ? (
+            <div className="flex items-center justify-center p-6">
+              <Loader2 className="h-6 w-6 animate-spin mr-2" />
+              <span>Loading downloadable items...</span>
+            </div>
+          ) : downloadableItems.length > 0 ? (
+            <div className="space-y-2">
+              {downloadableItems.map((item) => (
+                <div key={item.id} className="p-4 border rounded-lg">
+                  <div className="flex items-start gap-3">
+                    <div className="flex-shrink-0">
+                      {item.fileType === 'pdf' ? (
+                        <FileText className="h-10 w-10 text-red-500" />
+                      ) : item.fileType === 'csv' ? (
+                        <FileSpreadsheet className="h-10 w-10 text-green-500" />
+                      ) : (
+                        <FileText className="h-10 w-10 text-blue-500" />
+                      )}
+                    </div>
+                    <div className="flex-grow">
+                      <h4 className="font-medium">{item.name}</h4>
+                      <p className="text-sm text-muted-foreground">{item.description}</p>
+                      <div className="flex items-center gap-4 mt-1">
+                        <span className="text-xs text-muted-foreground">Size: {item.size}</span>
+                        <span className="text-xs text-muted-foreground">Uploaded: {item.uploadDate}</span>
+                      </div>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => handleDownload(item)}
+                      className="flex items-center gap-1"
+                    >
+                      <Download className="h-4 w-4" />
+                      Download
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>No downloadable items</AlertTitle>
+              <AlertDescription>
+                There are no downloadable items available for this problem.
+              </AlertDescription>
+            </Alert>
+          )}
         </div>
         
         <Separator />

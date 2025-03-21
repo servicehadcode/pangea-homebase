@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
@@ -15,7 +16,10 @@ import {
   ArrowRight,
   Github,
   Link as LucideLink,
-  Loader2
+  Loader2,
+  MessageCircle,
+  Book,
+  ChevronLeft
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -32,6 +36,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { Progress } from "@/components/ui/progress"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
 import {
   Dialog,
   DialogContent,
@@ -50,7 +55,17 @@ import {
 import { cn } from "@/lib/utils"
 import OverviewPanel from '@/components/problem/OverviewPanel';
 import SubtaskPanel from '@/components/problem/SubtaskPanel';
-import { recordUserSession, updateSessionProgress, completeSession, checkDatasetAvailability } from '@/services/databaseService';
+import CollaborationSetupPanel from '@/components/problem/CollaborationSetupPanel';
+import AchievementPanel from '@/components/problem/AchievementPanel';
+import { 
+  recordUserSession, 
+  updateSessionProgress, 
+  completeSession, 
+  checkDatasetAvailability, 
+  getDownloadableItems 
+} from '@/services/databaseService';
+import { getDiscussionComments, addDiscussionComment } from '@/services/discussionService';
+import { getResources } from '@/services/resourceService';
 
 const ProblemDetails = () => {
   const { category, id } = useParams();
@@ -59,31 +74,31 @@ const ProblemDetails = () => {
   const [problem, setProblem] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
   const [isCompleted, setIsCompleted] = useState(false);
-  const [showConfirmation, setShowConfirmation] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [showAdditionalResources, setShowAdditionalResources] = useState(false);
-  const [showHints, setShowHints] = useState(false);
-  const [showSolution, setShowSolution] = useState(false);
-  const [showDiscussion, setShowDiscussion] = useState(false);
-  const [showCollaboration, setShowCollaboration] = useState(false);
-  const [collaborationMode, setCollaborationMode] = useState<'solo' | 'pair'>('solo');
   const [stepsCompleted, setStepsCompleted] = useState<Record<string, boolean>>({});
-  const [showSubmitModal, setShowSubmitModal] = useState(false);
-  const [submissionLoading, setSubmissionLoading] = useState(false);
-  const [submissionSuccess, setSubmissionSuccess] = useState(false);
-  const [submissionError, setSubmissionError] = useState('');
-  const [submissionDetails, setSubmissionDetails] = useState({
-    code: '',
-    explanation: '',
-    githubLink: '',
-  });
-  
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [username, setUsername] = useState('Anonymous User');
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [isDatasetMode, setIsDatasetMode] = useState(false);
   const [lastSubtaskIndex, setLastSubtaskIndex] = useState(0);
   const [inviterName, setInviterName] = useState('Pangea Admin');
+  const [collaborationMode, setCollaborationMode] = useState<'solo' | 'pair'>('solo');
+  const [showAchievement, setShowAchievement] = useState(false);
+  const [discussions, setDiscussions] = useState<any[]>([]);
+  const [resources, setResources] = useState<any[]>([]);
+  const [newComment, setNewComment] = useState('');
+  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+  const [isLoadingDiscussions, setIsLoadingDiscussions] = useState(false);
+  const [isLoadingResources, setIsLoadingResources] = useState(false);
+  const [tabsEnabled, setTabsEnabled] = useState({
+    overview: true,
+    collaboration: false,
+    subtasks: false,
+    dataset: false,
+    discussion: true,
+    resources: true,
+    solution: true,
+  });
   
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -221,29 +236,6 @@ const ProblemDetails = () => {
           `,
           explanation: "This code snippet demonstrates how to preprocess data using Pandas and Scikit-learn. It handles missing values by filling them with the mean and scales the data using StandardScaler.",
         },
-        discussion: [
-          {
-            id: 1,
-            author: "John Doe",
-            date: "2023-09-15",
-            comment: "I found this problem very challenging. Has anyone tried using a different model?",
-            replies: [
-              {
-                id: 1,
-                author: "Jane Smith",
-                date: "2023-09-16",
-                comment: "Yes, I tried using a Random Forest model and it worked better for me.",
-              },
-            ],
-          },
-          {
-            id: 2,
-            author: "Alice Johnson",
-            date: "2023-09-17",
-            comment: "Can someone explain the purpose of the API development step?",
-            replies: [],
-          },
-        ],
         resources: [
           { title: "Machine Learning Basics", url: "https://www.example.com/ml-basics" },
           { title: "API Development with Flask", url: "https://www.example.com/flask-api" },
@@ -291,17 +283,6 @@ const ProblemDetails = () => {
     }
   }, [stepsCompleted, problem]);
 
-  const handleStepComplete = (stepId: number) => {
-    setStepsCompleted(prev => ({ ...prev, [stepId]: true }));
-  };
-
-  const handleStepIncomplete = (stepId: number) => {
-    setStepsCompleted(prev => {
-      const { [stepId]: removed, ...rest } = prev;
-      return rest;
-    });
-  };
-  
   const getActualSubtasks = () => {
     if (!problem) return [];
     const systemTasks = ['setup', 'collaboration', 'analysis'];
@@ -310,36 +291,21 @@ const ProblemDetails = () => {
 
   const allStepsCompleted = problem && getActualSubtasks().every(step => stepsCompleted[step.id]);
 
-  const handleCompleteProblem = () => {
-    setShowConfirmation(true);
-  };
-
-  const confirmCompleteProblem = async () => {
-    const completedProblems = JSON.parse(localStorage.getItem('completedProblems') || '{}');
-    completedProblems[`${category}-${id}`] = true;
-    localStorage.setItem('completedProblems', JSON.stringify(completedProblems));
-    setIsCompleted(true);
-    setShowConfirmation(false);
-    
+  const handleCompleteProblem = async () => {
     if (sessionId) {
       await completeSession(sessionId);
     }
     
+    const completedProblems = JSON.parse(localStorage.getItem('completedProblems') || '{}');
+    completedProblems[`${category}-${id}`] = true;
+    localStorage.setItem('completedProblems', JSON.stringify(completedProblems));
+    
+    setIsCompleted(true);
+    setShowAchievement(true);
+    
     toast({
       title: "Problem Completed!",
       description: "Congratulations on completing this problem.",
-    });
-  };
-
-  const handleUndoCompleteProblem = () => {
-    const completedProblems = JSON.parse(localStorage.getItem('completedProblems') || '{}');
-    delete completedProblems[`${category}-${id}`];
-    localStorage.setItem('completedProblems', JSON.stringify(completedProblems));
-    setIsCompleted(false);
-    
-    toast({
-      title: "Problem Completion Undone",
-      description: "You have marked this problem as incomplete.",
     });
   };
   
@@ -364,6 +330,9 @@ const ProblemDetails = () => {
     
     if (currentStepIndex < actualSubtasks.length - 1) {
       setCurrentStepIndex(currentStepIndex + 1);
+    } else if (allStepsCompleted) {
+      // If this was the last subtask and all steps are completed
+      handleCompleteProblem();
     }
   };
   
@@ -386,101 +355,92 @@ const ProblemDetails = () => {
   };
   
   const handleStartSubtasks = () => {
+    setTabsEnabled(prev => ({ ...prev, collaboration: true }));
+    setActiveTab('collaboration');
+  };
+  
+  const handleCollaborationComplete = (mode: 'solo' | 'pair') => {
+    setCollaborationMode(mode);
+    setTabsEnabled(prev => ({ ...prev, subtasks: true }));
     setActiveTab('subtasks');
   };
-
-  const renderStep = (step: any) => (
-    <AccordionItem value={String(step.id)} key={step.id}>
-      <AccordionTrigger className="flex justify-between items-center py-3">
-        {step.title}
-        <Checkbox
-          id={`step-${step.id}`}
-          checked={!!stepsCompleted[step.id]}
-          onCheckedChange={(checked) => {
-            checked ? handleStepComplete(step.id) : handleStepIncomplete(step.id);
-          }}
-          className="ml-4"
-        />
-      </AccordionTrigger>
-      <AccordionContent className="py-4">
-        <p className="mb-4">{step.description}</p>
-        
-        <div className="flex flex-wrap gap-2 mb-4">
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={() => setShowHints(!showHints)}
-          >
-            {showHints ? 'Hide Hints' : 'Show Hints'}
-          </Button>
-          
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={() => setShowAdditionalResources(!showAdditionalResources)}
-          >
-            {showAdditionalResources ? 'Hide Resources' : 'Show Resources'}
-          </Button>
-        </div>
-
-        {showHints && step.hints && step.hints.length > 0 && (
-          <div className="mb-4">
-            <h4 className="text-sm font-semibold mb-2">Hints:</h4>
-            <ul className="list-disc pl-5">
-              {step.hints.map((hint, index) => (
-                <li key={index}>{hint}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {showAdditionalResources && step.additionalResources && step.additionalResources.length > 0 && (
-          <div>
-            <h4 className="text-sm font-semibold mb-2">Additional Resources:</h4>
-            <ul>
-              {step.additionalResources.map((resource, index) => (
-                <li key={index} className="mb-1">
-                  <a href={resource.url} target="_blank" rel="noopener noreferrer" className="text-pangea hover:underline flex items-center gap-1">
-                    <ExternalLink className="h-4 w-4" />
-                    {resource.title}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </AccordionContent>
-    </AccordionItem>
-  );
-
-  const handleSubmitSolution = async () => {
-    setSubmissionLoading(true);
-    setSubmissionError('');
-    setSubmissionSuccess(false);
-
-    await new Promise(resolve => setTimeout(resolve, 1500));
-
-    try {
-      if (submissionDetails.code.length < 10) {
-        throw new Error('Code must be at least 10 characters long.');
-      }
-
-      setSubmissionSuccess(true);
+  
+  const handleSubmitComment = async () => {
+    if (!newComment.trim()) {
       toast({
-        title: "Solution Submitted!",
-        description: "Your solution has been submitted successfully.",
+        title: "Empty Comment",
+        description: "Please enter a comment before submitting.",
+        variant: "destructive",
       });
-    } catch (error: any) {
-      setSubmissionError(error.message || 'An error occurred during submission.');
+      return;
+    }
+    
+    setIsSubmittingComment(true);
+    
+    try {
+      const comment = await addDiscussionComment(
+        id || "1",
+        "user123",
+        username,
+        newComment
+      );
+      
+      setDiscussions(prev => [comment, ...prev]);
+      setNewComment('');
+      
       toast({
-        title: "Submission Error",
-        description: error.message || 'An error occurred during submission.',
+        title: "Comment Posted",
+        description: "Your comment has been posted successfully.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to post your comment. Please try again.",
         variant: "destructive",
       });
     } finally {
-      setSubmissionLoading(false);
+      setIsSubmittingComment(false);
     }
   };
+  
+  const fetchDiscussions = async () => {
+    if (!id) return;
+    
+    setIsLoadingDiscussions(true);
+    
+    try {
+      const comments = await getDiscussionComments(id);
+      setDiscussions(comments);
+    } catch (error) {
+      console.error('Error fetching discussions:', error);
+    } finally {
+      setIsLoadingDiscussions(false);
+    }
+  };
+  
+  const fetchResources = async () => {
+    if (!id) return;
+    
+    setIsLoadingResources(true);
+    
+    try {
+      const resourceItems = await getResources(id);
+      setResources(resourceItems);
+    } catch (error) {
+      console.error('Error fetching resources:', error);
+    } finally {
+      setIsLoadingResources(false);
+    }
+  };
+  
+  // Fetch discussions and resources when switching to those tabs
+  useEffect(() => {
+    if (activeTab === 'discussion') {
+      fetchDiscussions();
+    } else if (activeTab === 'resources') {
+      fetchResources();
+    }
+  }, [activeTab, id]);
 
   if (isLoading) {
     return (
@@ -524,6 +484,27 @@ const ProblemDetails = () => {
   const isFirstSubtask = currentStepIndex === 0;
   const isLastSubtask = currentStepIndex === filteredSteps.length - 1;
 
+  // If showing achievement panel
+  if (showAchievement) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        <main className="flex-grow pt-28 pb-16">
+          <div className="pangea-container">
+            <div className="max-w-3xl mx-auto">
+              <AchievementPanel 
+                problemId={id || "1"} 
+                userId="user123" 
+                category={category || "data-science"}
+              />
+            </div>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
@@ -552,12 +533,23 @@ const ProblemDetails = () => {
 
             <Tabs defaultValue="overview" value={activeTab} onValueChange={setActiveTab} className="mb-6">
               <TabsList>
-                <TabsTrigger value="overview">Overview</TabsTrigger>
-                <TabsTrigger value="subtasks">Subtasks</TabsTrigger>
-                <TabsTrigger value="dataset">Dataset</TabsTrigger>
-                <TabsTrigger value="solution">Solution</TabsTrigger>
-                <TabsTrigger value="discussion">Discussion</TabsTrigger>
-                <TabsTrigger value="resources">Resources</TabsTrigger>
+                <TabsTrigger value="overview" disabled={!tabsEnabled.overview}>Overview</TabsTrigger>
+                <TabsTrigger value="collaboration" disabled={!tabsEnabled.collaboration}>Collaboration</TabsTrigger>
+                <TabsTrigger value="subtasks" disabled={!tabsEnabled.subtasks}>Subtasks</TabsTrigger>
+                <TabsTrigger value="dataset" disabled={!tabsEnabled.dataset}>Dataset</TabsTrigger>
+                <TabsTrigger value="discussion" disabled={!tabsEnabled.discussion}>
+                  <div className="flex items-center gap-1">
+                    <MessageCircle className="h-4 w-4" />
+                    <span>Discussion</span>
+                  </div>
+                </TabsTrigger>
+                <TabsTrigger value="resources" disabled={!tabsEnabled.resources}>
+                  <div className="flex items-center gap-1">
+                    <Book className="h-4 w-4" />
+                    <span>Resources</span>
+                  </div>
+                </TabsTrigger>
+                <TabsTrigger value="solution" disabled={!tabsEnabled.solution}>Solution</TabsTrigger>
               </TabsList>
               
               <Separator className="my-4" />
@@ -568,6 +560,14 @@ const ProblemDetails = () => {
                   currentStepIndex={currentStepIndex}
                   onStepChange={setCurrentStepIndex}
                   onComplete={handleStartSubtasks}
+                />
+              </TabsContent>
+              
+              <TabsContent value="collaboration">
+                <CollaborationSetupPanel 
+                  onComplete={handleCollaborationComplete}
+                  onBack={() => setActiveTab('overview')}
+                  problem={problem}
                 />
               </TabsContent>
 
@@ -605,6 +605,134 @@ const ProblemDetails = () => {
                 />
               </TabsContent>
 
+              <TabsContent value="discussion" className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Discussion</CardTitle>
+                    <CardDescription>Discuss the problem and its solutions with other users.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-3 mb-6">
+                      <Label htmlFor="new-comment">Add a Comment</Label>
+                      <Textarea 
+                        id="new-comment"
+                        placeholder="Share your thoughts, questions, or insights..."
+                        value={newComment}
+                        onChange={(e) => setNewComment(e.target.value)}
+                        className="min-h-[100px]"
+                      />
+                      <Button 
+                        onClick={handleSubmitComment}
+                        disabled={isSubmittingComment || !newComment.trim()}
+                        className="flex items-center gap-1"
+                      >
+                        {isSubmittingComment ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Posting...
+                          </>
+                        ) : (
+                          'Post Comment'
+                        )}
+                      </Button>
+                    </div>
+                    
+                    <Separator />
+                    
+                    {isLoadingDiscussions ? (
+                      <div className="flex justify-center p-6">
+                        <Loader2 className="h-6 w-6 animate-spin" />
+                      </div>
+                    ) : discussions.length > 0 ? (
+                      <div className="space-y-4">
+                        {discussions.map(comment => (
+                          <div key={comment.id} className="border rounded-lg p-4">
+                            <div className="flex justify-between mb-1">
+                              <div className="font-semibold">{comment.username}</div>
+                              <div className="text-sm text-muted-foreground">
+                                {new Date(comment.timestamp).toLocaleString()}
+                              </div>
+                            </div>
+                            <div className="mb-3">{comment.content}</div>
+                            
+                            {comment.replies && comment.replies.length > 0 && (
+                              <div className="space-y-3 mt-3 pl-4 border-l-2 border-gray-200">
+                                {comment.replies.map(reply => (
+                                  <div key={reply.id} className="p-3 bg-secondary/20 rounded-md">
+                                    <div className="flex justify-between mb-1">
+                                      <div className="font-medium">{reply.username}</div>
+                                      <div className="text-xs text-muted-foreground">
+                                        {new Date(reply.timestamp).toLocaleString()}
+                                      </div>
+                                    </div>
+                                    <div>{reply.content}</div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              className="mt-2"
+                            >
+                              Reply
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-6 text-muted-foreground">
+                        <MessageCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                        <p>No comments yet. Be the first to start the discussion!</p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+              
+              <TabsContent value="resources" className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Resources</CardTitle>
+                    <CardDescription>Helpful resources for solving this problem.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {isLoadingResources ? (
+                      <div className="flex justify-center p-6">
+                        <Loader2 className="h-6 w-6 animate-spin" />
+                      </div>
+                    ) : resources.length > 0 ? (
+                      <div className="space-y-4">
+                        {resources.map(resource => (
+                          <div key={resource.id} className="border rounded-lg p-4">
+                            <h3 className="text-lg font-medium mb-1">{resource.title}</h3>
+                            <p className="text-sm text-muted-foreground mb-3">{resource.description}</p>
+                            <div className="flex justify-between items-center">
+                              <Badge variant="outline">{resource.type}</Badge>
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                className="flex items-center gap-1"
+                                onClick={() => window.open(resource.url, '_blank')}
+                              >
+                                <ExternalLink className="h-4 w-4" />
+                                Visit
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-6 text-muted-foreground">
+                        <Book className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                        <p>No resources available for this problem.</p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
               <TabsContent value="solution" className="space-y-4">
                 <Card>
                   <CardHeader>
@@ -618,171 +746,34 @@ const ProblemDetails = () => {
                     </pre>
                     <p className="mt-4">{problem.solution.explanation}</p>
                   </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="discussion" className="space-y-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Discussion</CardTitle>
-                    <CardDescription>Discuss the problem and its solutions with other users.</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    {problem.discussion.map(comment => (
-                      <div key={comment.id} className="mb-4">
-                        <div className="font-semibold">{comment.author}</div>
-                        <div className="text-sm text-muted-foreground">{comment.date}</div>
-                        <div>{comment.comment}</div>
-                        {comment.replies.map(reply => (
-                          <div key={reply.id} className="ml-4 mt-2 border-l-2 border-gray-200 pl-4">
-                            <div className="font-semibold">{reply.author}</div>
-                            <div className="text-sm text-muted-foreground">{reply.date}</div>
-                            <div>{reply.comment}</div>
-                          </div>
-                        ))}
-                      </div>
-                    ))}
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="resources" className="space-y-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Additional Resources</CardTitle>
-                    <CardDescription>Links to additional resources that may be helpful.</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <ul>
-                      {problem.resources.map(resource => (
-                        <li key={resource.title} className="mb-2">
-                          <a href={resource.url} target="_blank" rel="noopener noreferrer" className="text-pangea hover:underline flex items-center gap-1">
-                            <ExternalLink className="h-4 w-4" />
-                            {resource.title}
-                          </a>
-                        </li>
-                      ))}
-                    </ul>
-                  </CardContent>
+                  <CardFooter>
+                    {allStepsCompleted ? (
+                      <Button 
+                        className="pangea-button-primary"
+                        onClick={handleCompleteProblem}
+                      >
+                        Complete Problem
+                      </Button>
+                    ) : (
+                      <Alert className="w-full">
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertTitle>Complete all subtasks first</AlertTitle>
+                        <AlertDescription>
+                          You need to complete all subtasks before marking this problem as complete.
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                  </CardFooter>
                 </Card>
               </TabsContent>
             </Tabs>
-
-            <div className="flex justify-between items-center mt-8">
-              {isCompleted ? (
-                <Button 
-                  variant="destructive"
-                  onClick={handleUndoCompleteProblem}
-                  className="flex items-center gap-2"
-                >
-                  Undo Complete
-                  <ArrowLeft className="h-4 w-4" />
-                </Button>
-              ) : (
-                <Button 
-                  onClick={handleCompleteProblem}
-                  disabled={!allStepsCompleted}
-                  className="pangea-button-primary flex items-center gap-2"
-                >
-                  Complete Problem
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
-              )}
-              
-              <Button 
-                variant="secondary"
-                onClick={() => setShowSubmitModal(true)}
-                className="flex items-center gap-2"
-              >
-                Submit Your Solution
-                <Upload className="h-4 w-4" />
-              </Button>
-            </div>
           </div>
         </div>
       </main>
       
       <Footer />
-
-      <Dialog open={showConfirmation} onOpenChange={setShowConfirmation}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Complete Problem</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to mark this problem as complete? This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="flex justify-end space-x-2">
-              <Button variant="ghost" onClick={() => setShowConfirmation(false)}>Cancel</Button>
-              <Button onClick={confirmCompleteProblem}>Confirm</Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={showSubmitModal} onOpenChange={setShowSubmitModal}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle>Submit Your Solution</DialogTitle>
-            <DialogDescription>
-              Share your solution with the community.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="code">Code Snippet</Label>
-              <Textarea
-                id="code"
-                placeholder="Paste your code snippet here"
-                value={submissionDetails.code}
-                onChange={(e) => setSubmissionDetails({ ...submissionDetails, code: e.target.value })}
-                className="min-h-[150px]"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="explanation">Explanation</Label>
-              <Textarea
-                id="explanation"
-                placeholder="Explain your solution"
-                value={submissionDetails.explanation}
-                onChange={(e) => setSubmissionDetails({ ...submissionDetails, explanation: e.target.value })}
-                className="min-h-[100px]"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="githubLink" className="flex items-center gap-1">
-                GitHub Repository <Github className="h-4 w-4 text-muted-foreground" />
-              </Label>
-              <Input
-                id="githubLink"
-                placeholder="Link to your GitHub repository (optional)"
-                value={submissionDetails.githubLink}
-                onChange={(e) => setSubmissionDetails({ ...submissionDetails, githubLink: e.target.value })}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button type="submit" onClick={handleSubmitSolution} disabled={submissionLoading} className="pangea-button-primary">
-              {submissionLoading ? (
-                <div className="flex items-center justify-center">
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Submitting...
-                </div>
-              ) : (
-                "Submit Solution"
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };
-
-const DialogFooter = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={cn("flex items-center justify-end space-x-2", className)} {...props} />
-);
-DialogFooter.displayName = "DialogFooter";
 
 export default ProblemDetails;
