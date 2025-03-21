@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
@@ -19,7 +20,9 @@ import {
   MessageCircle,
   Book,
   ChevronLeft,
-  AlertCircle
+  AlertCircle,
+  Save,
+  Home
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -56,13 +59,15 @@ import { cn } from "@/lib/utils"
 import OverviewPanel from '@/components/problem/OverviewPanel';
 import SubtaskPanel from '@/components/problem/SubtaskPanel';
 import CollaborationSetupPanel from '@/components/problem/CollaborationSetupPanel';
+import SubtaskAssignmentPanel from '@/components/problem/SubtaskAssignmentPanel';
 import AchievementPanel from '@/components/problem/AchievementPanel';
 import { 
   recordUserSession, 
   updateSessionProgress, 
   completeSession, 
   checkDatasetAvailability, 
-  getDownloadableItems 
+  getDownloadableItems,
+  saveUserProgress
 } from '@/services/databaseService';
 import { getDiscussionComments, addDiscussionComment } from '@/services/discussionService';
 import { getResources } from '@/services/resourceService';
@@ -90,14 +95,16 @@ const ProblemDetails = () => {
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const [isLoadingDiscussions, setIsLoadingDiscussions] = useState(false);
   const [isLoadingResources, setIsLoadingResources] = useState(false);
+  const [showTaskAssignment, setShowTaskAssignment] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [tabsEnabled, setTabsEnabled] = useState({
     overview: true,
     collaboration: false,
+    taskAssignment: false,
     subtasks: false,
     dataset: false,
     discussion: true,
     resources: true,
-    solution: true,
   });
   
   useEffect(() => {
@@ -269,6 +276,25 @@ const ProblemDetails = () => {
       if (savedSteps) {
         setStepsCompleted(JSON.parse(savedSteps));
       }
+      
+      // Check if we have a saved state for this problem to restore
+      const savedState = localStorage.getItem(`problem-${id}-state`);
+      if (savedState) {
+        const state = JSON.parse(savedState);
+        setActiveTab(state.activeTab || 'overview');
+        setCurrentStepIndex(state.currentStepIndex || 0);
+        setCollaborationMode(state.collaborationMode || 'solo');
+        setTabsEnabled(state.tabsEnabled || {
+          overview: true,
+          collaboration: false,
+          taskAssignment: false,
+          subtasks: false,
+          dataset: false,
+          discussion: true,
+          resources: true,
+        });
+        setShowTaskAssignment(state.showTaskAssignment || false);
+      }
     };
     
     fetchData();
@@ -360,6 +386,20 @@ const ProblemDetails = () => {
   
   const handleCollaborationComplete = (mode: 'solo' | 'pair') => {
     setCollaborationMode(mode);
+    
+    if (mode === 'pair') {
+      // In collaboration mode, enable task assignment tab
+      setTabsEnabled(prev => ({ ...prev, taskAssignment: true }));
+      setShowTaskAssignment(true);
+      setActiveTab('taskAssignment');
+    } else {
+      // In solo mode, directly enable subtasks tab
+      setTabsEnabled(prev => ({ ...prev, subtasks: true }));
+      setActiveTab('subtasks');
+    }
+  };
+  
+  const handleTaskAssignmentComplete = () => {
     setTabsEnabled(prev => ({ ...prev, subtasks: true }));
     setActiveTab('subtasks');
   };
@@ -432,6 +472,50 @@ const ProblemDetails = () => {
     }
   };
   
+  const handleSaveAndExit = async () => {
+    setIsSaving(true);
+    
+    try {
+      // Save the current problem state
+      const currentState = {
+        activeTab,
+        currentStepIndex,
+        collaborationMode,
+        tabsEnabled,
+        showTaskAssignment,
+        stepsCompleted
+      };
+      
+      // Save to localStorage
+      localStorage.setItem(`problem-${id}-state`, JSON.stringify(currentState));
+      
+      // Save to the backend
+      await saveUserProgress({
+        userId: "user123",
+        problemId: id || "1",
+        category: category || "data-science",
+        progress: currentState,
+        timestamp: new Date().toISOString()
+      });
+      
+      toast({
+        title: "Progress Saved",
+        description: "Your progress has been saved. You can continue from where you left off when you return.",
+      });
+      
+      // Navigate back to problems page
+      navigate('/problems');
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to save your progress. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+  
   useEffect(() => {
     if (activeTab === 'discussion') {
       fetchDiscussions();
@@ -481,6 +565,13 @@ const ProblemDetails = () => {
   const currentSubtask = filteredSteps[currentStepIndex];
   const isFirstSubtask = currentStepIndex === 0;
   const isLastSubtask = currentStepIndex === filteredSteps.length - 1;
+  
+  // Calculate completion percentage for progress bar
+  const completedSubtasksCount = Object.values(stepsCompleted).filter(Boolean).length;
+  const totalSubtasksCount = filteredSteps.length;
+  const completionPercentage = totalSubtasksCount > 0 
+    ? (completedSubtasksCount / totalSubtasksCount) * 100 
+    : 0;
 
   if (showAchievement) {
     return (
@@ -508,13 +599,33 @@ const ProblemDetails = () => {
       
       <main className="flex-grow pt-28 pb-16">
         <div className="pangea-container">
-          <Button 
-            variant="ghost" 
-            className="mb-4"
-            onClick={() => navigate('/problems')}
-          >
-            ← Back to Problems
-          </Button>
+          <div className="flex justify-between items-center mb-4">
+            <Button 
+              variant="ghost" 
+              onClick={() => navigate('/problems')}
+            >
+              ← Back to Problems
+            </Button>
+            
+            <Button 
+              variant="outline" 
+              className="flex items-center gap-2"
+              onClick={handleSaveAndExit}
+              disabled={isSaving}
+            >
+              {isSaving ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4" />
+                  Save & Exit
+                </>
+              )}
+            </Button>
+          </div>
 
           <div className="max-w-4xl mx-auto animate-fade-in">
             <div className="mb-8">
@@ -532,6 +643,9 @@ const ProblemDetails = () => {
               <TabsList>
                 <TabsTrigger value="overview" disabled={!tabsEnabled.overview}>Overview</TabsTrigger>
                 <TabsTrigger value="collaboration" disabled={!tabsEnabled.collaboration}>Collaboration</TabsTrigger>
+                {showTaskAssignment && (
+                  <TabsTrigger value="taskAssignment" disabled={!tabsEnabled.taskAssignment}>Assign Tasks</TabsTrigger>
+                )}
                 <TabsTrigger value="subtasks" disabled={!tabsEnabled.subtasks}>Subtasks</TabsTrigger>
                 <TabsTrigger value="dataset" disabled={!tabsEnabled.dataset}>Dataset</TabsTrigger>
                 <TabsTrigger value="discussion" disabled={!tabsEnabled.discussion}>
@@ -546,7 +660,6 @@ const ProblemDetails = () => {
                     <span>Resources</span>
                   </div>
                 </TabsTrigger>
-                <TabsTrigger value="solution" disabled={!tabsEnabled.solution}>Solution</TabsTrigger>
               </TabsList>
               
               <Separator className="my-4" />
@@ -567,21 +680,74 @@ const ProblemDetails = () => {
                   problem={problem}
                 />
               </TabsContent>
+              
+              {showTaskAssignment && (
+                <TabsContent value="taskAssignment">
+                  <SubtaskAssignmentPanel 
+                    subtasks={filteredSteps}
+                    onComplete={handleTaskAssignmentComplete}
+                    onBack={() => setActiveTab('collaboration')}
+                  />
+                </TabsContent>
+              )}
 
               <TabsContent value="subtasks">
-                <SubtaskPanel 
-                  step={currentSubtask}
-                  onPrev={handlePrevStep}
-                  onNext={handleNextStep}
-                  onComplete={handleCompleteStep}
-                  onSkip={handleSkipStep}
-                  isFirst={isFirstSubtask}
-                  isLast={isLastSubtask}
-                  isSoloMode={collaborationMode === 'solo'}
-                  sessionId={sessionId}
-                  username={username}
-                  inviterName={inviterName}
-                />
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                  <div className="space-y-4">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Progress</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-sm">
+                            <span>Completion</span>
+                            <span>{Math.round(completionPercentage)}%</span>
+                          </div>
+                          <Progress value={completionPercentage} className="h-2" />
+                        </div>
+                        
+                        <Separator className="my-4" />
+                        
+                        <ScrollArea className="h-[250px] pr-4">
+                          <div className="space-y-2">
+                            {filteredSteps.map((step, index) => (
+                              <div 
+                                key={step.id} 
+                                className={`p-2 rounded-md cursor-pointer ${
+                                  currentStepIndex === index ? 'bg-primary/90 text-primary-foreground' : 
+                                  stepsCompleted[step.id] ? 'bg-primary/20' : 'bg-secondary/50'
+                                }`}
+                                onClick={() => setCurrentStepIndex(index)}
+                              >
+                                <div className="flex items-center justify-between">
+                                  <span className="text-sm">{step.title}</span>
+                                  {stepsCompleted[step.id] && <CheckCircle className="h-4 w-4" />}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </ScrollArea>
+                      </CardContent>
+                    </Card>
+                  </div>
+                  
+                  <div className="md:col-span-3">
+                    <SubtaskPanel 
+                      step={currentSubtask}
+                      onPrev={handlePrevStep}
+                      onNext={handleNextStep}
+                      onComplete={handleCompleteStep}
+                      onSkip={handleSkipStep}
+                      isFirst={isFirstSubtask}
+                      isLast={isLastSubtask}
+                      isSoloMode={collaborationMode === 'solo'}
+                      sessionId={sessionId}
+                      username={username}
+                      inviterName={inviterName}
+                    />
+                  </div>
+                </div>
               </TabsContent>
 
               <TabsContent value="dataset">
@@ -727,40 +893,6 @@ const ProblemDetails = () => {
                       </div>
                     )}
                   </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="solution" className="space-y-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Solution</CardTitle>
-                    <CardDescription>A detailed solution to the problem.</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="mb-4">{problem.solution.description}</p>
-                    <pre className="bg-gray-100 p-4 rounded-md overflow-x-auto">
-                      <code>{problem.solution.codeSnippet}</code>
-                    </pre>
-                    <p className="mt-4">{problem.solution.explanation}</p>
-                  </CardContent>
-                  <CardFooter>
-                    {allStepsCompleted ? (
-                      <Button 
-                        className="pangea-button-primary"
-                        onClick={handleCompleteProblem}
-                      >
-                        Complete Problem
-                      </Button>
-                    ) : (
-                      <Alert className="w-full">
-                        <AlertCircle className="h-4 w-4" />
-                        <AlertTitle>Complete all subtasks first</AlertTitle>
-                        <AlertDescription>
-                          You need to complete all subtasks before marking this problem as complete.
-                        </AlertDescription>
-                      </Alert>
-                    )}
-                  </CardFooter>
                 </Card>
               </TabsContent>
             </Tabs>

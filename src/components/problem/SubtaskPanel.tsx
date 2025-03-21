@@ -21,7 +21,9 @@ import {
   Edit,
   Info,
   AlertCircle,
-  Loader2
+  Loader2,
+  SendHorizonal,
+  CheckCircle
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { updateCollaboratorName } from '@/services/collaborationService';
@@ -288,8 +290,10 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
     }
     
     toast({
-      title: "Subtask Completed",
-      description: `You have completed: ${step.title}`
+      title: isLast ? "Solution Submitted" : "Subtask Completed",
+      description: isLast 
+        ? "Your solution has been submitted successfully." 
+        : `You have completed: ${step.title}`
     });
     
     onComplete();
@@ -333,294 +337,291 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
   }
   
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <div className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Subtask Description</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <h3 className="text-lg font-medium mb-2">{step.title}</h3>
-              <p className="text-muted-foreground">{step.description}</p>
-            </div>
-            
-            <Separator />
-            
-            <div>
-              <h4 className="font-medium mb-2">Details</h4>
-              <div className="space-y-2">
-                {step.subproblems.map((subproblem: string, index: number) => (
-                  <div 
-                    key={index}
-                    className="p-3 bg-secondary/30 rounded-lg flex items-start gap-3"
-                  >
-                    <div className="flex-shrink-0 h-6 w-6 rounded-full bg-secondary flex items-center justify-center">
-                      {index + 1}
-                    </div>
-                    <p>{subproblem}</p>
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>Subtask Description</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <h3 className="text-lg font-medium mb-2">{step.title}</h3>
+            <p className="text-muted-foreground">{step.description}</p>
+          </div>
+          
+          <Separator />
+          
+          <div>
+            <h4 className="font-medium mb-2">Details</h4>
+            <div className="space-y-2">
+              {step.subproblems.map((subproblem: string, index: number) => (
+                <div 
+                  key={index}
+                  className="p-3 bg-secondary/30 rounded-lg flex items-start gap-3"
+                >
+                  <div className="flex-shrink-0 h-6 w-6 rounded-full bg-secondary flex items-center justify-center">
+                    {index + 1}
                   </div>
-                ))}
-              </div>
-            </div>
-            
-            {acceptanceCriteria.length > 0 && (
-              <>
-                <Separator />
-                
-                <div>
-                  <h4 className="font-medium mb-2">Acceptance Criteria</h4>
-                  <div className="space-y-2">
-                    {acceptanceCriteria.map((criteria) => (
-                      <div 
-                        key={criteria.id}
-                        className="flex items-start gap-2 p-2 border rounded-md"
-                      >
-                        <Checkbox
-                          id={criteria.id}
-                          checked={criteria.completed}
-                          onCheckedChange={(checked) => 
-                            handleToggleAcceptanceCriteria(criteria.id, !!checked)
-                          }
-                          className="mt-0.5"
-                        />
-                        <label
-                          htmlFor={criteria.id}
-                          className={`text-sm flex-1 ${criteria.completed ? 'line-through text-muted-foreground' : ''}`}
-                        >
-                          {criteria.text}
-                        </label>
-                      </div>
-                    ))}
-                  </div>
+                  <p>{subproblem}</p>
                 </div>
-              </>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+              ))}
+            </div>
+          </div>
+          
+          {acceptanceCriteria.length > 0 && (
+            <>
+              <Separator />
+              
+              <div>
+                <h4 className="font-medium mb-2">Acceptance Criteria</h4>
+                <div className="space-y-2">
+                  {acceptanceCriteria.map((criteria) => (
+                    <div 
+                      key={criteria.id}
+                      className="flex items-start gap-2 p-2 border rounded-md"
+                    >
+                      <Checkbox
+                        id={criteria.id}
+                        checked={criteria.completed}
+                        onCheckedChange={(checked) => 
+                          handleToggleAcceptanceCriteria(criteria.id, !!checked)
+                        }
+                        className="mt-0.5"
+                      />
+                      <label
+                        htmlFor={criteria.id}
+                        className={`text-sm flex-1 ${criteria.completed ? 'line-through text-muted-foreground' : ''}`}
+                      >
+                        {criteria.text}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
       
-      <div className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Implementation</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex flex-wrap gap-3">
-              <div className="flex-1 min-w-[120px]">
-                <span className="text-sm text-muted-foreground">Reporter</span>
-                <div className="flex items-center mt-1 group">
-                  <User className="h-4 w-4 mr-1 text-pangea" />
-                  {isEditingReporter ? (
-                    <div className="flex gap-2 items-center w-full">
-                      <Input 
-                        value={reporter} 
-                        onChange={(e) => setReporter(e.target.value)}
-                        className="h-7 py-1 text-sm"
-                      />
-                      <Button 
-                        size="sm" 
-                        className="h-7 px-2"
-                        onClick={() => handleUpdateName('reporter', reporter)}
-                      >
-                        Save
-                      </Button>
-                    </div>
-                  ) : (
-                    <>
-                      <span className="font-medium">{reporter}</span>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 ml-1"
-                        onClick={() => setIsEditingReporter(true)}
-                      >
-                        <Edit className="h-3 w-3" />
-                      </Button>
-                    </>
-                  )}
-                </div>
-              </div>
-              
-              <div className="flex-1 min-w-[120px]">
-                <span className="text-sm text-muted-foreground">Assignee</span>
-                <div className="flex items-center mt-1 group">
-                  <User className="h-4 w-4 mr-1 text-pangea" />
-                  {isEditingAssignee ? (
-                    <div className="flex gap-2 items-center w-full">
-                      <Input 
-                        value={assignee} 
-                        onChange={(e) => setAssignee(e.target.value)}
-                        className="h-7 py-1 text-sm"
-                      />
-                      <Button 
-                        size="sm" 
-                        className="h-7 px-2"
-                        onClick={() => handleUpdateName('assignee', assignee)}
-                      >
-                        Save
-                      </Button>
-                    </div>
-                  ) : (
-                    <>
-                      <span className="font-medium">
-                        {assignee}
-                      </span>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 ml-1"
-                        onClick={() => setIsEditingAssignee(true)}
-                      >
-                        <Edit className="h-3 w-3" />
-                      </Button>
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
-            
-            <Separator />
-            
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h4 className="font-medium">Development</h4>
-                <Badge variant={branchCreated ? "default" : "outline"}>
-                  {branchCreated ? "Branch Created" : "Not Started"}
-                </Badge>
-              </div>
-              
-              <div className="space-y-2">
-                <Button 
-                  variant="outline" 
-                  className="w-full"
-                  onClick={handleCreateBranch}
-                  disabled={branchCreated}
-                >
-                  <GitBranch className="h-4 w-4 mr-2" />
-                  {branchCreated ? "Branch Created" : "Start Development (Create Branch)"}
-                </Button>
-                
-                <Button 
-                  variant="outline" 
-                  className="w-full"
-                  onClick={handleCreatePR}
-                  disabled={!branchCreated || prCreated}
-                >
-                  <GitPullRequest className="h-4 w-4 mr-2" />
-                  {prCreated ? "PR Created" : "Submit Work (Create PR)"}
-                </Button>
-              </div>
-            </div>
-            
-            <Separator />
-            
-            {showPRFeedback && (
-              <div className="space-y-3">
-                <h4 className="font-medium">PR Feedback</h4>
-                
-                {isLoadingFeedback ? (
-                  <div className="flex items-center justify-center p-4">
-                    <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                    <span>Loading feedback...</span>
-                  </div>
-                ) : prFeedback.length > 0 ? (
-                  <div className="space-y-2">
-                    {prFeedback.map((feedback) => (
-                      <div 
-                        key={feedback.id}
-                        className="flex items-start gap-2 p-3 border rounded-md"
-                      >
-                        <Checkbox
-                          id={feedback.id}
-                          checked={feedback.resolved}
-                          onCheckedChange={(checked) => 
-                            handleToggleFeedbackResolution(feedback.id, !!checked)
-                          }
-                          className="mt-0.5"
-                        />
-                        <div className="flex-1">
-                          <label
-                            htmlFor={feedback.id}
-                            className={`font-medium ${feedback.resolved ? 'line-through text-muted-foreground' : ''}`}
-                          >
-                            {feedback.comment}
-                          </label>
-                          <p className="text-xs text-muted-foreground">From: {feedback.author}</p>
-                        </div>
-                      </div>
-                    ))}
+      <Card>
+        <CardHeader>
+          <CardTitle>Implementation</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-wrap gap-3">
+            <div className="flex-1 min-w-[120px]">
+              <span className="text-sm text-muted-foreground">Reporter</span>
+              <div className="flex items-center mt-1 group">
+                <User className="h-4 w-4 mr-1 text-pangea" />
+                {isEditingReporter ? (
+                  <div className="flex gap-2 items-center w-full">
+                    <Input 
+                      value={reporter} 
+                      onChange={(e) => setReporter(e.target.value)}
+                      className="h-7 py-1 text-sm"
+                    />
+                    <Button 
+                      size="sm" 
+                      className="h-7 px-2"
+                      onClick={() => handleUpdateName('reporter', reporter)}
+                    >
+                      Save
+                    </Button>
                   </div>
                 ) : (
-                  <div className="p-3 border rounded-md text-center text-muted-foreground">
-                    No feedback received for this PR.
-                  </div>
+                  <>
+                    <span className="font-medium">{reporter}</span>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 ml-1"
+                      onClick={() => setIsEditingReporter(true)}
+                    >
+                      <Edit className="h-3 w-3" />
+                    </Button>
+                  </>
                 )}
               </div>
+            </div>
+            
+            <div className="flex-1 min-w-[120px]">
+              <span className="text-sm text-muted-foreground">Assignee</span>
+              <div className="flex items-center mt-1 group">
+                <User className="h-4 w-4 mr-1 text-pangea" />
+                {isEditingAssignee ? (
+                  <div className="flex gap-2 items-center w-full">
+                    <Input 
+                      value={assignee} 
+                      onChange={(e) => setAssignee(e.target.value)}
+                      className="h-7 py-1 text-sm"
+                    />
+                    <Button 
+                      size="sm" 
+                      className="h-7 px-2"
+                      onClick={() => handleUpdateName('assignee', assignee)}
+                    >
+                      Save
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <span className="font-medium">
+                      {assignee}
+                    </span>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 ml-1"
+                      onClick={() => setIsEditingAssignee(true)}
+                    >
+                      <Edit className="h-3 w-3" />
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+          
+          <Separator />
+          
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h4 className="font-medium">Development</h4>
+              <Badge variant={branchCreated ? "default" : "outline"}>
+                {branchCreated ? "Branch Created" : "Not Started"}
+              </Badge>
+            </div>
+            
+            <div className="space-y-2">
+              <Button 
+                variant="outline" 
+                className="w-full"
+                onClick={handleCreateBranch}
+                disabled={branchCreated}
+              >
+                <GitBranch className="h-4 w-4 mr-2" />
+                {branchCreated ? "Branch Created" : "Start Development (Create Branch)"}
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                className="w-full"
+                onClick={handleCreatePR}
+                disabled={!branchCreated || prCreated}
+              >
+                <GitPullRequest className="h-4 w-4 mr-2" />
+                {prCreated ? "PR Created" : "Submit Work (Create PR)"}
+              </Button>
+            </div>
+          </div>
+          
+          <Separator />
+          
+          {showPRFeedback && (
+            <div className="space-y-3">
+              <h4 className="font-medium">PR Feedback</h4>
+              
+              {isLoadingFeedback ? (
+                <div className="flex items-center justify-center p-4">
+                  <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                  <span>Loading feedback...</span>
+                </div>
+              ) : prFeedback.length > 0 ? (
+                <div className="space-y-2">
+                  {prFeedback.map((feedback) => (
+                    <div 
+                      key={feedback.id}
+                      className="flex items-start gap-2 p-3 border rounded-md"
+                    >
+                      <Checkbox
+                        id={feedback.id}
+                        checked={feedback.resolved}
+                        onCheckedChange={(checked) => 
+                          handleToggleFeedbackResolution(feedback.id, !!checked)
+                        }
+                        className="mt-0.5"
+                      />
+                      <div className="flex-1">
+                        <label
+                          htmlFor={feedback.id}
+                          className={`font-medium ${feedback.resolved ? 'line-through text-muted-foreground' : ''}`}
+                        >
+                          {feedback.comment}
+                        </label>
+                        <p className="text-xs text-muted-foreground">From: {feedback.author}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-3 border rounded-md text-center text-muted-foreground">
+                  No feedback received for this PR.
+                </div>
+              )}
+            </div>
+          )}
+          
+          <div className="space-y-3">
+            <h4 className="font-medium">Deliverables</h4>
+            <Textarea
+              placeholder="List deliverables for this subtask..."
+              value={deliverables}
+              onChange={(e) => setDeliverables(e.target.value)}
+              rows={3}
+            />
+          </div>
+        </CardContent>
+        <CardFooter className="flex justify-between pt-4">
+          <Button 
+            variant="outline"
+            onClick={onPrev}
+            disabled={isFirst}
+            className="flex items-center"
+          >
+            <ChevronLeft className="h-4 w-4 mr-1" />
+            Previous Subtask
+          </Button>
+          
+          <div className="flex gap-2 items-center">
+            {!isSoloMode && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      variant="outline"
+                      onClick={handleSkip}
+                      className="flex items-center gap-1"
+                    >
+                      Skip
+                      <Info className="h-4 w-4 ml-1" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Skip if this task was not assigned to you</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             )}
             
-            <div className="space-y-3">
-              <h4 className="font-medium">Deliverables</h4>
-              <Textarea
-                placeholder="List deliverables for this subtask..."
-                value={deliverables}
-                onChange={(e) => setDeliverables(e.target.value)}
-                rows={3}
-              />
-            </div>
-          </CardContent>
-          <CardFooter className="flex justify-between pt-4">
-            <Button 
-              variant="outline"
-              onClick={onPrev}
-              disabled={isFirst}
-              className="flex items-center"
-            >
-              <ChevronLeft className="h-4 w-4 mr-1" />
-              Previous Subtask
-            </Button>
-            
-            <div className="flex gap-2 items-center">
-              {!isSoloMode && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button 
-                        variant="outline"
-                        onClick={handleSkip}
-                        className="flex items-center gap-1"
-                      >
-                        Skip
-                        <Info className="h-4 w-4 ml-1" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Skip if this task was not assigned to you</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              )}
-              
-              {isLast ? (
-                <Button 
-                  className="pangea-button-primary flex items-center"
-                  onClick={handleComplete}
-                >
-                  Complete Task
-                </Button>
-              ) : (
-                <Button 
-                  className="pangea-button-primary flex items-center"
-                  onClick={handleComplete}
-                >
-                  Complete & Next
-                  <ChevronRight className="h-4 w-4 ml-1" />
-                </Button>
-              )}
-            </div>
-          </CardFooter>
-        </Card>
-      </div>
+            {isLast ? (
+              <Button 
+                className="pangea-button-primary flex items-center"
+                onClick={handleComplete}
+              >
+                <SendHorizonal className="h-4 w-4 mr-2" />
+                Submit Solution
+              </Button>
+            ) : (
+              <Button 
+                className="pangea-button-primary flex items-center"
+                onClick={handleComplete}
+              >
+                Complete & Next
+                <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            )}
+          </div>
+        </CardFooter>
+      </Card>
     </div>
   );
 };

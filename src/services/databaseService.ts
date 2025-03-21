@@ -54,6 +54,17 @@ interface PRFeedback {
 }
 
 /**
+ * Interface for user progress
+ */
+interface UserProgress {
+  userId: string;
+  problemId: string;
+  category: string;
+  progress: any; // This can be any object representing the user's progress
+  timestamp: string;
+}
+
+/**
  * Records a new user session in the database
  * @param sessionData Session data to record
  * @returns Promise with session ID
@@ -174,6 +185,38 @@ export const completeSession = async (sessionId: string): Promise<boolean> => {
   // `;
   // 
   // const values = [endTime, sessionId];
+  // await db.query(query, values);
+  
+  return true;
+};
+
+/**
+ * Saves user progress for a problem
+ * @param progress User progress data
+ * @returns Promise with success status
+ */
+export const saveUserProgress = async (progress: UserProgress): Promise<boolean> => {
+  console.log(`Saving progress for user ${progress.userId} on problem ${progress.problemId}`);
+  
+  // Simulate database interaction
+  await new Promise(resolve => setTimeout(resolve, 350));
+  
+  // In a real app:
+  // 
+  // const query = `
+  //   INSERT INTO user_progress (user_id, problem_id, category, progress, timestamp)
+  //   VALUES ($1, $2, $3, $4, $5)
+  //   ON CONFLICT (user_id, problem_id) 
+  //   DO UPDATE SET progress = $4, timestamp = $5;
+  // `;
+  // 
+  // const values = [
+  //   progress.userId,
+  //   progress.problemId,
+  //   progress.category,
+  //   JSON.stringify(progress.progress),
+  //   progress.timestamp
+  // ];
   // await db.query(query, values);
   
   return true;
