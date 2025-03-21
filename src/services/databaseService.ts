@@ -184,3 +184,41 @@ export const saveUserProgress = async (progressData: {
   
   return { success: true, message: "Progress saved successfully" };
 };
+
+// Get achievement data for a problem completed by a user
+export const getAchievementData = async (problemId: string, userId: string) => {
+  // Simulate API call with a delay
+  await new Promise(resolve => setTimeout(resolve, 800));
+  
+  // Generate dummy achievement data based on the problem ID
+  const achievementData = {
+    problemTitle: `Problem ${problemId}`,
+    experiencePoints: 150 + Math.floor(Math.random() * 100),
+    completedAt: new Date().toISOString(),
+    skillPoints: {
+      "Data Analysis": 15 + Math.floor(Math.random() * 10),
+      "Machine Learning": 20 + Math.floor(Math.random() * 15),
+      "Data Visualization": 10 + Math.floor(Math.random() * 10),
+      "Problem Solving": 25 + Math.floor(Math.random() * 10)
+    },
+    badges: [
+      {
+        name: "Problem Solver",
+        description: "Successfully completed a data science problem",
+        icon: "🏆"
+      },
+      {
+        name: "Quick Thinker",
+        description: "Completed the problem in record time",
+        icon: "⚡"
+      },
+      {
+        name: "Team Player",
+        description: "Collaborated effectively with team members",
+        icon: "👥"
+      }
+    ]
+  };
+  
+  return achievementData;
+};
