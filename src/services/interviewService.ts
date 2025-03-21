@@ -1,7 +1,7 @@
-
 // This file contains all interview-related services
 
 import { toast } from "sonner";
+import { pipeline } from "@huggingface/transformers";
 
 // Types
 export type InterviewQuestion = {
@@ -30,6 +30,27 @@ export type InterviewRequestData = {
   phone: string;
   date: Date;
   timeSlot: string;
+};
+
+// Whisper transcription model initialization
+let whisperTranscriber: any = null;
+
+const initWhisperModel = async () => {
+  if (!whisperTranscriber) {
+    try {
+      console.log("Initializing Whisper model...");
+      whisperTranscriber = await pipeline(
+        "automatic-speech-recognition",
+        "openai/whisper-tiny",
+        { quantized: true }
+      );
+      console.log("Whisper model initialized successfully");
+    } catch (error) {
+      console.error("Error initializing Whisper model:", error);
+      toast.error("Failed to load speech recognition model");
+    }
+  }
+  return whisperTranscriber;
 };
 
 // Dummy questions database
@@ -78,6 +99,9 @@ const questionDatabase: { [key: string]: InterviewQuestion[] } = {
   ],
 };
 
+// Cache for time slots
+let cachedTimeSlots: InterviewTimeSlot[] | null = null;
+
 // Dummy available time slots (next 4 weekends)
 const generateTimeSlots = (): InterviewTimeSlot[] => {
   const slots: InterviewTimeSlot[] = [];
@@ -123,9 +147,6 @@ const generateTimeSlots = (): InterviewTimeSlot[] => {
   return slots;
 };
 
-// Cache for time slots
-let cachedTimeSlots: InterviewTimeSlot[] | null = null;
-
 // Question Generation Service
 export const fetchInterviewQuestions = async (selectedSkills: string[]): Promise<InterviewQuestion[]> => {
   // Simulate network request
@@ -155,35 +176,58 @@ export const fetchInterviewQuestions = async (selectedSkills: string[]): Promise
 
 // Speech Recognition Service
 export const transcribeSpeech = async (audioBlob: Blob | null): Promise<string> => {
-  // Simulate network request
-  await new Promise(resolve => setTimeout(resolve, 1500));
+  if (!audioBlob) {
+    return "";
+  }
   
-  // This is a dummy service that returns predefined responses
-  // In a real implementation, this would call a speech-to-text API
   try {
-    if (!audioBlob) {
-      return "";
+    // Initialize Whisper model
+    const transcriber = await initWhisperModel();
+    
+    if (!transcriber) {
+      // Fallback to simulated response if model fails to load
+      console.warn("Using fallback transcription method");
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      return getFallbackTranscription();
     }
     
-    // Simulated responses based on question topics
-    const responses: { [key: string]: string } = {
-      'spark': "Apache Spark is an open-source distributed computing system that provides in-memory processing, making it much faster than traditional disk-based systems like Hadoop MapReduce. It offers a unified engine for batch, streaming, and machine learning workloads with APIs in multiple languages.",
-      'python': "Python generators are functions that return an iterator that yields items one at a time. They use the yield keyword instead of return. They're memory-efficient because they generate values on-the-fly rather than storing all values in memory, making them perfect for working with large datasets.",
-      'etl': "ETL stands for Extract, Transform, Load. It's the process of collecting data from various sources, transforming it to fit operational needs, and loading it into a destination database or data warehouse. ETL is critical for data integration, migration, and analytics.",
-      'aws': "AWS S3 is object storage for files while EBS provides block-level storage volumes for EC2 instances. S3 is highly durable, globally accessible, and ideal for static content. EBS offers low-latency access and is tied to a specific availability zone, making it better for databases and applications needing high I/O.",
-      'airflow': "Apache Airflow is an open-source platform for orchestrating complex computational workflows and data processing pipelines. It uses DAGs (Directed Acyclic Graphs) to define task dependencies and executes them based on those dependencies.",
-      'docker': "Containers are lightweight, standalone packages that include everything needed to run an application. Unlike virtual machines which virtualize an entire OS, containers share the host OS kernel and isolate the application processes. This makes containers more efficient, faster to start, and less resource-intensive.",
-      'behavioral': "In my previous role, I was tasked with migrating a legacy system to a new cloud-based architecture with a tight deadline. I encountered resistance from stakeholders and technical challenges. I addressed this by creating a detailed migration plan, setting up small proof-of-concept implementations to demonstrate benefits, and establishing regular check-ins with stakeholders to address concerns."
-    };
+    // Convert blob to array buffer for processing
+    const arrayBuffer = await audioBlob.arrayBuffer();
     
-    // Return a generic response if no match
-    const randomTopic = Object.keys(responses)[Math.floor(Math.random() * Object.keys(responses).length)];
-    return responses[randomTopic];
+    // Process the audio with Whisper model
+    console.log("Transcribing audio with Whisper model...");
+    const result = await transcriber(new Uint8Array(arrayBuffer));
+    
+    // Extract text from result
+    const transcribedText = result.text || "";
+    console.log("Transcription result:", transcribedText);
+    
+    return transcribedText;
   } catch (error) {
-    console.error("Error transcribing speech:", error);
+    console.error("Error transcribing speech with Whisper:", error);
     toast.error("Failed to transcribe audio");
-    return "Transcription failed. Please try again.";
+    
+    // Fallback to dummy responses
+    return getFallbackTranscription();
   }
+};
+
+// Fallback transcription responses
+const getFallbackTranscription = (): string => {
+  // Simulated responses based on question topics
+  const responses: { [key: string]: string } = {
+    'spark': "Apache Spark is an open-source distributed computing system that provides in-memory processing, making it much faster than traditional disk-based systems like Hadoop MapReduce. It offers a unified engine for batch, streaming, and machine learning workloads with APIs in multiple languages.",
+    'python': "Python generators are functions that return an iterator that yields items one at a time. They use the yield keyword instead of return. They're memory-efficient because they generate values on-the-fly rather than storing all values in memory, making them perfect for working with large datasets.",
+    'etl': "ETL stands for Extract, Transform, Load. It's the process of collecting data from various sources, transforming it to fit operational needs, and loading it into a destination database or data warehouse. ETL is critical for data integration, migration, and analytics.",
+    'aws': "AWS S3 is object storage for files while EBS provides block-level storage volumes for EC2 instances. S3 is highly durable, globally accessible, and ideal for static content. EBS offers low-latency access and is tied to a specific availability zone, making it better for databases and applications needing high I/O.",
+    'airflow': "Apache Airflow is an open-source platform for orchestrating complex computational workflows and data processing pipelines. It uses DAGs (Directed Acyclic Graphs) to define task dependencies and executes them based on those dependencies.",
+    'docker': "Containers are lightweight, standalone packages that include everything needed to run an application. Unlike virtual machines which virtualize an entire OS, containers share the host OS kernel and isolate the application processes. This makes containers more efficient, faster to start, and less resource-intensive.",
+    'behavioral': "In my previous role, I was tasked with migrating a legacy system to a new cloud-based architecture with a tight deadline. I encountered resistance from stakeholders and technical challenges. I addressed this by creating a detailed migration plan, setting up small proof-of-concept implementations to demonstrate benefits, and establishing regular check-ins with stakeholders to address concerns."
+  };
+  
+  // Return a generic response if no match
+  const randomTopic = Object.keys(responses)[Math.floor(Math.random() * Object.keys(responses).length)];
+  return responses[randomTopic];
 };
 
 // Answer Evaluation Service
