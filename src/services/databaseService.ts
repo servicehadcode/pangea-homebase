@@ -222,3 +222,34 @@ export const getAchievementData = async (problemId: string, userId: string) => {
   
   return achievementData;
 };
+
+// Get the next subtask data when completing the current one
+export const getNextSubtaskData = async (currentSubtaskId: string) => {
+  // Simulate API call with a delay
+  await new Promise(resolve => setTimeout(resolve, 600));
+  
+  // Generate different acceptance criteria based on the subtask ID
+  const getRandomAcceptanceCriteria = (subtaskId: string) => {
+    const criteriaPool = [
+      ["All requirements are implemented", "Code is well-documented", "Tests are passing"],
+      ["Performance requirements are met", "Edge cases are handled", "API follows best practices"],
+      ["UI is responsive", "Accessibility standards are met", "User feedback is implemented"],
+      ["Data validation is in place", "Security measures are implemented", "Documentation is updated"]
+    ];
+    
+    // Use the subtask ID to determine which criteria set to use, but add some randomness
+    const criteriaIndex = (parseInt(subtaskId) % criteriaPool.length + Math.floor(Math.random() * 2)) % criteriaPool.length;
+    return criteriaPool[criteriaIndex];
+  };
+  
+  // Return refreshed data for the subtask
+  return {
+    acceptanceCriteria: getRandomAcceptanceCriteria(currentSubtaskId),
+    // Reset these states for the new subtask view
+    branchCreated: false,
+    prCreated: false,
+    deliverables: '',
+    prFeedback: [],
+    showPRFeedback: false
+  };
+};

@@ -31,7 +31,8 @@ import {
   updateSessionProgress, 
   recordSubtaskCompletion, 
   getPRFeedback,
-  updatePRFeedbackStatus
+  updatePRFeedbackStatus,
+  getNextSubtaskData
 } from '@/services/databaseService';
 
 interface SubtaskPanelProps {
@@ -77,6 +78,7 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
   const [prFeedback, setPRFeedback] = useState<any[]>([]);
   const [isLoadingFeedback, setIsLoadingFeedback] = useState(false);
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
+  const [isCompletingSubtask, setIsCompletingSubtask] = useState(false);
   
   const defaultReporter = isSoloMode ? username : inviterName;
   const defaultAssignee = isSoloMode ? username : (step.assignedTo || 'Unassigned');
@@ -272,6 +274,35 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
     );
   };
   
+  const refreshSubtaskData = async () => {
+    try {
+      if (!step || !step.id) return;
+      
+      const nextSubtaskData = await getNextSubtaskData(step.id);
+      
+      // Reset critical states
+      setBranchCreated(false);
+      setPrCreated(false);
+      setDeliverables('');
+      setPRFeedback([]);
+      setShowPRFeedback(false);
+      setHasAttemptedSubmit(false);
+      
+      // Set new acceptance criteria if available
+      if (nextSubtaskData.acceptanceCriteria && nextSubtaskData.acceptanceCriteria.length > 0) {
+        setAcceptanceCriteria(
+          nextSubtaskData.acceptanceCriteria.map((criteria: string, index: number) => ({
+            id: `criteria-${step.id}-${index}`,
+            text: criteria,
+            completed: false
+          }))
+        );
+      }
+    } catch (error) {
+      console.error('Error refreshing subtask data:', error);
+    }
+  };
+  
   const handleComplete = async () => {
     if (!prCreated) {
       toast({
@@ -301,6 +332,8 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
       });
       return;
     }
+    
+    setIsCompletingSubtask(true);
     
     try {
       if (sessionId) {
@@ -337,6 +370,11 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
           : `You have completed: ${step.title}`
       });
       
+      if (!isLast) {
+        // Refresh data for next subtask before transitioning
+        await refreshSubtaskData();
+      }
+      
       onComplete();
     } catch (error) {
       console.error('Error completing subtask:', error);
@@ -345,6 +383,8 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
         description: "Failed to complete subtask. Please try again.",
         variant: "destructive"
       });
+    } finally {
+      setIsCompletingSubtask(false);
     }
   };
   
@@ -665,17 +705,37 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
               <Button 
                 className="pangea-button-primary flex items-center"
                 onClick={handleComplete}
+                disabled={isCompletingSubtask}
               >
-                <SendHorizonal className="h-4 w-4 mr-2" />
-                Submit Solution
+                {isCompletingSubtask ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Submitting...
+                  </>
+                ) : (
+                  <>
+                    <SendHorizonal className="h-4 w-4 mr-2" />
+                    Submit Solution
+                  </>
+                )}
               </Button>
             ) : (
               <Button 
                 className="pangea-button-primary flex items-center"
                 onClick={handleComplete}
+                disabled={isCompletingSubtask}
               >
-                Complete & Next
-                <ChevronRight className="h-4 w-4 ml-1" />
+                {isCompletingSubtask ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Completing...
+                  </>
+                ) : (
+                  <>
+                    Complete & Next
+                    <ChevronRight className="h-4 w-4 ml-1" />
+                  </>
+                )}
               </Button>
             )}
           </div>
