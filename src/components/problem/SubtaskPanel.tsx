@@ -87,10 +87,67 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
   const [isEditingAssignee, setIsEditingAssignee] = useState(false);
   
   const [acceptanceCriteria, setAcceptanceCriteria] = useState<{id: string; text: string; completed: boolean}[]>([]);
+  const [isStateInitialized, setIsStateInitialized] = useState(false);
+  
+  // Initialize or restore state from savedState in a controlled manner
+  useEffect(() => {
+    if (!isStateInitialized) {
+      if (savedState) {
+        setBranchCreated(savedState.branchCreated || false);
+        setPrCreated(savedState.prCreated || false);
+        setDeliverables(savedState.deliverables || '');
+        setPRFeedback(savedState.prFeedback || []);
+        setShowPRFeedback(savedState.showPRFeedback || false);
+        setReporter(savedState.reporter || defaultReporter);
+        setAssignee(savedState.assignee || defaultAssignee);
+        
+        if (savedState.acceptanceCriteria && savedState.acceptanceCriteria.length > 0) {
+          setAcceptanceCriteria(savedState.acceptanceCriteria);
+        } else if (step.acceptanceCriteria) {
+          setAcceptanceCriteria(
+            step.acceptanceCriteria.map((criteria: string, index: number) => ({
+              id: `criteria-${index}`,
+              text: criteria,
+              completed: false
+            }))
+          );
+        } else {
+          setAcceptanceCriteria([]);
+        }
+      } else {
+        setBranchCreated(false);
+        setPrCreated(false);
+        setDeliverables('');
+        setPRFeedback([]);
+        setShowPRFeedback(false);
+        setHasAttemptedSubmit(false);
+        
+        setReporter(defaultReporter);
+        setAssignee(defaultAssignee);
+        
+        setIsEditingReporter(false);
+        setIsEditingAssignee(false);
+        
+        if (step.acceptanceCriteria) {
+          setAcceptanceCriteria(
+            step.acceptanceCriteria.map((criteria: string, index: number) => ({
+              id: `criteria-${index}`,
+              text: criteria,
+              completed: false
+            }))
+          );
+        } else {
+          setAcceptanceCriteria([]);
+        }
+      }
+      
+      setIsStateInitialized(true);
+    }
+  }, [savedState, step, defaultReporter, defaultAssignee, isStateInitialized]);
   
   // Update parent component with state changes when they happen
   useEffect(() => {
-    if (onStateChange) {
+    if (isStateInitialized && onStateChange) {
       onStateChange({
         branchCreated,
         prCreated,
@@ -103,6 +160,7 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
       });
     }
   }, [
+    isStateInitialized,
     branchCreated, 
     prCreated, 
     deliverables, 
@@ -113,58 +171,6 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
     acceptanceCriteria,
     onStateChange
   ]);
-  
-  // Handle state initialization and restoration from saved state
-  useEffect(() => {
-    if (savedState) {
-      setBranchCreated(savedState.branchCreated || false);
-      setPrCreated(savedState.prCreated || false);
-      setDeliverables(savedState.deliverables || '');
-      setPRFeedback(savedState.prFeedback || []);
-      setShowPRFeedback(savedState.showPRFeedback || false);
-      setReporter(savedState.reporter || defaultReporter);
-      setAssignee(savedState.assignee || defaultAssignee);
-      
-      if (savedState.acceptanceCriteria && savedState.acceptanceCriteria.length > 0) {
-        setAcceptanceCriteria(savedState.acceptanceCriteria);
-      } else if (step.acceptanceCriteria) {
-        setAcceptanceCriteria(
-          step.acceptanceCriteria.map((criteria: string, index: number) => ({
-            id: `criteria-${index}`,
-            text: criteria,
-            completed: false
-          }))
-        );
-      } else {
-        setAcceptanceCriteria([]);
-      }
-    } else {
-      setBranchCreated(false);
-      setPrCreated(false);
-      setDeliverables('');
-      setPRFeedback([]);
-      setShowPRFeedback(false);
-      setHasAttemptedSubmit(false);
-      
-      setReporter(defaultReporter);
-      setAssignee(defaultAssignee);
-      
-      setIsEditingReporter(false);
-      setIsEditingAssignee(false);
-      
-      if (step.acceptanceCriteria) {
-        setAcceptanceCriteria(
-          step.acceptanceCriteria.map((criteria: string, index: number) => ({
-            id: `criteria-${index}`,
-            text: criteria,
-            completed: false
-          }))
-        );
-      } else {
-        setAcceptanceCriteria([]);
-      }
-    }
-  }, [step, isSoloMode, username, inviterName, savedState, defaultAssignee, defaultReporter]);
   
   const handleCreateBranch = () => {
     setBranchCreated(true);
@@ -296,41 +302,50 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
       return;
     }
     
-    if (sessionId) {
-      const subtaskId = Math.random().toString(36).substring(2, 15);
+    try {
+      if (sessionId) {
+        const subtaskId = Math.random().toString(36).substring(2, 15);
+        
+        await updateSessionProgress(sessionId, 50);
+        
+        await recordSubtaskCompletion({
+          subtaskId,
+          sessionId,
+          title: step.title,
+          assignee,
+          reporter,
+          prComments: JSON.stringify(prFeedback),
+          deliverables,
+          completedAt: new Date().toISOString()
+        });
+        
+        console.log('Subtask completed and stored in database:', {
+          subtaskId,
+          sessionId,
+          title: step.title,
+          assignee,
+          reporter,
+          prFeedback,
+          deliverables
+        });
+      }
       
-      await updateSessionProgress(sessionId, 50);
-      
-      await recordSubtaskCompletion({
-        subtaskId,
-        sessionId,
-        title: step.title,
-        assignee,
-        reporter,
-        prComments: JSON.stringify(prFeedback),
-        deliverables,
-        completedAt: new Date().toISOString()
+      toast({
+        title: isLast ? "Solution Submitted" : "Subtask Completed",
+        description: isLast 
+          ? "Your solution has been submitted successfully." 
+          : `You have completed: ${step.title}`
       });
       
-      console.log('Subtask completed and stored in database:', {
-        subtaskId,
-        sessionId,
-        title: step.title,
-        assignee,
-        reporter,
-        prFeedback,
-        deliverables
+      onComplete();
+    } catch (error) {
+      console.error('Error completing subtask:', error);
+      toast({
+        title: "Error",
+        description: "Failed to complete subtask. Please try again.",
+        variant: "destructive"
       });
     }
-    
-    toast({
-      title: isLast ? "Solution Submitted" : "Subtask Completed",
-      description: isLast 
-        ? "Your solution has been submitted successfully." 
-        : `You have completed: ${step.title}`
-    });
-    
-    onComplete();
   };
   
   const handleSkip = () => {
@@ -364,6 +379,18 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
             Back to Subtasks
           </Button>
         </CardFooter>
+      </Card>
+    );
+  }
+  
+  // Show a loading state if state is not initialized yet
+  if (!isStateInitialized) {
+    return (
+      <Card className="min-h-[400px] flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" />
+          <p className="text-muted-foreground">Loading subtask...</p>
+        </div>
       </Card>
     );
   }
@@ -415,7 +442,7 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
                         id={criteria.id}
                         checked={criteria.completed}
                         onCheckedChange={(checked) => 
-                          handleToggleAcceptanceCriteria(criteria.id, !!checked)
+                          handleToggleAcceptanceCriteria(criteria.id, checked === true)
                         }
                         className="mt-0.5"
                       />
@@ -568,7 +595,7 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
                         id={feedback.id}
                         checked={feedback.resolved}
                         onCheckedChange={(checked) => 
-                          handleToggleFeedbackResolution(feedback.id, !!checked)
+                          handleToggleFeedbackResolution(feedback.id, checked === true)
                         }
                         className="mt-0.5"
                       />
