@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
@@ -224,25 +225,6 @@ const ProblemDetails = () => {
             assignedTo: "ML Engineer"
           }
         ],
-        solution: {
-          description: "The solution involves collecting data, preprocessing it, training a machine learning model, developing an API, and deploying it to a cloud platform.",
-          codeSnippet: `
-            # Python code snippet for data preprocessing
-            import pandas as pd
-            
-            def preprocess_data(data):
-              # Handle missing values
-              data = data.fillna(data.mean())
-              
-              # Scale the data
-              from sklearn.preprocessing import StandardScaler
-              scaler = StandardScaler()
-              data = scaler.fit_transform(data)
-              
-              return data
-          `,
-          explanation: "This code snippet demonstrates how to preprocess data using Pandas and Scikit-learn. It handles missing values by filling them with the mean and scales the data using StandardScaler.",
-        },
         resources: [
           { title: "Machine Learning Basics", url: "https://www.example.com/ml-basics" },
           { title: "API Development with Flask", url: "https://www.example.com/flask-api" },
@@ -882,11 +864,11 @@ const ProblemDetails = () => {
                               <Button 
                                 variant="outline" 
                                 size="sm"
-                                className="flex items-center gap-1"
                                 onClick={() => window.open(resource.url, '_blank')}
+                                className="flex items-center gap-1"
                               >
                                 <ExternalLink className="h-4 w-4" />
-                                Visit
+                                View Resource
                               </Button>
                             </div>
                           </div>
@@ -895,7 +877,7 @@ const ProblemDetails = () => {
                     ) : (
                       <div className="text-center py-6 text-muted-foreground">
                         <Book className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                        <p>No resources available for this problem.</p>
+                        <p>No resources available for this problem yet.</p>
                       </div>
                     )}
                   </CardContent>
@@ -905,7 +887,6 @@ const ProblemDetails = () => {
           </div>
         </div>
       </main>
-      
       <Footer />
     </div>
   );

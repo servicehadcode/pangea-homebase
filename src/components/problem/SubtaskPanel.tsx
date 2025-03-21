@@ -384,7 +384,7 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
           
           <div className="space-y-3">
             <h4 className="font-medium mb-2">Details</h4>
-            <div className="flex flex-col gap-3">
+            <div className="grid gap-3">
               {step.subproblems.map((subproblem: string, index: number) => (
                 <div 
                   key={index}
@@ -405,7 +405,7 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
               
               <div className="space-y-3">
                 <h4 className="font-medium mb-2">Acceptance Criteria</h4>
-                <div className="flex flex-col gap-2">
+                <div className="grid gap-2">
                   {acceptanceCriteria.map((criteria) => (
                     <div 
                       key={criteria.id}
@@ -558,7 +558,7 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
                   <span>Loading feedback...</span>
                 </div>
               ) : prFeedback.length > 0 ? (
-                <div className="flex flex-col gap-2">
+                <div className="grid gap-2">
                   {prFeedback.map((feedback) => (
                     <div 
                       key={feedback.id}
