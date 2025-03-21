@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -78,7 +77,6 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
   const [isLoadingFeedback, setIsLoadingFeedback] = useState(false);
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
   
-  // Default assignee and reporter based on mode
   const defaultReporter = isSoloMode ? username : inviterName;
   const defaultAssignee = isSoloMode ? username : (step.assignedTo || 'Unassigned');
   
@@ -87,10 +85,8 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
   const [isEditingReporter, setIsEditingReporter] = useState(false);
   const [isEditingAssignee, setIsEditingAssignee] = useState(false);
   
-  // State for acceptance criteria
   const [acceptanceCriteria, setAcceptanceCriteria] = useState<{id: string; text: string; completed: boolean}[]>([]);
   
-  // Update parent component with state changes
   useEffect(() => {
     if (onStateChange) {
       onStateChange({
@@ -117,9 +113,7 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
   ]);
   
   useEffect(() => {
-    // Reset states when step changes, unless we have saved state
     if (savedState) {
-      // Restore from saved state
       setBranchCreated(savedState.branchCreated || false);
       setPrCreated(savedState.prCreated || false);
       setDeliverables(savedState.deliverables || '');
@@ -142,7 +136,6 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
         setAcceptanceCriteria([]);
       }
     } else {
-      // Initialize with default values
       setBranchCreated(false);
       setPrCreated(false);
       setDeliverables('');
@@ -156,7 +149,6 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
       setIsEditingReporter(false);
       setIsEditingAssignee(false);
       
-      // Initialize acceptance criteria
       if (step.acceptanceCriteria) {
         setAcceptanceCriteria(
           step.acceptanceCriteria.map((criteria: string, index: number) => ({
@@ -193,7 +185,6 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
     setIsLoadingFeedback(true);
     
     try {
-      // Get PR feedback from the service
       const feedback = await getPRFeedback(step.id);
       setPRFeedback(feedback);
       setShowPRFeedback(true);
@@ -244,10 +235,8 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
   
   const handleToggleFeedbackResolution = async (feedbackId: string, resolved: boolean) => {
     try {
-      // Update the feedback status in the database
       await updatePRFeedbackStatus(feedbackId, resolved);
       
-      // Update the local state
       setPRFeedback(prevFeedback => 
         prevFeedback.map(item => 
           item.id === feedbackId ? { ...item, resolved } : item
@@ -281,7 +270,6 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
       return;
     }
     
-    // Check if all feedback is resolved
     const hasUnresolvedFeedback = prFeedback.some(item => !item.resolved);
     
     if (hasUnresolvedFeedback && !hasAttemptedSubmit) {
@@ -295,20 +283,8 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
     
     if (!deliverables.trim()) {
       toast({
-        title: "Deliverables Required",
-        description: "Please list the deliverables for this subtask.",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    // Check if all acceptance criteria are completed
-    const hasUncompletedCriteria = acceptanceCriteria.some(criteria => !criteria.completed);
-    
-    if (hasUncompletedCriteria) {
-      toast({
-        title: "Acceptance Criteria",
-        description: "Not all acceptance criteria have been checked. Please review them before completing this subtask.",
+        title: "Comments Required",
+        description: "Please add comments for this subtask.",
         variant: "destructive"
       });
       return;
@@ -317,10 +293,8 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
     if (sessionId) {
       const subtaskId = Math.random().toString(36).substring(2, 15);
       
-      // Update session progress
       await updateSessionProgress(sessionId, 50);
       
-      // Store subtask completion data
       await recordSubtaskCompletion({
         subtaskId,
         sessionId,
@@ -362,7 +336,6 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
     onSkip();
   };
   
-  // Render a special view for dataset mode
   if (isDatasetMode) {
     return (
       <Card>
@@ -371,7 +344,6 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
         </CardHeader>
         <CardContent>
           <p className="mb-4">Explore the dataset for this problem.</p>
-          {/* Dataset exploration content would go here */}
           <div className="p-4 bg-secondary/30 rounded-lg">
             <p>The dataset is available for download and exploration.</p>
           </div>
@@ -615,9 +587,9 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
           )}
           
           <div className="space-y-3">
-            <h4 className="font-medium">Deliverables</h4>
+            <h4 className="font-medium">Comments</h4>
             <Textarea
-              placeholder="List deliverables for this subtask..."
+              placeholder="Add your comments for this subtask..."
               value={deliverables}
               onChange={(e) => setDeliverables(e.target.value)}
               rows={3}
