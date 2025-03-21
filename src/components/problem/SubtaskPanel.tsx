@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -48,6 +47,8 @@ interface SubtaskPanelProps {
   sessionId?: string;
   username?: string;
   inviterName?: string;
+  savedState?: any;
+  onStateChange?: (state: any) => void;
 }
 
 const SubtaskPanel: React.FC<SubtaskPanelProps> = ({ 
@@ -63,7 +64,9 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
   isDatasetMode = false,
   sessionId,
   username = 'User',
-  inviterName = 'Pangea Admin'
+  inviterName = 'Pangea Admin',
+  savedState,
+  onStateChange
 }) => {
   const { toast } = useToast();
   const [branchCreated, setBranchCreated] = useState(false);
@@ -86,36 +89,86 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
   // State for acceptance criteria
   const [acceptanceCriteria, setAcceptanceCriteria] = useState<{id: string; text: string; completed: boolean}[]>([]);
   
+  // Update parent component with state changes
   useEffect(() => {
-    setBranchCreated(false);
-    setPrCreated(false);
-    setDeliverables('');
-    setPRFeedback([]);
-    setShowPRFeedback(false);
-    setHasAttemptedSubmit(false);
-    
-    // Reset reporter and assignee when step changes
-    const newReporter = isSoloMode ? username : inviterName;
-    const newAssignee = isSoloMode ? username : (step.assignedTo || 'Unassigned');
-    setReporter(newReporter);
-    setAssignee(newAssignee);
-    
-    setIsEditingReporter(false);
-    setIsEditingAssignee(false);
-    
-    // Initialize acceptance criteria
-    if (step.acceptanceCriteria) {
-      setAcceptanceCriteria(
-        step.acceptanceCriteria.map((criteria: string, index: number) => ({
-          id: `criteria-${index}`,
-          text: criteria,
-          completed: false
-        }))
-      );
-    } else {
-      setAcceptanceCriteria([]);
+    if (onStateChange) {
+      onStateChange({
+        branchCreated,
+        prCreated,
+        deliverables,
+        prFeedback,
+        showPRFeedback,
+        reporter,
+        assignee,
+        acceptanceCriteria
+      });
     }
-  }, [step, isSoloMode, username, inviterName]);
+  }, [
+    branchCreated, 
+    prCreated, 
+    deliverables, 
+    prFeedback, 
+    showPRFeedback, 
+    reporter, 
+    assignee, 
+    acceptanceCriteria,
+    onStateChange
+  ]);
+  
+  useEffect(() => {
+    // Reset states when step changes, unless we have saved state
+    if (savedState) {
+      // Restore from saved state
+      setBranchCreated(savedState.branchCreated || false);
+      setPrCreated(savedState.prCreated || false);
+      setDeliverables(savedState.deliverables || '');
+      setPRFeedback(savedState.prFeedback || []);
+      setShowPRFeedback(savedState.showPRFeedback || false);
+      setReporter(savedState.reporter || defaultReporter);
+      setAssignee(savedState.assignee || defaultAssignee);
+      
+      if (savedState.acceptanceCriteria) {
+        setAcceptanceCriteria(savedState.acceptanceCriteria);
+      } else if (step.acceptanceCriteria) {
+        setAcceptanceCriteria(
+          step.acceptanceCriteria.map((criteria: string, index: number) => ({
+            id: `criteria-${index}`,
+            text: criteria,
+            completed: false
+          }))
+        );
+      } else {
+        setAcceptanceCriteria([]);
+      }
+    } else {
+      // Initialize with default values
+      setBranchCreated(false);
+      setPrCreated(false);
+      setDeliverables('');
+      setPRFeedback([]);
+      setShowPRFeedback(false);
+      setHasAttemptedSubmit(false);
+      
+      setReporter(defaultReporter);
+      setAssignee(defaultAssignee);
+      
+      setIsEditingReporter(false);
+      setIsEditingAssignee(false);
+      
+      // Initialize acceptance criteria
+      if (step.acceptanceCriteria) {
+        setAcceptanceCriteria(
+          step.acceptanceCriteria.map((criteria: string, index: number) => ({
+            id: `criteria-${index}`,
+            text: criteria,
+            completed: false
+          }))
+        );
+      } else {
+        setAcceptanceCriteria([]);
+      }
+    }
+  }, [step, isSoloMode, username, inviterName, savedState, defaultAssignee, defaultReporter]);
   
   const handleCreateBranch = () => {
     setBranchCreated(true);

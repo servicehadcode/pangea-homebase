@@ -1,4 +1,3 @@
-
 // Database service for SQL operations
 
 /**
@@ -62,6 +61,21 @@ interface UserProgress {
   category: string;
   progress: any; // This can be any object representing the user's progress
   timestamp: string;
+  stepsCompleted?: Record<string, boolean>; // Added to track completed subtasks
+  subtaskStates?: Record<string, SubtaskState>; // Added to track detailed subtask state
+}
+
+/**
+ * Interface for individual subtask state
+ */
+interface SubtaskState {
+  acceptanceCriteria?: Array<{id: string; text: string; completed: boolean}>;
+  prFeedback?: Array<PRFeedback>;
+  deliverables?: string;
+  branchCreated?: boolean;
+  prCreated?: boolean;
+  assignee?: string;
+  reporter?: string;
 }
 
 /**
@@ -204,10 +218,10 @@ export const saveUserProgress = async (progress: UserProgress): Promise<boolean>
   // In a real app:
   // 
   // const query = `
-  //   INSERT INTO user_progress (user_id, problem_id, category, progress, timestamp)
-  //   VALUES ($1, $2, $3, $4, $5)
+  //   INSERT INTO user_progress (user_id, problem_id, category, progress, steps_completed, subtask_states, timestamp)
+  //   VALUES ($1, $2, $3, $4, $5, $6, $7)
   //   ON CONFLICT (user_id, problem_id) 
-  //   DO UPDATE SET progress = $4, timestamp = $5;
+  //   DO UPDATE SET progress = $4, steps_completed = $5, subtask_states = $6, timestamp = $7;
   // `;
   // 
   // const values = [
@@ -215,6 +229,8 @@ export const saveUserProgress = async (progress: UserProgress): Promise<boolean>
   //   progress.problemId,
   //   progress.category,
   //   JSON.stringify(progress.progress),
+  //   JSON.stringify(progress.stepsCompleted || {}),
+  //   JSON.stringify(progress.subtaskStates || {}),
   //   progress.timestamp
   // ];
   // await db.query(query, values);

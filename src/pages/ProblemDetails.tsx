@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
@@ -106,7 +105,8 @@ const ProblemDetails = () => {
     discussion: true,
     resources: true,
   });
-  
+  const [subtaskStates, setSubtaskStates] = useState<Record<string, any>>({});
+
   useEffect(() => {
     window.scrollTo(0, 0);
     
@@ -277,7 +277,6 @@ const ProblemDetails = () => {
         setStepsCompleted(JSON.parse(savedSteps));
       }
       
-      // Check if we have a saved state for this problem to restore
       const savedState = localStorage.getItem(`problem-${id}-state`);
       if (savedState) {
         const state = JSON.parse(savedState);
@@ -294,6 +293,10 @@ const ProblemDetails = () => {
           resources: true,
         });
         setShowTaskAssignment(state.showTaskAssignment || false);
+        
+        if (state.subtaskStates) {
+          setSubtaskStates(state.subtaskStates);
+        }
       }
     };
     
@@ -388,12 +391,10 @@ const ProblemDetails = () => {
     setCollaborationMode(mode);
     
     if (mode === 'pair') {
-      // In collaboration mode, enable task assignment tab
       setTabsEnabled(prev => ({ ...prev, taskAssignment: true }));
       setShowTaskAssignment(true);
       setActiveTab('taskAssignment');
     } else {
-      // In solo mode, directly enable subtasks tab
       setTabsEnabled(prev => ({ ...prev, subtasks: true }));
       setActiveTab('subtasks');
     }
@@ -476,25 +477,25 @@ const ProblemDetails = () => {
     setIsSaving(true);
     
     try {
-      // Save the current problem state
       const currentState = {
         activeTab,
         currentStepIndex,
         collaborationMode,
         tabsEnabled,
         showTaskAssignment,
-        stepsCompleted
+        stepsCompleted,
+        subtaskStates
       };
       
-      // Save to localStorage
       localStorage.setItem(`problem-${id}-state`, JSON.stringify(currentState));
       
-      // Save to the backend
       await saveUserProgress({
         userId: "user123",
         problemId: id || "1",
         category: category || "data-science",
         progress: currentState,
+        stepsCompleted,
+        subtaskStates,
         timestamp: new Date().toISOString()
       });
       
@@ -503,7 +504,6 @@ const ProblemDetails = () => {
         description: "Your progress has been saved. You can continue from where you left off when you return.",
       });
       
-      // Navigate back to problems page
       navigate('/problems');
     } catch (error) {
       toast({
@@ -566,7 +566,6 @@ const ProblemDetails = () => {
   const isFirstSubtask = currentStepIndex === 0;
   const isLastSubtask = currentStepIndex === filteredSteps.length - 1;
   
-  // Calculate completion percentage for progress bar
   const completedSubtasksCount = Object.values(stepsCompleted).filter(Boolean).length;
   const totalSubtasksCount = filteredSteps.length;
   const completionPercentage = totalSubtasksCount > 0 
@@ -745,6 +744,13 @@ const ProblemDetails = () => {
                       sessionId={sessionId}
                       username={username}
                       inviterName={inviterName}
+                      savedState={subtaskStates[currentSubtask?.id]}
+                      onStateChange={(state) => {
+                        setSubtaskStates(prev => ({
+                          ...prev,
+                          [currentSubtask.id]: state
+                        }));
+                      }}
                     />
                   </div>
                 </div>
