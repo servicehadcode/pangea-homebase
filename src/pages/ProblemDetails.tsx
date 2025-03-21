@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
@@ -19,7 +18,8 @@ import {
   Loader2,
   MessageCircle,
   Book,
-  ChevronLeft
+  ChevronLeft,
+  AlertCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -331,7 +331,6 @@ const ProblemDetails = () => {
     if (currentStepIndex < actualSubtasks.length - 1) {
       setCurrentStepIndex(currentStepIndex + 1);
     } else if (allStepsCompleted) {
-      // If this was the last subtask and all steps are completed
       handleCompleteProblem();
     }
   };
@@ -433,7 +432,6 @@ const ProblemDetails = () => {
     }
   };
   
-  // Fetch discussions and resources when switching to those tabs
   useEffect(() => {
     if (activeTab === 'discussion') {
       fetchDiscussions();
@@ -484,7 +482,6 @@ const ProblemDetails = () => {
   const isFirstSubtask = currentStepIndex === 0;
   const isLastSubtask = currentStepIndex === filteredSteps.length - 1;
 
-  // If showing achievement panel
   if (showAchievement) {
     return (
       <div className="min-h-screen flex flex-col">
