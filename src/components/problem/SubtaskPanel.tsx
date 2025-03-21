@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -87,6 +88,7 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
   
   const [acceptanceCriteria, setAcceptanceCriteria] = useState<{id: string; text: string; completed: boolean}[]>([]);
   
+  // Update parent component with state changes when they happen
   useEffect(() => {
     if (onStateChange) {
       onStateChange({
@@ -112,6 +114,7 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
     onStateChange
   ]);
   
+  // Handle state initialization and restoration from saved state
   useEffect(() => {
     if (savedState) {
       setBranchCreated(savedState.branchCreated || false);
@@ -122,7 +125,7 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
       setReporter(savedState.reporter || defaultReporter);
       setAssignee(savedState.assignee || defaultAssignee);
       
-      if (savedState.acceptanceCriteria) {
+      if (savedState.acceptanceCriteria && savedState.acceptanceCriteria.length > 0) {
         setAcceptanceCriteria(savedState.acceptanceCriteria);
       } else if (step.acceptanceCriteria) {
         setAcceptanceCriteria(
@@ -185,6 +188,7 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
     setIsLoadingFeedback(true);
     
     try {
+      // Fetch PR feedback from the service
       const feedback = await getPRFeedback(step.id);
       setPRFeedback(feedback);
       setShowPRFeedback(true);
@@ -233,6 +237,7 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
     }
   };
   
+  // Fix feedback resolution toggle
   const handleToggleFeedbackResolution = async (feedbackId: string, resolved: boolean) => {
     try {
       await updatePRFeedbackStatus(feedbackId, resolved);
@@ -252,6 +257,7 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
     }
   };
   
+  // Fix acceptance criteria toggle
   const handleToggleAcceptanceCriteria = (criteriaId: string, completed: boolean) => {
     setAcceptanceCriteria(prevCriteria =>
       prevCriteria.map(criteria =>
@@ -364,7 +370,7 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
   
   return (
     <div className="space-y-6">
-      <Card>
+      <Card className="overflow-hidden">
         <CardHeader>
           <CardTitle>Subtask Description</CardTitle>
         </CardHeader>
@@ -378,7 +384,7 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
           
           <div className="space-y-3">
             <h4 className="font-medium mb-2">Details</h4>
-            <div className="grid gap-3">
+            <div className="flex flex-col gap-3">
               {step.subproblems.map((subproblem: string, index: number) => (
                 <div 
                   key={index}
@@ -399,7 +405,7 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
               
               <div className="space-y-3">
                 <h4 className="font-medium mb-2">Acceptance Criteria</h4>
-                <div className="grid gap-2">
+                <div className="flex flex-col gap-2">
                   {acceptanceCriteria.map((criteria) => (
                     <div 
                       key={criteria.id}
@@ -428,7 +434,7 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
         </CardContent>
       </Card>
       
-      <Card>
+      <Card className="overflow-hidden">
         <CardHeader>
           <CardTitle>Implementation</CardTitle>
         </CardHeader>
@@ -517,7 +523,7 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
               </Badge>
             </div>
             
-            <div className="grid gap-2">
+            <div className="flex flex-col gap-2">
               <Button 
                 variant="outline" 
                 className="w-full"
@@ -552,7 +558,7 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
                   <span>Loading feedback...</span>
                 </div>
               ) : prFeedback.length > 0 ? (
-                <div className="grid gap-2">
+                <div className="flex flex-col gap-2">
                   {prFeedback.map((feedback) => (
                     <div 
                       key={feedback.id}

@@ -314,19 +314,36 @@ export const getDownloadableItems = async (problemId: string): Promise<Downloada
 export const getPRFeedback = async (subtaskId: string): Promise<PRFeedback[]> => {
   console.log(`Getting PR feedback for subtask ${subtaskId}`);
   
-  // Simulate database interaction
-  await new Promise(resolve => setTimeout(resolve, 350));
+  // Simulate database interaction with longer delay to ensure feedback loads properly
+  await new Promise(resolve => setTimeout(resolve, 750));
   
-  // Generate some random feedback based on subtask ID
+  // Generate more consistent feedback based on subtask ID to avoid randomness
   const feedbackItems = [];
-  const feedbackCount = Math.floor(Math.random() * 3) + 1; // 1-3 feedback items
   
-  for (let i = 1; i <= feedbackCount; i++) {
+  // Ensure we always return at least 2 feedback items
+  feedbackItems.push({
+    id: `${subtaskId}-feedback-1`,
+    subtaskId,
+    comment: `Consider improving the performance of your implementation with optimized algorithms.`,
+    author: 'Senior Developer',
+    resolved: false
+  });
+  
+  feedbackItems.push({
+    id: `${subtaskId}-feedback-2`,
+    subtaskId,
+    comment: `Add more comprehensive error handling to make your code more robust.`,
+    author: 'Tech Lead',
+    resolved: false
+  });
+  
+  // Add a third feedback for some subtasks
+  if (['1', '3', '5'].includes(subtaskId)) {
     feedbackItems.push({
-      id: `${subtaskId}-feedback-${i}`,
+      id: `${subtaskId}-feedback-3`,
       subtaskId,
-      comment: `Consider improving the ${['performance', 'readability', 'error handling'][i % 3]} of your code.`,
-      author: ['Code Reviewer', 'Senior Developer', 'Tech Lead'][i % 3],
+      comment: `The code could benefit from better documentation and comments.`,
+      author: 'Code Reviewer',
       resolved: false
     });
   }
@@ -343,8 +360,8 @@ export const getPRFeedback = async (subtaskId: string): Promise<PRFeedback[]> =>
 export const updatePRFeedbackStatus = async (feedbackId: string, resolved: boolean): Promise<boolean> => {
   console.log(`Updating PR feedback ${feedbackId} resolution status to ${resolved}`);
   
-  // Simulate database interaction
-  await new Promise(resolve => setTimeout(resolve, 200));
+  // Simulate database interaction with sufficient delay to ensure the UI updates properly
+  await new Promise(resolve => setTimeout(resolve, 300));
   
   return true;
 };
