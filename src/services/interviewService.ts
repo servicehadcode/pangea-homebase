@@ -1,3 +1,4 @@
+
 // This file contains all interview-related services
 
 import { toast } from "sonner";
@@ -41,8 +42,7 @@ const initWhisperModel = async () => {
       console.log("Initializing Whisper model...");
       whisperTranscriber = await pipeline(
         "automatic-speech-recognition",
-        "openai/whisper-tiny",
-        { quantized: true }
+        "openai/whisper-tiny"
       );
       console.log("Whisper model initialized successfully");
     } catch (error) {
