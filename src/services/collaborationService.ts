@@ -1,4 +1,3 @@
-
 // Collaboration microservice implementations
 
 /**
@@ -172,4 +171,34 @@ export const updateCollaboratorName = async (email: string, newName: string): Pr
     success: false,
     message: 'Collaborator not found.'
   };
+};
+
+/**
+ * Gets the assignment for a specific subtask
+ * @param subtaskId ID of the subtask
+ * @returns Assignment information or null if not found
+ */
+export const getSubtaskAssignment = async (subtaskId: string): Promise<any | null> => {
+  // Simulate API call delay
+  await new Promise(resolve => setTimeout(resolve, 500));
+  
+  // In production, this would fetch from a database
+  const subtaskAssignmentsStr = localStorage.getItem('subtaskAssignments');
+  const subtaskAssignments = subtaskAssignmentsStr ? 
+    JSON.parse(subtaskAssignmentsStr) : {};
+  
+  return subtaskAssignments[subtaskId] || null;
+};
+
+/**
+ * Gets all subtask assignments
+ * @returns Record of all subtask assignments
+ */
+export const getAllSubtaskAssignments = async (): Promise<Record<string, any>> => {
+  // Simulate API call delay
+  await new Promise(resolve => setTimeout(resolve, 500));
+  
+  // In production, this would fetch from a database
+  const subtaskAssignmentsStr = localStorage.getItem('subtaskAssignments');
+  return subtaskAssignmentsStr ? JSON.parse(subtaskAssignmentsStr) : {};
 };

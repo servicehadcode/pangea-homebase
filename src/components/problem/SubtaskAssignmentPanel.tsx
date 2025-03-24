@@ -94,6 +94,24 @@ const SubtaskAssignmentPanel: React.FC<SubtaskAssignmentPanelProps> = ({
     }));
     
     try {
+      // Find the assigned user's info
+      const assignedUser = invitedUsers.find(user => user.id === userId);
+      
+      // Store the subtask assignment in localStorage
+      const subtaskAssignmentsStr = localStorage.getItem('subtaskAssignments');
+      let subtaskAssignments = subtaskAssignmentsStr ? JSON.parse(subtaskAssignmentsStr) : {};
+      
+      // Add the assignment with user details
+      subtaskAssignments[subtaskId] = {
+        userId,
+        userName: assignedUser?.name || 'Unknown User',
+        userEmail: assignedUser?.email || 'unknown@example.com',
+        assignedAt: new Date().toISOString()
+      };
+      
+      // Save back to localStorage
+      localStorage.setItem('subtaskAssignments', JSON.stringify(subtaskAssignments));
+      
       // Call the assignment service to send notification
       await assignSubtaskToUser(subtaskId, userId);
       

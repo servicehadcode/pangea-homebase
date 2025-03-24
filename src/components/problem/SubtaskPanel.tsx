@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,7 +25,7 @@ import {
   CheckCircle
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
-import { updateCollaboratorName } from '@/services/collaborationService';
+import { updateCollaboratorName, getInvitedCollaborators } from '@/services/collaborationService';
 import { 
   updateSessionProgress, 
   recordSubtaskCompletion, 
@@ -39,11 +38,11 @@ interface SubtaskPanelProps {
   step: any;
   onPrev: () => void;
   onNext: () => void;
+  isFirst: boolean;
+  isLast: boolean;
   onComplete: () => void;
   onSkip: () => void;
   onBackToSubtasks?: () => void;
-  isFirst: boolean;
-  isLast: boolean;
   isSoloMode: boolean;
   isDatasetMode?: boolean;
   sessionId?: string;
@@ -79,6 +78,8 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
   const [isLoadingFeedback, setIsLoadingFeedback] = useState(false);
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
   const [isCompletingSubtask, setIsCompletingSubtask] = useState(false);
+  const [collaborators, setCollaborators] = useState<any[]>([]);
+  const [isLoadingCollaborators, setIsLoadingCollaborators] = useState(true);
   
   const defaultReporter = isSoloMode ? username : inviterName;
   const defaultAssignee = isSoloMode ? username : (step.assignedTo || 'Unassigned');
@@ -91,7 +92,32 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
   const [acceptanceCriteria, setAcceptanceCriteria] = useState<{id: string; text: string; completed: boolean}[]>([]);
   const [isStateInitialized, setIsStateInitialized] = useState(false);
   
-  // Initialize or restore state from savedState in a controlled manner
+  useEffect(() => {
+    const fetchCollaborators = async () => {
+      try {
+        setIsLoadingCollaborators(true);
+        const fetchedCollaborators = await getInvitedCollaborators();
+        setCollaborators(fetchedCollaborators);
+        
+        if (step && step.assignedTo && !isSoloMode) {
+          const assignedCollaborator = fetchedCollaborators.find(
+            (collab: any) => collab.email === step.assignedTo || collab.id === step.assignedTo
+          );
+          
+          if (assignedCollaborator) {
+            setAssignee(assignedCollaborator.name);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching collaborators:', error);
+      } finally {
+        setIsLoadingCollaborators(false);
+      }
+    };
+    
+    fetchCollaborators();
+  }, [step, isSoloMode]);
+  
   useEffect(() => {
     if (!isStateInitialized) {
       if (savedState) {
@@ -147,7 +173,6 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
     }
   }, [savedState, step, defaultReporter, defaultAssignee, isStateInitialized]);
   
-  // Update parent component with state changes when they happen
   useEffect(() => {
     if (isStateInitialized && onStateChange) {
       onStateChange({
@@ -196,7 +221,6 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
     setIsLoadingFeedback(true);
     
     try {
-      // Fetch PR feedback from the service
       const feedback = await getPRFeedback(step.id);
       setPRFeedback(feedback);
       setShowPRFeedback(true);
@@ -245,7 +269,6 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
     }
   };
   
-  // Fix feedback resolution toggle
   const handleToggleFeedbackResolution = async (feedbackId: string, resolved: boolean) => {
     try {
       await updatePRFeedbackStatus(feedbackId, resolved);
@@ -265,7 +288,6 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
     }
   };
   
-  // Fix acceptance criteria toggle
   const handleToggleAcceptanceCriteria = (criteriaId: string, completed: boolean) => {
     setAcceptanceCriteria(prevCriteria =>
       prevCriteria.map(criteria =>
@@ -280,7 +302,6 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
       
       const nextSubtaskData = await getNextSubtaskData(step.id);
       
-      // Reset critical states
       setBranchCreated(false);
       setPrCreated(false);
       setDeliverables('');
@@ -288,7 +309,6 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
       setShowPRFeedback(false);
       setHasAttemptedSubmit(false);
       
-      // Set new acceptance criteria if available
       if (nextSubtaskData.acceptanceCriteria && nextSubtaskData.acceptanceCriteria.length > 0) {
         setAcceptanceCriteria(
           nextSubtaskData.acceptanceCriteria.map((criteria: string, index: number) => ({
@@ -371,7 +391,6 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
       });
       
       if (!isLast) {
-        // Refresh data for next subtask before transitioning
         await refreshSubtaskData();
       }
       
@@ -423,7 +442,6 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
     );
   }
   
-  // Show a loading state if state is not initialized yet
   if (!isStateInitialized) {
     return (
       <Card className="min-h-[400px] flex items-center justify-center">
@@ -564,7 +582,7 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
                 ) : (
                   <>
                     <span className="font-medium">
-                      {assignee}
+                      {isLoadingCollaborators ? 'Loading...' : assignee}
                     </span>
                     <Button 
                       variant="ghost" 
