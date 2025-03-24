@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
@@ -71,6 +70,7 @@ import {
 } from '@/services/databaseService';
 import { getDiscussionComments, addDiscussionComment } from '@/services/discussionService';
 import { getResources } from '@/services/resourceService';
+import { getAllSubtaskAssignments } from '@/services/collaborationService';
 
 const ProblemDetails = () => {
   const { category, id } = useParams();
@@ -107,6 +107,7 @@ const ProblemDetails = () => {
     resources: true,
   });
   const [subtaskStates, setSubtaskStates] = useState<Record<string, any>>({});
+  const [subtaskAssignments, setSubtaskAssignments] = useState<Record<string, any>>({});
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -727,6 +728,7 @@ const ProblemDetails = () => {
                       username={username}
                       inviterName={inviterName}
                       savedState={subtaskStates[currentSubtask?.id]}
+                      subtaskAssignments={subtaskAssignments} // Add this prop
                       onStateChange={(state) => {
                         setSubtaskStates(prev => ({
                           ...prev,
@@ -753,6 +755,7 @@ const ProblemDetails = () => {
                   sessionId={sessionId}
                   username={username}
                   inviterName={inviterName}
+                  subtaskAssignments={subtaskAssignments} // Add this prop
                 />
               </TabsContent>
 

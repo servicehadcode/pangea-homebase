@@ -1,3 +1,4 @@
+
 // Collaboration microservice implementations
 
 /**
@@ -191,14 +192,34 @@ export const getSubtaskAssignment = async (subtaskId: string): Promise<any | nul
 };
 
 /**
- * Gets all subtask assignments
- * @returns Record of all subtask assignments
+ * Gets all subtask assignments with user details
+ * @returns Record of all subtask assignments with user information
  */
 export const getAllSubtaskAssignments = async (): Promise<Record<string, any>> => {
   // Simulate API call delay
   await new Promise(resolve => setTimeout(resolve, 500));
   
-  // In production, this would fetch from a database
+  // Get assignments from localStorage
   const subtaskAssignmentsStr = localStorage.getItem('subtaskAssignments');
-  return subtaskAssignmentsStr ? JSON.parse(subtaskAssignmentsStr) : {};
+  const assignments = subtaskAssignmentsStr ? JSON.parse(subtaskAssignmentsStr) : {};
+  
+  // Get collaborators to ensure we have latest names
+  const collaborators = await getInvitedCollaborators();
+  
+  // Enrich assignments with latest user information
+  Object.keys(assignments).forEach(subtaskId => {
+    const assignment = assignments[subtaskId];
+    const collaborator = collaborators.find(
+      (c: any) => c.email === assignment.userEmail || c.id === assignment.userId
+    );
+    
+    if (collaborator) {
+      assignments[subtaskId] = {
+        ...assignment,
+        userName: collaborator.name // Update name from latest collaborator data
+      };
+    }
+  });
+  
+  return assignments;
 };

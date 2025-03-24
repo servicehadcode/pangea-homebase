@@ -97,16 +97,21 @@ const SubtaskAssignmentPanel: React.FC<SubtaskAssignmentPanelProps> = ({
       // Find the assigned user's info
       const assignedUser = invitedUsers.find(user => user.id === userId);
       
+      if (!assignedUser) {
+        throw new Error('User not found');
+      }
+      
       // Store the subtask assignment in localStorage
       const subtaskAssignmentsStr = localStorage.getItem('subtaskAssignments');
       let subtaskAssignments = subtaskAssignmentsStr ? JSON.parse(subtaskAssignmentsStr) : {};
       
-      // Add the assignment with user details
+      // Add the assignment with complete user details
       subtaskAssignments[subtaskId] = {
-        userId,
-        userName: assignedUser?.name || 'Unknown User',
-        userEmail: assignedUser?.email || 'unknown@example.com',
-        assignedAt: new Date().toISOString()
+        userId: assignedUser.id,
+        userName: assignedUser.name,
+        userEmail: assignedUser.email,
+        assignedAt: new Date().toISOString(),
+        status: assignedUser.status
       };
       
       // Save back to localStorage
@@ -117,7 +122,7 @@ const SubtaskAssignmentPanel: React.FC<SubtaskAssignmentPanelProps> = ({
       
       toast({
         title: "User Assigned",
-        description: `User has been assigned to this subtask.`,
+        description: `${assignedUser.name} has been assigned to this subtask.`,
       });
     } catch (error) {
       console.error('Error assigning user:', error);

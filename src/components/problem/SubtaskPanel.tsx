@@ -25,7 +25,7 @@ import {
   CheckCircle
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
-import { updateCollaboratorName, getInvitedCollaborators } from '@/services/collaborationService';
+import { updateCollaboratorName, getInvitedCollaborators, getSubtaskAssignment } from '@/services/collaborationService';
 import { 
   updateSessionProgress, 
   recordSubtaskCompletion, 
@@ -50,6 +50,7 @@ interface SubtaskPanelProps {
   inviterName?: string;
   savedState?: any;
   onStateChange?: (state: any) => void;
+  subtaskAssignments?: Record<string, any>;
 }
 
 const SubtaskPanel: React.FC<SubtaskPanelProps> = ({ 
@@ -67,7 +68,8 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
   username = 'User',
   inviterName = 'Pangea Admin',
   savedState,
-  onStateChange
+  onStateChange,
+  subtaskAssignments = {}
 }) => {
   const { toast } = useToast();
   const [branchCreated, setBranchCreated] = useState(false);
@@ -99,13 +101,23 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
         const fetchedCollaborators = await getInvitedCollaborators();
         setCollaborators(fetchedCollaborators);
         
-        if (step && step.assignedTo && !isSoloMode) {
-          const assignedCollaborator = fetchedCollaborators.find(
-            (collab: any) => collab.email === step.assignedTo || collab.id === step.assignedTo
-          );
-          
-          if (assignedCollaborator) {
-            setAssignee(assignedCollaborator.name);
+        if (step && step.id && !isSoloMode) {
+          const assignment = subtaskAssignments[step.id];
+          if (assignment) {
+            setAssignee(assignment.userName);
+          } else {
+            const assignmentData = await getSubtaskAssignment(step.id);
+            if (assignmentData) {
+              setAssignee(assignmentData.userName);
+            } else {
+              const assignedCollaborator = fetchedCollaborators.find(
+                (collab: any) => collab.email === step.assignedTo || collab.id === step.assignedTo
+              );
+              
+              if (assignedCollaborator) {
+                setAssignee(assignedCollaborator.name);
+              }
+            }
           }
         }
       } catch (error) {
@@ -116,7 +128,7 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
     };
     
     fetchCollaborators();
-  }, [step, isSoloMode]);
+  }, [step, isSoloMode, subtaskAssignments]);
   
   useEffect(() => {
     if (!isStateInitialized) {
@@ -764,3 +776,4 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
 };
 
 export default SubtaskPanel;
+
