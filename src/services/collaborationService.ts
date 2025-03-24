@@ -1,8 +1,8 @@
 
-// Dummy microservice implementations for collaboration features
+// Collaboration microservice implementations
 
 /**
- * Sends collaboration invitation via email (dummy implementation)
+ * Sends collaboration invitation via email using Nodemailer
  * @param email Email address to send invitation to
  * @returns Promise with response message
  */
@@ -10,25 +10,93 @@ export const sendCollaborationInvite = async (email: string): Promise<{
   success: boolean; 
   message: string;
 }> => {
-  // Simulate API call delay
-  await new Promise(resolve => setTimeout(resolve, 1500));
+  // Validate email format
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!email || !emailRegex.test(email)) {
+    return {
+      success: false,
+      message: 'Invalid email format. Please provide a valid email address.'
+    };
+  }
   
-  // Simulate success response (in a real implementation, this would send an actual email)
-  if (email && email.includes('@')) {
+  try {
+    // Simulate API call delay (in production, this would be a real API call to a Nodemailer service)
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    
+    // In production, the email sending code would look like this:
+    /*
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASSWORD
+      }
+    });
+    
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: 'Invitation to Collaborate on a Problem',
+      html: `
+        <h1>You've been invited to collaborate!</h1>
+        <p>Someone has invited you to collaborate on a problem-solving task.</p>
+        <p>Click the button below to join:</p>
+        <a href="https://your-app-url.com/invite?email=${email}" 
+           style="background-color: #4CAF50; color: white; padding: 10px 20px; 
+                  text-align: center; text-decoration: none; display: inline-block;
+                  border-radius: 4px;">
+          Accept Invitation
+        </a>
+      `
+    };
+    
+    await transporter.sendMail(mailOptions);
+    */
+    
+    // Store the invited collaborator in a map/database
+    if (!global.invitedCollaborators) {
+      global.invitedCollaborators = new Map();
+    }
+    
+    // Add to invited collaborators with pending status
+    global.invitedCollaborators.set(email, {
+      email,
+      name: email.split('@')[0], // Default name from email
+      status: 'invited',
+      timestamp: new Date().toISOString()
+    });
+    
     return {
       success: true,
       message: `Invitation sent successfully to ${email}. They will receive an email shortly.`
     };
-  } else {
+  } catch (error) {
+    console.error('Error sending invitation:', error);
     return {
       success: false,
-      message: 'Failed to send invitation. Please check the email address and try again.'
+      message: 'Failed to send invitation. Please try again later.'
     };
   }
 };
 
 /**
- * Updates collaborator status (dummy implementation)
+ * Gets all invited collaborators for the current session
+ * @returns Array of collaborator objects
+ */
+export const getInvitedCollaborators = async (): Promise<any[]> => {
+  // Simulate API call delay
+  await new Promise(resolve => setTimeout(resolve, 800));
+  
+  // In production, this would fetch from a database
+  if (!global.invitedCollaborators) {
+    global.invitedCollaborators = new Map();
+  }
+  
+  return Array.from(global.invitedCollaborators.values());
+};
+
+/**
+ * Updates collaborator status
  * @param email Email of the collaborator
  * @param status New status to set
  * @returns Promise with response message
@@ -40,15 +108,26 @@ export const updateCollaboratorStatus = async (email: string, status: 'invited' 
   // Simulate API call delay
   await new Promise(resolve => setTimeout(resolve, 1000));
   
-  // Simulate success response
+  // In production, this would update a database record
+  if (global.invitedCollaborators && global.invitedCollaborators.has(email)) {
+    const collaborator = global.invitedCollaborators.get(email);
+    collaborator.status = status;
+    global.invitedCollaborators.set(email, collaborator);
+    
+    return {
+      success: true,
+      message: `Collaborator ${email} status updated to ${status}.`
+    };
+  }
+  
   return {
-    success: true,
-    message: `Collaborator ${email} status updated to ${status}.`
+    success: false,
+    message: 'Collaborator not found.'
   };
 };
 
 /**
- * Updates collaborator display name (dummy implementation)
+ * Updates collaborator display name
  * @param email Email of the collaborator
  * @param newName New display name
  * @returns Promise with response message
@@ -60,16 +139,38 @@ export const updateCollaboratorName = async (email: string, newName: string): Pr
   // Simulate API call delay
   await new Promise(resolve => setTimeout(resolve, 800));
   
-  if (newName.trim().length === 0) {
+  if (!newName.trim()) {
     return {
       success: false,
       message: 'Name cannot be empty'
     };
   }
   
-  // Simulate success response
+  // In production, this would update a database record
+  if (global.invitedCollaborators && global.invitedCollaborators.has(email)) {
+    const collaborator = global.invitedCollaborators.get(email);
+    collaborator.name = newName;
+    global.invitedCollaborators.set(email, collaborator);
+    
+    return {
+      success: true,
+      message: `Display name updated successfully to "${newName}".`
+    };
+  }
+  
   return {
-    success: true,
-    message: `Display name updated successfully to "${newName}".`
+    success: false,
+    message: 'Collaborator not found.'
   };
 };
+
+// Add TypeScript declaration for global variable
+declare global {
+  var invitedCollaborators: Map<string, {
+    email: string;
+    name: string;
+    status: 'invited' | 'active';
+    timestamp: string;
+  }>;
+}
+

@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { ChevronLeft, UserPlus, Mail, Send, CheckCircle, Loader2, ChevronRight } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { assignSubtaskToUser } from '@/services/assignmentService';
+import { getInvitedCollaborators } from '@/services/collaborationService';
 
 interface SubtaskAssignmentPanelProps {
   subtasks: any[];
@@ -24,13 +25,67 @@ const SubtaskAssignmentPanel: React.FC<SubtaskAssignmentPanelProps> = ({
 }) => {
   const { toast } = useToast();
   const [assignments, setAssignments] = useState<Record<string, string>>({});
-  const [invitedUsers, setInvitedUsers] = useState([
-    { id: 'user1', name: 'Alice Johnson', email: 'alice@example.com' },
-    { id: 'user2', name: 'Bob Smith', email: 'bob@example.com' },
-    { id: 'user3', name: 'Charlie Davis', email: 'charlie@example.com' }
-  ]);
+  const [invitedUsers, setInvitedUsers] = useState<any[]>([]);
   const [isSending, setIsSending] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
+  const [isLoadingCollaborators, setIsLoadingCollaborators] = useState(true);
+  
+  // Fetch invited collaborators from the service
+  useEffect(() => {
+    const fetchCollaborators = async () => {
+      try {
+        setIsLoadingCollaborators(true);
+        const collaborators = await getInvitedCollaborators();
+        
+        // Add the current user as a collaborator
+        const currentUser = {
+          id: 'current-user',
+          name: localStorage.getItem('username') || 'You',
+          email: 'you@example.com',
+          status: 'active'
+        };
+        
+        // If no collaborators were invited, use dummy data
+        if (collaborators.length === 0) {
+          setInvitedUsers([
+            currentUser,
+            { id: 'user1', name: 'Alice Johnson', email: 'alice@example.com', status: 'invited' },
+            { id: 'user2', name: 'Bob Smith', email: 'bob@example.com', status: 'invited' },
+            { id: 'user3', name: 'Charlie Davis', email: 'charlie@example.com', status: 'invited' }
+          ]);
+        } else {
+          // Format the collaborators data
+          const formattedCollaborators = collaborators.map((collab: any) => ({
+            id: collab.email,
+            name: collab.name,
+            email: collab.email,
+            status: collab.status
+          }));
+          
+          setInvitedUsers([currentUser, ...formattedCollaborators]);
+        }
+      } catch (error) {
+        console.error('Error fetching collaborators:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load collaborators. Using default collaborators instead.",
+          variant: "destructive"
+        });
+        
+        // Fallback to dummy data
+        setInvitedUsers([
+          { id: 'current-user', name: localStorage.getItem('username') || 'You', email: 'you@example.com', status: 'active' },
+          { id: 'user1', name: 'Alice Johnson', email: 'alice@example.com', status: 'invited' },
+          { id: 'user2', name: 'Bob Smith', email: 'bob@example.com', status: 'invited' },
+          { id: 'user3', name: 'Charlie Davis', email: 'charlie@example.com', status: 'invited' }
+        ]);
+      } finally {
+        setIsLoadingCollaborators(false);
+      }
+    };
+    
+    fetchCollaborators();
+  }, [toast]);
   
   const handleAssignUser = async (subtaskId: string, userId: string) => {
     setAssignments(prev => ({
@@ -117,53 +172,62 @@ const SubtaskAssignmentPanel: React.FC<SubtaskAssignmentPanelProps> = ({
         ) : (
           <>
             <div className="space-y-4">
-              {subtasks.map(subtask => (
-                <Card key={subtask.id} className="overflow-hidden">
-                  <div className="p-4 bg-secondary/30">
-                    <h3 className="font-medium">{subtask.title}</h3>
-                    <p className="text-sm text-muted-foreground">{subtask.description}</p>
-                  </div>
-                  
-                  <CardContent className="p-4">
-                    <div className="flex flex-col sm:flex-row sm:items-end gap-3">
-                      <div className="flex-1">
-                        <Label htmlFor={`assign-${subtask.id}`} className="mb-1 block">
-                          Assign to
-                        </Label>
-                        <Select
-                          value={assignments[subtask.id] || ""}
-                          onValueChange={(value) => handleAssignUser(subtask.id, value)}
-                        >
-                          <SelectTrigger id={`assign-${subtask.id}`}>
-                            <SelectValue placeholder="Select a team member" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {invitedUsers.map(user => (
-                              <SelectItem key={user.id} value={user.id}>
-                                {user.name} ({user.email})
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+              {isLoadingCollaborators ? (
+                <div className="flex justify-center items-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                  <span className="ml-2 text-muted-foreground">Loading collaborators...</span>
+                </div>
+              ) : (
+                <>
+                  {subtasks.map(subtask => (
+                    <Card key={subtask.id} className="overflow-hidden">
+                      <div className="p-4 bg-secondary/30">
+                        <h3 className="font-medium">{subtask.title}</h3>
+                        <p className="text-sm text-muted-foreground">{subtask.description}</p>
                       </div>
                       
-                      {assignments[subtask.id] && (
-                        <div className="w-full sm:w-auto">
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            className="text-green-600"
-                            disabled
-                          >
-                            <CheckCircle className="h-4 w-4 mr-1" />
-                            Assigned
-                          </Button>
+                      <CardContent className="p-4">
+                        <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+                          <div className="flex-1">
+                            <Label htmlFor={`assign-${subtask.id}`} className="mb-1 block">
+                              Assign to
+                            </Label>
+                            <Select
+                              value={assignments[subtask.id] || ""}
+                              onValueChange={(value) => handleAssignUser(subtask.id, value)}
+                            >
+                              <SelectTrigger id={`assign-${subtask.id}`}>
+                                <SelectValue placeholder="Select a team member" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {invitedUsers.map(user => (
+                                  <SelectItem key={user.id} value={user.id}>
+                                    {user.name} ({user.email})
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          
+                          {assignments[subtask.id] && (
+                            <div className="w-full sm:w-auto">
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                className="text-green-600"
+                                disabled
+                              >
+                                <CheckCircle className="h-4 w-4 mr-1" />
+                                Assigned
+                              </Button>
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                      </CardContent>
+                    </Card>
+                  ))}
+                </>
+              )}
             </div>
             
             <Separator />
@@ -172,18 +236,24 @@ const SubtaskAssignmentPanel: React.FC<SubtaskAssignmentPanelProps> = ({
               <h3 className="font-medium">Invited Team Members</h3>
               
               <div className="space-y-2">
-                {invitedUsers.map(user => (
-                  <div key={user.id} className="flex items-center justify-between p-3 border rounded-md">
-                    <div>
-                      <p className="font-medium">{user.name}</p>
-                      <p className="text-sm text-muted-foreground">{user.email}</p>
-                    </div>
-                    
-                    <Badge variant="outline" className="px-2 py-1 text-xs">
-                      Invited
-                    </Badge>
+                {isLoadingCollaborators ? (
+                  <div className="flex justify-center items-center py-4">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                   </div>
-                ))}
+                ) : (
+                  invitedUsers.map(user => (
+                    <div key={user.id} className="flex items-center justify-between p-3 border rounded-md">
+                      <div>
+                        <p className="font-medium">{user.name}</p>
+                        <p className="text-sm text-muted-foreground">{user.email}</p>
+                      </div>
+                      
+                      <Badge variant="outline" className="px-2 py-1 text-xs">
+                        {user.status === 'active' ? 'Active' : 'Invited'}
+                      </Badge>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </>
@@ -204,7 +274,7 @@ const SubtaskAssignmentPanel: React.FC<SubtaskAssignmentPanelProps> = ({
         {!isComplete && (
           <Button 
             onClick={handleCompleteAssignments}
-            disabled={isSending || Object.keys(assignments).length !== subtasks.length}
+            disabled={isSending || isLoadingCollaborators || Object.keys(assignments).length !== subtasks.length}
             className="flex items-center gap-1"
           >
             {isSending ? (
