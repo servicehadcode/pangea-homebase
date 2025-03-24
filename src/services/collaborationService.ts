@@ -53,18 +53,21 @@ export const sendCollaborationInvite = async (email: string): Promise<{
     await transporter.sendMail(mailOptions);
     */
     
-    // Store the invited collaborator in a map/database
-    if (!global.invitedCollaborators) {
-      global.invitedCollaborators = new Map();
-    }
+    // Store the invited collaborator in localStorage instead of global
+    const invitedCollaboratorsStr = localStorage.getItem('invitedCollaborators');
+    let invitedCollaborators = invitedCollaboratorsStr ? 
+      JSON.parse(invitedCollaboratorsStr) : {};
     
     // Add to invited collaborators with pending status
-    global.invitedCollaborators.set(email, {
+    invitedCollaborators[email] = {
       email,
       name: email.split('@')[0], // Default name from email
       status: 'invited',
       timestamp: new Date().toISOString()
-    });
+    };
+    
+    // Save back to localStorage
+    localStorage.setItem('invitedCollaborators', JSON.stringify(invitedCollaborators));
     
     return {
       success: true,
@@ -88,11 +91,12 @@ export const getInvitedCollaborators = async (): Promise<any[]> => {
   await new Promise(resolve => setTimeout(resolve, 800));
   
   // In production, this would fetch from a database
-  if (!global.invitedCollaborators) {
-    global.invitedCollaborators = new Map();
-  }
+  const invitedCollaboratorsStr = localStorage.getItem('invitedCollaborators');
+  const invitedCollaborators = invitedCollaboratorsStr ? 
+    JSON.parse(invitedCollaboratorsStr) : {};
   
-  return Array.from(global.invitedCollaborators.values());
+  // Convert object to array
+  return Object.values(invitedCollaborators);
 };
 
 /**
@@ -109,10 +113,13 @@ export const updateCollaboratorStatus = async (email: string, status: 'invited' 
   await new Promise(resolve => setTimeout(resolve, 1000));
   
   // In production, this would update a database record
-  if (global.invitedCollaborators && global.invitedCollaborators.has(email)) {
-    const collaborator = global.invitedCollaborators.get(email);
-    collaborator.status = status;
-    global.invitedCollaborators.set(email, collaborator);
+  const invitedCollaboratorsStr = localStorage.getItem('invitedCollaborators');
+  let invitedCollaborators = invitedCollaboratorsStr ? 
+    JSON.parse(invitedCollaboratorsStr) : {};
+  
+  if (invitedCollaborators[email]) {
+    invitedCollaborators[email].status = status;
+    localStorage.setItem('invitedCollaborators', JSON.stringify(invitedCollaborators));
     
     return {
       success: true,
@@ -147,10 +154,13 @@ export const updateCollaboratorName = async (email: string, newName: string): Pr
   }
   
   // In production, this would update a database record
-  if (global.invitedCollaborators && global.invitedCollaborators.has(email)) {
-    const collaborator = global.invitedCollaborators.get(email);
-    collaborator.name = newName;
-    global.invitedCollaborators.set(email, collaborator);
+  const invitedCollaboratorsStr = localStorage.getItem('invitedCollaborators');
+  let invitedCollaborators = invitedCollaboratorsStr ? 
+    JSON.parse(invitedCollaboratorsStr) : {};
+  
+  if (invitedCollaborators[email]) {
+    invitedCollaborators[email].name = newName;
+    localStorage.setItem('invitedCollaborators', JSON.stringify(invitedCollaborators));
     
     return {
       success: true,
@@ -163,14 +173,3 @@ export const updateCollaboratorName = async (email: string, newName: string): Pr
     message: 'Collaborator not found.'
   };
 };
-
-// Add TypeScript declaration for global variable
-declare global {
-  var invitedCollaborators: Map<string, {
-    email: string;
-    name: string;
-    status: 'invited' | 'active';
-    timestamp: string;
-  }>;
-}
-
