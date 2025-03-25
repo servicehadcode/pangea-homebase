@@ -1,3 +1,4 @@
+import { emailApi } from './api/emailService';
 
 // Collaboration microservice implementations
 
@@ -20,40 +21,17 @@ export const sendCollaborationInvite = async (email: string): Promise<{
   }
   
   try {
-    // Simulate API call delay (in production, this would be a real API call to a Nodemailer service)
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    // Generate invite link
+    const inviteLink = `${window.location.origin}/invite?email=${encodeURIComponent(email)}`;
     
-    // In production, the email sending code would look like this:
-    /*
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASSWORD
-      }
+    // Send email through backend service
+    const response = await emailApi.sendCollaborationInvite(email, {
+      projectName: 'Problem Solving Project', // You might want to make this dynamic
+      invitedBy: localStorage.getItem('userName') || 'A team member',
+      inviteLink
     });
     
-    const mailOptions = {
-      from: process.env.EMAIL_USER,
-      to: email,
-      subject: 'Invitation to Collaborate on a Problem',
-      html: `
-        <h1>You've been invited to collaborate!</h1>
-        <p>Someone has invited you to collaborate on a problem-solving task.</p>
-        <p>Click the button below to join:</p>
-        <a href="https://your-app-url.com/invite?email=${email}" 
-           style="background-color: #4CAF50; color: white; padding: 10px 20px; 
-                  text-align: center; text-decoration: none; display: inline-block;
-                  border-radius: 4px;">
-          Accept Invitation
-        </a>
-      `
-    };
-    
-    await transporter.sendMail(mailOptions);
-    */
-    
-    // Store the invited collaborator in localStorage instead of global
+    // Store the invited collaborator in localStorage
     const invitedCollaboratorsStr = localStorage.getItem('invitedCollaborators');
     let invitedCollaborators = invitedCollaboratorsStr ? 
       JSON.parse(invitedCollaboratorsStr) : {};
@@ -69,10 +47,7 @@ export const sendCollaborationInvite = async (email: string): Promise<{
     // Save back to localStorage
     localStorage.setItem('invitedCollaborators', JSON.stringify(invitedCollaborators));
     
-    return {
-      success: true,
-      message: `Invitation sent successfully to ${email}. They will receive an email shortly.`
-    };
+    return response;
   } catch (error) {
     console.error('Error sending invitation:', error);
     return {
@@ -87,9 +62,6 @@ export const sendCollaborationInvite = async (email: string): Promise<{
  * @returns Array of collaborator objects
  */
 export const getInvitedCollaborators = async (): Promise<any[]> => {
-  // Simulate API call delay
-  await new Promise(resolve => setTimeout(resolve, 800));
-  
   // In production, this would fetch from a database
   const invitedCollaboratorsStr = localStorage.getItem('invitedCollaborators');
   const invitedCollaborators = invitedCollaboratorsStr ? 
@@ -109,10 +81,6 @@ export const updateCollaboratorStatus = async (email: string, status: 'invited' 
   success: boolean;
   message: string;
 }> => {
-  // Simulate API call delay
-  await new Promise(resolve => setTimeout(resolve, 1000));
-  
-  // In production, this would update a database record
   const invitedCollaboratorsStr = localStorage.getItem('invitedCollaborators');
   let invitedCollaborators = invitedCollaboratorsStr ? 
     JSON.parse(invitedCollaboratorsStr) : {};
@@ -143,9 +111,6 @@ export const updateCollaboratorName = async (email: string, newName: string): Pr
   success: boolean;
   message: string;
 }> => {
-  // Simulate API call delay
-  await new Promise(resolve => setTimeout(resolve, 800));
-  
   if (!newName.trim()) {
     return {
       success: false,
@@ -153,7 +118,6 @@ export const updateCollaboratorName = async (email: string, newName: string): Pr
     };
   }
   
-  // In production, this would update a database record
   const invitedCollaboratorsStr = localStorage.getItem('invitedCollaborators');
   let invitedCollaborators = invitedCollaboratorsStr ? 
     JSON.parse(invitedCollaboratorsStr) : {};
@@ -180,10 +144,6 @@ export const updateCollaboratorName = async (email: string, newName: string): Pr
  * @returns Assignment information or null if not found
  */
 export const getSubtaskAssignment = async (subtaskId: string): Promise<any | null> => {
-  // Simulate API call delay
-  await new Promise(resolve => setTimeout(resolve, 500));
-  
-  // In production, this would fetch from a database
   const subtaskAssignmentsStr = localStorage.getItem('subtaskAssignments');
   const subtaskAssignments = subtaskAssignmentsStr ? 
     JSON.parse(subtaskAssignmentsStr) : {};
@@ -196,30 +156,6 @@ export const getSubtaskAssignment = async (subtaskId: string): Promise<any | nul
  * @returns Record of all subtask assignments with user information
  */
 export const getAllSubtaskAssignments = async (): Promise<Record<string, any>> => {
-  // Simulate API call delay
-  await new Promise(resolve => setTimeout(resolve, 500));
-  
-  // Get assignments from localStorage
   const subtaskAssignmentsStr = localStorage.getItem('subtaskAssignments');
-  const assignments = subtaskAssignmentsStr ? JSON.parse(subtaskAssignmentsStr) : {};
-  
-  // Get collaborators to ensure we have latest names
-  const collaborators = await getInvitedCollaborators();
-  
-  // Enrich assignments with latest user information
-  Object.keys(assignments).forEach(subtaskId => {
-    const assignment = assignments[subtaskId];
-    const collaborator = collaborators.find(
-      (c: any) => c.email === assignment.userEmail || c.id === assignment.userId
-    );
-    
-    if (collaborator) {
-      assignments[subtaskId] = {
-        ...assignment,
-        userName: collaborator.name // Update name from latest collaborator data
-      };
-    }
-  });
-  
-  return assignments;
+  return subtaskAssignmentsStr ? JSON.parse(subtaskAssignmentsStr) : {};
 };

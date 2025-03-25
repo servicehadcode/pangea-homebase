@@ -1,24 +1,19 @@
+import { emailApi } from './api/emailService';
 
-// Assignment service for subtask assignments
-
-/**
- * Interface for task assignment data
- */
+// Types
 interface TaskAssignment {
   subtaskId: string;
   userId: string;
   subtaskTitle?: string;
   username?: string;
   assignedAt: string;
+  status?: 'accepted' | 'declined' | 'in_progress' | 'completed';
   notification?: {
     status: 'sent' | 'failed' | 'pending';
     message?: string;
   };
 }
 
-/**
- * Interface for assignment notification
- */
 interface AssignmentNotification {
   to: string;
   subject: string;
@@ -30,8 +25,15 @@ interface AssignmentNotification {
   };
 }
 
+// Mock user data - in production this would come from a user service
+const userInfo: Record<string, { name: string; email: string }> = {
+  'user1': { name: 'Alice Johnson', email: 'alice@example.com' },
+  'user2': { name: 'Bob Smith', email: 'bob@example.com' },
+  'user3': { name: 'Charlie Davis', email: 'charlie@example.com' }
+};
+
 /**
- * Assigns a subtask to a user
+ * Assigns a subtask to a user and sends notification
  * @param subtaskId ID of the subtask to assign
  * @param userId ID of the user to assign to
  * @returns Promise with task assignment data
@@ -39,68 +41,67 @@ interface AssignmentNotification {
 export const assignSubtaskToUser = async (subtaskId: string, userId: string): Promise<TaskAssignment> => {
   console.log(`Assigning subtask ${subtaskId} to user ${userId}`);
   
-  // Simulate database interaction
-  await new Promise(resolve => setTimeout(resolve, 500));
+  // Get user information
+  const user = userInfo[userId] || { name: 'Unknown User', email: 'unknown@example.com' };
   
-  // Get user information (in a real app, this would come from a user service)
-  const userInfo = {
-    'user1': { name: 'Alice Johnson', email: 'alice@example.com' },
-    'user2': { name: 'Bob Smith', email: 'bob@example.com' },
-    'user3': { name: 'Charlie Davis', email: 'charlie@example.com' }
-  }[userId] || { name: 'Unknown User', email: 'unknown@example.com' };
-  
-  // Get subtask information (in a real app, this would come from a subtask service)
+  // Get subtask information (in production this would come from a subtask service)
   const subtaskInfo = {
-    title: 'Subtask Title', // Would be fetched based on subtaskId in real app
+    title: 'Subtask Title', // Would be fetched based on subtaskId in production
     description: 'This is a description of the subtask.'
   };
-  
-  // Create notification
-  const notification: AssignmentNotification = {
-    to: userInfo.email,
-    subject: `New Task Assignment: ${subtaskInfo.title}`,
-    content: `You have been assigned a new task: "${subtaskInfo.title}". Please review and complete this task.`,
-    subtaskInfo: {
-      title: subtaskInfo.title,
-      description: subtaskInfo.description,
-      id: subtaskId
-    }
-  };
-  
-  // Send notification (in a real app, this would send an actual email)
-  const notificationSent = await sendAssignmentNotification(notification);
-  
-  // Record assignment in the database
-  const assignment: TaskAssignment = {
-    subtaskId,
-    userId,
-    subtaskTitle: subtaskInfo.title,
-    username: userInfo.name,
-    assignedAt: new Date().toISOString(),
-    notification: {
-      status: notificationSent ? 'sent' : 'failed',
-      message: notificationSent ? 'Notification sent successfully' : 'Failed to send notification'
-    }
-  };
-  
-  return assignment;
-};
 
-/**
- * Sends an assignment notification (email)
- * @param notification The notification to send
- * @returns Promise with success status
- */
-const sendAssignmentNotification = async (notification: AssignmentNotification): Promise<boolean> => {
-  console.log(`Sending assignment notification to ${notification.to}`);
-  console.log(`Subject: ${notification.subject}`);
-  console.log(`Content: ${notification.content}`);
-  
-  // Simulate email sending
-  await new Promise(resolve => setTimeout(resolve, 300));
-  
-  // Simulate success (in a real app, this would be the result of the email send operation)
-  return true;
+  try {
+    // Create and send notification
+    const notification: AssignmentNotification = {
+      to: user.email,
+      subject: `New Task Assignment: ${subtaskInfo.title}`,
+      content: `You have been assigned a new task: "${subtaskInfo.title}". Please review and complete this task.`,
+      subtaskInfo: {
+        title: subtaskInfo.title,
+        description: subtaskInfo.description,
+        id: subtaskId
+      }
+    };
+    
+    const response = await emailApi.sendAssignmentNotification(notification);
+    
+    // Create assignment record
+    const assignment: TaskAssignment = {
+      subtaskId,
+      userId,
+      subtaskTitle: subtaskInfo.title,
+      username: user.name,
+      assignedAt: new Date().toISOString(),
+      notification: {
+        status: response.success ? 'sent' : 'failed',
+        message: response.message
+      }
+    };
+
+    // Store assignment in localStorage
+    const assignmentsStr = localStorage.getItem('subtaskAssignments');
+    const assignments: Record<string, TaskAssignment> = assignmentsStr ? JSON.parse(assignmentsStr) : {};
+    assignments[subtaskId] = assignment;
+    localStorage.setItem('subtaskAssignments', JSON.stringify(assignments));
+
+    return assignment;
+    
+  } catch (error) {
+    console.error('Error in assignSubtaskToUser:', error);
+    
+    // Return assignment with failed notification status
+    return {
+      subtaskId,
+      userId,
+      subtaskTitle: subtaskInfo.title,
+      username: user.name,
+      assignedAt: new Date().toISOString(),
+      notification: {
+        status: 'failed',
+        message: 'Failed to send notification'
+      }
+    };
+  }
 };
 
 /**
@@ -111,36 +112,18 @@ const sendAssignmentNotification = async (notification: AssignmentNotification):
 export const getUserAssignments = async (userId: string): Promise<TaskAssignment[]> => {
   console.log(`Getting assignments for user ${userId}`);
   
-  // Simulate database interaction
-  await new Promise(resolve => setTimeout(resolve, 400));
+  // Get assignments from localStorage
+  const assignmentsStr = localStorage.getItem('subtaskAssignments');
+  const allAssignments: Record<string, TaskAssignment> = assignmentsStr ? JSON.parse(assignmentsStr) : {};
   
-  // Mock data - in a real app this would come from the database
-  const assignments: TaskAssignment[] = [
-    {
-      subtaskId: '1',
-      userId,
-      subtaskTitle: 'Data Collection',
-      username: 'User',
-      assignedAt: new Date(Date.now() - 86400000).toISOString(), // 1 day ago
-      notification: {
-        status: 'sent',
-        message: 'Notification sent successfully'
-      }
-    },
-    {
-      subtaskId: '2',
-      userId,
-      subtaskTitle: 'Data Preprocessing',
-      username: 'User',
-      assignedAt: new Date(Date.now() - 43200000).toISOString(), // 12 hours ago
-      notification: {
-        status: 'sent',
-        message: 'Notification sent successfully'
-      }
-    }
-  ];
-  
-  return assignments;
+  // Filter assignments for the specific user and cast to TaskAssignment[]
+  return Object.values(allAssignments).filter(
+    (assignment): assignment is TaskAssignment => 
+      assignment && 
+      typeof assignment === 'object' && 
+      'userId' in assignment && 
+      assignment.userId === userId
+  );
 };
 
 /**
@@ -157,10 +140,21 @@ export const updateAssignmentStatus = async (
 ): Promise<boolean> => {
   console.log(`Updating assignment status for subtask ${subtaskId} to ${status}`);
   
-  // Simulate database interaction
-  await new Promise(resolve => setTimeout(resolve, 300));
-  
-  // In a real app, this would update the status in the database
-  
-  return true;
+  try {
+    // Get current assignments
+    const assignmentsStr = localStorage.getItem('subtaskAssignments');
+    const assignments: Record<string, TaskAssignment> = assignmentsStr ? JSON.parse(assignmentsStr) : {};
+    
+    // Update status if assignment exists
+    if (assignments[subtaskId] && assignments[subtaskId].userId === userId) {
+      assignments[subtaskId].status = status;
+      localStorage.setItem('subtaskAssignments', JSON.stringify(assignments));
+      return true;
+    }
+    
+    return false;
+  } catch (error) {
+    console.error('Error updating assignment status:', error);
+    return false;
+  }
 };
