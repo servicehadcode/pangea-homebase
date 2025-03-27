@@ -21,25 +21,53 @@ const ContactForm = () => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-
-    // Simulate sending data
-    await new Promise((resolve) => setTimeout(resolve, 1000));
     
-    toast.success("Message sent successfully! We'll get back to you soon.", {
-      position: "bottom-right",
-    });
-    
-    setFormData({
-      name: '',
-      email: '',
-      subject: '',
-      message: '',
-    });
-    
-    setIsLoading(false);
+    // Debug log to see what's being sent
+    console.log('Attempting to send form data:', formData);
+  
+    try {
+      // Using the proxy configured in vite.config.ts
+      const response = await fetch('/api/contact', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+  
+      // Debug log for response
+      console.log('Response status:', response.status);
+      
+      const data = await response.json();
+      console.log('Response data:', data);
+  
+      if (response.ok) {
+        toast.success("Message sent successfully! We'll get back to you soon.", {
+          position: "bottom-right",
+        });
+        
+        // Reset form
+        setFormData({
+          name: '',
+          email: '',
+          subject: '',
+          message: '',
+        });
+      } else {
+        throw new Error(data.message || 'Failed to send message');
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
+      toast.error("Failed to send message. Please try again later.", {
+        position: "bottom-right",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
