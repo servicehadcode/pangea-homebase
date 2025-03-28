@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -41,6 +40,12 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
         variant: "destructive",
       });
       return;
+    }
+
+    // Ensure owner name is saved before sending invitation
+    if (ownerName.trim() && ownerName !== localStorage.getItem('username')) {
+      localStorage.setItem('username', ownerName);
+      localStorage.setItem('inviterName', ownerName);
     }
 
     setIsInviting(true);
@@ -104,7 +109,7 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
 
     onComplete(mode);
   };
-  
+
   return (
     <Card>
       <CardHeader>
@@ -141,52 +146,33 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
             </Button>
           </div>
         </div>
-        
+
         <Separator />
-        
-        <div className="space-y-3">
-          <Label>Working Mode</Label>
-          <RadioGroup 
-            value={mode} 
-            onValueChange={(value) => setMode(value as 'solo' | 'pair')}
-            className="grid grid-cols-1 md:grid-cols-2 gap-4"
-          >
-            <div className={`border rounded-lg p-4 cursor-pointer ${mode === 'solo' ? 'border-pangea bg-pangea/5' : ''}`}>
-              <div className="flex items-start gap-2">
-                <RadioGroupItem value="solo" id="solo" className="mt-1" />
-                <div>
-                  <Label htmlFor="solo" className="flex items-center gap-2 cursor-pointer">
-                    <User className="h-5 w-5 text-pangea" />
-                    <span className="font-medium">Solo Mode</span>
-                  </Label>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Work on this problem by yourself. You'll be responsible for all subtasks.
-                  </p>
-                </div>
-              </div>
-            </div>
-            
-            <div className={`border rounded-lg p-4 cursor-pointer ${mode === 'pair' ? 'border-pangea bg-pangea/5' : ''}`}>
-              <div className="flex items-start gap-2">
-                <RadioGroupItem value="pair" id="pair" className="mt-1" />
-                <div>
-                  <Label htmlFor="pair" className="flex items-center gap-2 cursor-pointer">
-                    <Users className="h-5 w-5 text-pangea" />
-                    <span className="font-medium">Collaboration Mode</span>
-                  </Label>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Work on this problem with team members. Assign subtasks to collaborators.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </RadioGroup>
-        </div>
-        
+
+        <RadioGroup 
+          value={mode} 
+          onValueChange={(value: 'solo' | 'pair') => setMode(value)}
+          className="space-y-4"
+        >
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="solo" id="solo" />
+            <Label htmlFor="solo" className="flex items-center gap-2">
+              <User className="h-4 w-4" />
+              Solo Mode
+            </Label>
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="pair" id="pair" />
+            <Label htmlFor="pair" className="flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              Team Mode
+            </Label>
+          </div>
+        </RadioGroup>
+
         {mode === 'pair' && (
           <>
-            <Separator />
-            
             <div className="space-y-3">
               <Label>Invite Collaborators</Label>
               <div className="flex gap-2">
@@ -214,20 +200,22 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
                   )}
                 </Button>
               </div>
-              
+
               {invitedEmails.length > 0 && (
-                <div className="mt-4 space-y-2">
-                  <h4 className="text-sm font-medium">Invited Collaborators</h4>
+                <div className="space-y-2">
+                  <Label>Invited Collaborators:</Label>
                   {invitedEmails.map((email, index) => (
-                    <div key={index} className="flex items-center gap-2 p-2 border rounded-md">
+                    <div 
+                      key={index}
+                      className="flex items-center gap-2 p-2 rounded-md bg-muted"
+                    >
                       <MailCheck className="h-4 w-4 text-green-500" />
                       <span>{email}</span>
-                      <Badge className="ml-auto">Invited</Badge>
                     </div>
                   ))}
                 </div>
               )}
-              
+
               <Alert>
                 <AlertTitle>How collaboration works</AlertTitle>
                 <AlertDescription>
@@ -255,8 +243,8 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
         </Button>
         
         <Button 
-          className="pangea-button-primary"
           onClick={handleContinue}
+          className="pangea-button-primary"
         >
           Continue to Subtasks
         </Button>
@@ -264,12 +252,5 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
     </Card>
   );
 };
-
-// Add the Badge component that was missing
-const Badge = ({ className, children }: { className?: string, children: React.ReactNode }) => (
-  <span className={`bg-green-100 text-green-800 text-xs py-1 px-2 rounded ${className}`}>
-    {children}
-  </span>
-);
 
 export default CollaborationSetupPanel;

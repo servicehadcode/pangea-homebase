@@ -1,8 +1,7 @@
-
 // Collaboration microservice implementations
 
 /**
- * Sends collaboration invitation via email using Nodemailer
+ * Sends collaboration invitation via email using contact API
  * @param email Email address to send invitation to
  * @returns Promise with response message
  */
@@ -20,59 +19,47 @@ export const sendCollaborationInvite = async (email: string): Promise<{
   }
   
   try {
-    // Simulate API call delay (in production, this would be a real API call to a Nodemailer service)
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    const inviterName = localStorage.getItem('username') || 'Someone';
     
-    // In production, the email sending code would look like this:
-    /*
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASSWORD
-      }
+    const formData = {
+      name: inviterName,
+      email: email,
+      subject: `${inviterName} is inviting you to solve a problem`,
+      message: `Collaborate with ${inviterName} to solve a real world problem. ${window.location.href}`
+    };
+
+    const response = await fetch('/api/contact', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(formData),
     });
-    
-    const mailOptions = {
-      from: process.env.EMAIL_USER,
-      to: email,
-      subject: 'Invitation to Collaborate on a Problem',
-      html: `
-        <h1>You've been invited to collaborate!</h1>
-        <p>Someone has invited you to collaborate on a problem-solving task.</p>
-        <p>Click the button below to join:</p>
-        <a href="https://your-app-url.com/invite?email=${email}" 
-           style="background-color: #4CAF50; color: white; padding: 10px 20px; 
-                  text-align: center; text-decoration: none; display: inline-block;
-                  border-radius: 4px;">
-          Accept Invitation
-        </a>
-      `
-    };
-    
-    await transporter.sendMail(mailOptions);
-    */
-    
-    // Store the invited collaborator in localStorage instead of global
-    const invitedCollaboratorsStr = localStorage.getItem('invitedCollaborators');
-    let invitedCollaborators = invitedCollaboratorsStr ? 
-      JSON.parse(invitedCollaboratorsStr) : {};
-    
-    // Add to invited collaborators with pending status
-    invitedCollaborators[email] = {
-      email,
-      name: email.split('@')[0], // Default name from email
-      status: 'invited',
-      timestamp: new Date().toISOString()
-    };
-    
-    // Save back to localStorage
-    localStorage.setItem('invitedCollaborators', JSON.stringify(invitedCollaborators));
-    
-    return {
-      success: true,
-      message: `Invitation sent successfully to ${email}. They will receive an email shortly.`
-    };
+
+    const data = await response.json();
+
+    if (response.ok) {
+      // Store the invited collaborator in localStorage
+      const invitedCollaboratorsStr = localStorage.getItem('invitedCollaborators');
+      let invitedCollaborators = invitedCollaboratorsStr ? 
+        JSON.parse(invitedCollaboratorsStr) : {};
+      
+      invitedCollaborators[email] = {
+        email,
+        name: email.split('@')[0],
+        status: 'invited',
+        timestamp: new Date().toISOString()
+      };
+      
+      localStorage.setItem('invitedCollaborators', JSON.stringify(invitedCollaborators));
+      
+      return {
+        success: true,
+        message: `Invitation sent successfully to ${email}. They will receive an email shortly.`
+      };
+    } else {
+      throw new Error(data.message || 'Failed to send invitation');
+    }
   } catch (error) {
     console.error('Error sending invitation:', error);
     return {
