@@ -29,7 +29,9 @@ export const ProblemCard: React.FC<ProblemProps> = ({ problem, category }) => {
   }[problem.difficulty] || 'bg-gray-100 text-gray-800 border-gray-200';
 
   const handleViewProblem = () => {
-    navigate(`/problems/${category}/${problem.id}`);
+    navigate(`/problems/${category}/${problem.id}`, {
+      state: { problemTitle: problem.title }
+    });
   };
 
   return (

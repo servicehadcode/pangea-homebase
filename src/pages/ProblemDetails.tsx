@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { 
   Code, 
   Database, 
@@ -75,6 +75,7 @@ import { getAllSubtaskAssignments } from '@/services/collaborationService';
 const ProblemDetails = () => {
   const { category, id } = useParams();
   const navigate = useNavigate();
+  const { state } = useLocation();
   const { toast } = useToast();
   const [problem, setProblem] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
@@ -119,7 +120,7 @@ const ProblemDetails = () => {
       
       const data = {
         id: parseInt(id || '1', 10),
-        title: `Problem ${id} Title`,
+        title: state?.problemTitle || `Problem ${id} Title`,
         description: "This is a detailed description of the problem. It includes background information, context, and specific requirements for solving the problem. The description should be comprehensive enough for someone to understand the problem without any prior knowledge.",
         longDescription: "This is a more detailed description that provides comprehensive information about the problem, including background context, detailed requirements, and expected outcomes.",
         difficulty: "Intermediate",
@@ -287,7 +288,7 @@ const ProblemDetails = () => {
     
     const completedProblems = JSON.parse(localStorage.getItem('completedProblems') || '{}');
     setIsCompleted(completedProblems[`${category}-${id}`] || false);
-  }, [category, id]);
+  }, [category, id, state]);
 
   useEffect(() => {
     if (problem) {
