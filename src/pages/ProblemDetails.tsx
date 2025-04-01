@@ -71,6 +71,7 @@ import {
 import { getDiscussionComments, addDiscussionComment } from '@/services/discussionService';
 import { getResources } from '@/services/resourceService';
 import { getAllSubtaskAssignments } from '@/services/collaborationService';
+import { getProblemById } from '@/services/problemService';
 
 const ProblemDetails = () => {
   const { category, id } = useParams();
@@ -116,27 +117,17 @@ const ProblemDetails = () => {
     const fetchData = async () => {
       setIsLoading(true);
       
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      const data = {
-        id: parseInt(id || '1', 10),
-        title: state?.problemTitle || `Problem ${id} Title`,
-        description: "This is a detailed description of the problem. It includes background information, context, and specific requirements for solving the problem. The description should be comprehensive enough for someone to understand the problem without any prior knowledge.",
-        longDescription: "This is a more detailed description that provides comprehensive information about the problem, including background context, detailed requirements, and expected outcomes.",
-        difficulty: "Intermediate",
-        tags: ["Machine Learning", "Data Preprocessing", "API Development"],
-        requirements: {
-          hardware: "Any modern computer with at least 8GB RAM",
-          software: "Python 3.8+, Jupyter Notebook, Required libraries"
-        },
-        steps: [
+      try {
+        const problemData = await getProblemById(id || '1');
+        
+        const systemSteps = [
           {
             id: 'setup',
             title: "Environment Setup",
             description: "Set up your development environment with the necessary tools and libraries.",
             isCompleted: false,
             subproblems: [
-              "Install Python 3.8+",
+              "Install required software",
               "Set up a virtual environment",
               "Install required packages"
             ],
@@ -174,113 +165,107 @@ const ProblemDetails = () => {
               "Requirements are understood",
               "Implementation strategy is defined"
             ]
-          },
-          {
-            id: '1',
-            title: "Data Collection",
-            description: "Collect the necessary data from various sources.",
-            isCompleted: false,
-            subproblems: [
-              "Identify data sources",
-              "Implement data collection methods",
-              "Validate collected data"
-            ],
-            acceptanceCriteria: [
-              "Data is collected from all sources",
-              "Data format is consistent",
-              "Data is validated"
-            ],
-            assignedTo: "Data Engineer"
-          },
-          {
-            id: '2',
-            title: "Data Preprocessing",
-            description: "Clean and preprocess the collected data.",
-            isCompleted: false,
-            subproblems: [
-              "Handle missing values",
-              "Normalize data",
-              "Feature engineering"
-            ],
-            acceptanceCriteria: [
-              "No missing values in critical fields",
-              "Data is properly normalized",
-              "Features are engineered as needed"
-            ],
-            assignedTo: "Data Scientist"
-          },
-          {
-            id: '3',
-            title: "Model Training",
-            description: "Train a machine learning model using the preprocessed data.",
-            isCompleted: false,
-            subproblems: [
-              "Select appropriate model",
-              "Implement training pipeline",
-              "Tune hyperparameters"
-            ],
-            acceptanceCriteria: [
-              "Model is trained successfully",
-              "Performance metrics meet expectations",
-              "Training process is documented"
-            ],
-            assignedTo: "ML Engineer"
           }
-        ],
-        resources: [
-          { title: "Machine Learning Basics", url: "https://www.example.com/ml-basics" },
-          { title: "API Development with Flask", url: "https://www.example.com/flask-api" },
-        ],
-        isCompleted: false,
-      };
-      
-      setProblem(data);
-      setIsLoading(false);
-      
-      const newSessionId = await recordUserSession({
-        userId: "user123",
-        problemId: id || "1",
-        category: category || "data-science",
-        startTime: new Date().toISOString()
-      });
-      
-      setSessionId(newSessionId);
-      
-      const savedUsername = localStorage.getItem('username');
-      if (savedUsername) {
-        setUsername(savedUsername);
-      }
-      
-      const savedInviter = localStorage.getItem('inviterName');
-      if (savedInviter) {
-        setInviterName(savedInviter);
-      }
-      
-      const savedSteps = localStorage.getItem(`problem-${data.id}-steps`);
-      if (savedSteps) {
-        setStepsCompleted(JSON.parse(savedSteps));
-      }
-      
-      const savedState = localStorage.getItem(`problem-${id}-state`);
-      if (savedState) {
-        const state = JSON.parse(savedState);
-        setActiveTab(state.activeTab || 'overview');
-        setCurrentStepIndex(state.currentStepIndex || 0);
-        setCollaborationMode(state.collaborationMode || 'solo');
-        setTabsEnabled(state.tabsEnabled || {
-          overview: true,
-          collaboration: false,
-          taskAssignment: false,
-          subtasks: false,
-          dataset: false,
-          discussion: true,
-          resources: true,
-        });
-        setShowTaskAssignment(state.showTaskAssignment || false);
+        ];
         
-        if (state.subtaskStates) {
-          setSubtaskStates(state.subtaskStates);
+        const actualSteps = problemData.steps.map((step: any, index: number) => ({
+          id: String(index + 1),
+          title: `Step ${step.step}: ${step.description.split(':')[0] || 'Task'}`,
+          description: step.description,
+          isCompleted: false,
+          subproblems: [
+            `Implement ${step.description}`,
+            `Test ${step.description}`,
+            `Document ${step.description}`
+          ],
+          acceptanceCriteria: [
+            "Implementation complete",
+            "Tests passing",
+            "Documentation updated"
+          ],
+          assignedTo: null
+        }));
+        
+        const transformedData = {
+          id: parseInt(problemData.problem_num, 10),
+          title: problemData.title,
+          description: problemData.description,
+          longDescription: problemData.longDescription,
+          difficulty: problemData.difficulty,
+          tags: problemData.tags,
+          requirements: {
+            hardware: "Any modern computer with at least 8GB RAM",
+            software: problemData.requirements?.skills?.join(', ') || "Required software"
+          },
+          steps: [...systemSteps, ...actualSteps],
+          resources: problemData.resources.map((resource: any) => ({ 
+            title: resource.description, 
+            url: resource.url 
+          })),
+          isCompleted: false,
+        };
+        
+        setProblem(transformedData);
+        
+        const newSessionId = await recordUserSession({
+          userId: "user123",
+          problemId: id || "1",
+          category: category || "data-science",
+          startTime: new Date().toISOString()
+        });
+        
+        setSessionId(newSessionId);
+        
+        const savedUsername = localStorage.getItem('username');
+        if (savedUsername) {
+          setUsername(savedUsername);
         }
+        
+        const savedInviter = localStorage.getItem('inviterName');
+        if (savedInviter) {
+          setInviterName(savedInviter);
+        }
+        
+        const savedSteps = localStorage.getItem(`problem-${transformedData.id}-steps`);
+        if (savedSteps) {
+          setStepsCompleted(JSON.parse(savedSteps));
+        }
+        
+        const savedState = localStorage.getItem(`problem-${id}-state`);
+        if (savedState) {
+          const state = JSON.parse(savedState);
+          setActiveTab(state.activeTab || 'overview');
+          setCurrentStepIndex(state.currentStepIndex || 0);
+          setCollaborationMode(state.collaborationMode || 'solo');
+          setTabsEnabled(state.tabsEnabled || {
+            overview: true,
+            collaboration: false,
+            taskAssignment: false,
+            subtasks: false,
+            dataset: false,
+            discussion: true,
+            resources: true,
+          });
+          setShowTaskAssignment(state.showTaskAssignment || false);
+          
+          if (state.subtaskStates) {
+            setSubtaskStates(state.subtaskStates);
+          }
+        }
+        
+        const assignments = await getAllSubtaskAssignments();
+        setSubtaskAssignments(assignments);
+        
+      } catch (error) {
+        console.error('Error fetching problem details:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load problem details. Please try again.",
+          variant: "destructive",
+        });
+        navigate('/problems');
+      } finally {
+        setIsLoading(false);
       }
     };
     
@@ -288,7 +273,7 @@ const ProblemDetails = () => {
     
     const completedProblems = JSON.parse(localStorage.getItem('completedProblems') || '{}');
     setIsCompleted(completedProblems[`${category}-${id}`] || false);
-  }, [category, id, state]);
+  }, [category, id, navigate, toast, state]);
 
   useEffect(() => {
     if (problem) {
@@ -729,7 +714,7 @@ const ProblemDetails = () => {
                       username={username}
                       inviterName={inviterName}
                       savedState={subtaskStates[currentSubtask?.id]}
-                      subtaskAssignments={subtaskAssignments} // Add this prop
+                      subtaskAssignments={subtaskAssignments}
                       onStateChange={(state) => {
                         setSubtaskStates(prev => ({
                           ...prev,
@@ -756,7 +741,7 @@ const ProblemDetails = () => {
                   sessionId={sessionId}
                   username={username}
                   inviterName={inviterName}
-                  subtaskAssignments={subtaskAssignments} // Add this prop
+                  subtaskAssignments={subtaskAssignments}
                 />
               </TabsContent>
 

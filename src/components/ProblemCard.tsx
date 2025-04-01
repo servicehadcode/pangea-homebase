@@ -8,7 +8,7 @@ import { ChevronRight, CheckCircle } from 'lucide-react';
 
 interface ProblemProps {
   problem: {
-    id: number;
+    id: number | string;
     title: string;
     description: string;
     difficulty: string;

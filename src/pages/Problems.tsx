@@ -12,7 +12,8 @@ import {
   List,
   Clock,
   ExternalLink,
-  Upload
+  Upload,
+  Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -24,6 +25,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { ProblemCard } from '@/components/ProblemCard';
 import { SubmitProblemForm } from '@/components/SubmitProblemForm';
 import { ProblemFilters } from '@/components/ProblemFilters';
+import { getAllProblems } from '@/services/problemService';
 
 const Problems = () => {
   const { toast } = useToast();
@@ -31,102 +33,82 @@ const Problems = () => {
   const [activeTab, setActiveTab] = useState('data-science');
   const [showSubmitForm, setShowSubmitForm] = useState(false);
   const [difficultyFilter, setDifficultyFilter] = useState('all');
-
-  const [dataScience, setDataScience] = useState([
-    {
-      id: 1,
-      title: "Student Connection Channel Prediction",
-      description: "Develop an AI model that takes in parameters about student connection and returns the most preferred channel to reach out to them.",
-      difficulty: "Intermediate",
-      tags: ["Machine Learning", "Data Preprocessing", "API Development"],
-      steps: 5,
-      isCompleted: false,
-    },
-    {
-      id: 2,
-      title: "Customer Churn Prediction",
-      description: "Build a predictive model to identify customers who are likely to churn based on historical behavior data.",
-      difficulty: "Advanced",
-      tags: ["Classification", "Feature Engineering", "Model Deployment"],
-      steps: 4,
-      isCompleted: false,
-    },
-    {
-      id: 3,
-      title: "Data Visualization Dashboard",
-      description: "Create an interactive dashboard to visualize key metrics from a dataset.",
-      difficulty: "Beginner",
-      tags: ["Data Visualization", "Dashboard", "Analytics"],
-      steps: 3,
-      isCompleted: false,
-    },
-  ]);
-
-  const [softwareDev, setSoftwareDev] = useState([
-    {
-      id: 1,
-      title: "E-commerce Product Recommendation System",
-      description: "Design and implement a microservice-based product recommendation engine for an e-commerce platform.",
-      difficulty: "Advanced",
-      tags: ["Microservices", "Docker", "API Design"],
-      steps: 6,
-      isCompleted: false,
-    },
-    {
-      id: 2,
-      title: "Real-time Chat Application",
-      description: "Build a scalable real-time chat application with user authentication and message persistence.",
-      difficulty: "Intermediate",
-      tags: ["WebSockets", "Authentication", "Database Design"],
-      steps: 5,
-      isCompleted: false,
-    },
-    {
-      id: 3,
-      title: "Responsive Portfolio Website",
-      description: "Create a responsive portfolio website using modern web technologies.",
-      difficulty: "Beginner",
-      tags: ["HTML/CSS", "Responsive Design", "JavaScript"],
-      steps: 4,
-      isCompleted: false,
-    },
-  ]);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  const [problems, setProblems] = useState<Record<string, any[]>>({
+    'data-science': [],
+    'software-dev': []
+  });
 
   useEffect(() => {
     window.scrollTo(0, 0);
     
-    const completedProblems = JSON.parse(localStorage.getItem('completedProblems') || '{}');
+    const fetchProblems = async () => {
+      try {
+        setIsLoading(true);
+        const [dataScience, softwareDev] = await Promise.all([
+          getAllProblems('data-science'),
+          getAllProblems('software-dev')
+        ]);
+
+        // Transform API data to match existing structure
+        const transformProblems = (apiProblems: any[]) => 
+          apiProblems.map(p => ({
+            id: p.problem_num,
+            title: p.title,
+            description: p.description,
+            difficulty: p.difficulty,
+            tags: p.tags,
+            steps: p.steps.length,
+            isCompleted: false
+          }));
+
+        const transformedProblems = {
+          'data-science': transformProblems(dataScience),
+          'software-dev': transformProblems(softwareDev)
+        };
+
+        // Apply completed status from localStorage
+        const completedProblems = JSON.parse(localStorage.getItem('completedProblems') || '{}');
+        
+        if (Object.keys(completedProblems).length > 0) {
+          Object.keys(transformedProblems).forEach(category => {
+            transformedProblems[category] = transformedProblems[category].map(problem => ({
+              ...problem,
+              isCompleted: completedProblems[`${category}-${problem.id}`] || false
+            }));
+          });
+        }
+        
+        setProblems(transformedProblems);
+      } catch (error) {
+        console.error('Error fetching problems:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load problems. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
     
-    if (Object.keys(completedProblems).length > 0) {
-      setDataScience(prev => prev.map(problem => ({
-        ...problem,
-        isCompleted: completedProblems[`data-science-${problem.id}`] || false
-      })));
-      
-      setSoftwareDev(prev => prev.map(problem => ({
-        ...problem,
-        isCompleted: completedProblems[`software-dev-${problem.id}`] || false
-      })));
-    }
-  }, []);
+    fetchProblems();
+  }, [toast]);
 
   useEffect(() => {
     const completedProblems: Record<string, boolean> = {};
     
-    dataScience.forEach(problem => {
-      if (problem.isCompleted) {
-        completedProblems[`data-science-${problem.id}`] = true;
-      }
-    });
-    
-    softwareDev.forEach(problem => {
-      if (problem.isCompleted) {
-        completedProblems[`software-dev-${problem.id}`] = true;
-      }
+    Object.entries(problems).forEach(([category, categoryProblems]) => {
+      categoryProblems.forEach(problem => {
+        if (problem.isCompleted) {
+          completedProblems[`${category}-${problem.id}`] = true;
+        }
+      });
     });
     
     localStorage.setItem('completedProblems', JSON.stringify(completedProblems));
-  }, [dataScience, softwareDev]);
+  }, [problems]);
 
   const handleSubmitProblem = (data: any) => {
     toast({
@@ -148,8 +130,8 @@ const Problems = () => {
     return problems.filter(problem => problem.difficulty === difficultyFilter);
   };
 
-  const filteredDataScience = filterProblems(dataScience);
-  const filteredSoftwareDev = filterProblems(softwareDev);
+  const filteredDataScience = filterProblems(problems['data-science'] || []);
+  const filteredSoftwareDev = filterProblems(problems['software-dev'] || []);
 
   if (showSubmitForm) {
     return (
@@ -219,47 +201,56 @@ const Problems = () => {
               onReset={resetFilters}
             />
 
-            <TabsContent value="data-science" className="mt-6 space-y-6">
-              {filteredDataScience.length === 0 ? (
-                <div className="text-center py-8">
-                  <p className="text-muted-foreground">No problems match your current filters.</p>
-                  <Button 
-                    variant="outline" 
-                    className="mt-2"
-                    onClick={resetFilters}
-                  >
-                    Reset Filters
-                  </Button>
-                </div>
-              ) : (
-                <div className="grid md:grid-cols-2 gap-6">
-                  {filteredDataScience.map(problem => (
-                    <ProblemCard key={problem.id} problem={problem} category="data-science" />
-                  ))}
-                </div>
-              )}
-            </TabsContent>
+            {isLoading ? (
+              <div className="flex justify-center items-center py-16">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <span className="ml-2">Loading problems...</span>
+              </div>
+            ) : (
+              <>
+                <TabsContent value="data-science" className="mt-6 space-y-6">
+                  {filteredDataScience.length === 0 ? (
+                    <div className="text-center py-8">
+                      <p className="text-muted-foreground">No problems match your current filters.</p>
+                      <Button 
+                        variant="outline" 
+                        className="mt-2"
+                        onClick={resetFilters}
+                      >
+                        Reset Filters
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="grid md:grid-cols-2 gap-6">
+                      {filteredDataScience.map(problem => (
+                        <ProblemCard key={problem.id} problem={problem} category="data-science" />
+                      ))}
+                    </div>
+                  )}
+                </TabsContent>
 
-            <TabsContent value="software-dev" className="mt-6 space-y-6">
-              {filteredSoftwareDev.length === 0 ? (
-                <div className="text-center py-8">
-                  <p className="text-muted-foreground">No problems match your current filters.</p>
-                  <Button 
-                    variant="outline" 
-                    className="mt-2"
-                    onClick={resetFilters}
-                  >
-                    Reset Filters
-                  </Button>
-                </div>
-              ) : (
-                <div className="grid md:grid-cols-2 gap-6">
-                  {filteredSoftwareDev.map(problem => (
-                    <ProblemCard key={problem.id} problem={problem} category="software-dev" />
-                  ))}
-                </div>
-              )}
-            </TabsContent>
+                <TabsContent value="software-dev" className="mt-6 space-y-6">
+                  {filteredSoftwareDev.length === 0 ? (
+                    <div className="text-center py-8">
+                      <p className="text-muted-foreground">No problems match your current filters.</p>
+                      <Button 
+                        variant="outline" 
+                        className="mt-2"
+                        onClick={resetFilters}
+                      >
+                        Reset Filters
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="grid md:grid-cols-2 gap-6">
+                      {filteredSoftwareDev.map(problem => (
+                        <ProblemCard key={problem.id} problem={problem} category="software-dev" />
+                      ))}
+                    </div>
+                  )}
+                </TabsContent>
+              </>
+            )}
           </Tabs>
 
           <div className="mt-16 max-w-3xl mx-auto bg-pangea-light/30 p-8 rounded-lg border border-pangea/20 animate-fade-up [animation-delay:400ms]">
