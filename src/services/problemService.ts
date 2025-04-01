@@ -37,7 +37,10 @@ export interface TransformedProblem {
 export const getAllProblems = async (category?: string): Promise<Problem[]> => {
   try {
     // Log the request URL for debugging
-    const url = `http://localhost:5000/api/problems/${encodeURIComponent(category)}`;
+    const url = category 
+      ? `http://localhost:5000/api/problems?category=${encodeURIComponent(category)}`
+      : 'http://localhost:5000/api/problems';
+    
     console.log('Fetching problems from:', url);
 
     const response = await fetch(url);
@@ -57,7 +60,7 @@ export const getAllProblems = async (category?: string): Promise<Problem[]> => {
 
 export const getProblemById = async (problemNum: string): Promise<Problem> => {
   try {
-    const url = `http://localhost:5000/api/problems/id/${encodeURIComponent(problemNum)}`;
+    const url = `http://localhost:5000/api/problem/${encodeURIComponent(problemNum)}`;
     console.log('Fetching problem details from:', url);
 
     const response = await fetch(url);
