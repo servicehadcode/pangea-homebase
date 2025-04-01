@@ -1,3 +1,4 @@
+
 export interface Problem {
   problem_num: string;
   title: string;
@@ -35,6 +36,7 @@ export interface TransformedProblem {
 
 export const getAllProblems = async (category?: string): Promise<Problem[]> => {
   try {
+    // Log the request URL for debugging
     const url = `http://localhost:5000/api/problems/${encodeURIComponent(category)}`;
     console.log('Fetching problems from:', url);
 
