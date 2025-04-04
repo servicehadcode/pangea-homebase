@@ -7,7 +7,6 @@ import { Mic, MicOff, Send, ArrowLeft, CheckCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { 
   fetchInterviewQuestions, 
-  transcribeSpeech, 
   evaluateAnswer,
   InterviewQuestion,
   InterviewFeedback
@@ -61,11 +60,16 @@ export const SelfSupervisedInterview = ({
   
   const currentQuestion = questions[currentQuestionIndex];
   
+  // Update the startRecording function
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       
-      const mediaRecorder = new MediaRecorder(stream);
+      // Configure for WAV recording
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType: 'audio/wav'
+      });
+      
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
       
@@ -77,17 +81,14 @@ export const SelfSupervisedInterview = ({
       
       mediaRecorder.onstop = async () => {
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
-        
-        // Process the recording
-        setTranscribedText("Transcribing your answer...");
-        const text = await transcribeSpeech(audioBlob);
-        setTranscribedText(text);
+        await sendAudioToTranscriptionAPI(audioBlob);
         
         // Close audio tracks
         stream.getTracks().forEach(track => track.stop());
       };
       
-      mediaRecorder.start();
+      // Set a time slice to collect data periodically (e.g., every second)
+      mediaRecorder.start(1000);
       setIsRecording(true);
       setTranscribedText('');
       
@@ -104,6 +105,38 @@ export const SelfSupervisedInterview = ({
       });
     }
   };
+
+  // Add the new function to send audio to API
+  const sendAudioToTranscriptionAPI = async (audioBlob: Blob) => {
+    try {
+      setTranscribedText("Transcribing your answer...");
+      
+      const formData = new FormData();
+      formData.append('audio', audioBlob, 'recording.wav');
+      formData.append('language', 'en-US');
+
+      const response = await fetch('http://localhost:5000/api/v1/transcribe', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setTranscribedText(result.data.transcription);
+      } else {
+        throw new Error(result.error.message || 'Transcription failed');
+      }
+    } catch (error) {
+      console.error('Error transcribing audio:', error);
+      toast({
+        title: "Transcription Error",
+        description: "Failed to transcribe your answer. Please try again.",
+        variant: "destructive",
+      });
+      setTranscribedText('');
+    }
+  };
   
   const stopRecording = () => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
@@ -112,7 +145,7 @@ export const SelfSupervisedInterview = ({
       
       toast({
         title: "Recording stopped",
-        description: "You can review your answer before submitting",
+        description: "Transcribing your answer...",
       });
     }
   };
