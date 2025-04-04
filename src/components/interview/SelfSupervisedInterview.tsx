@@ -65,9 +65,12 @@ export const SelfSupervisedInterview = ({
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       
-      // Configure for WAV recording
+      // Get supported MIME types for this browser
+      const mimeType = getSupportedMimeType();
+      
+      // Configure with supported MIME type
       const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: 'audio/wav'
+        mimeType: mimeType
       });
       
       mediaRecorderRef.current = mediaRecorder;
@@ -80,7 +83,8 @@ export const SelfSupervisedInterview = ({
       };
       
       mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
+        // Use the correct MIME type based on what was supported
+        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
         await sendAudioToTranscriptionAPI(audioBlob);
         
         // Close audio tracks
@@ -106,13 +110,34 @@ export const SelfSupervisedInterview = ({
     }
   };
 
+  // Helper function to get supported MIME type
+  const getSupportedMimeType = (): string => {
+    const types = [
+      'audio/webm',
+      'audio/mp4',
+      'audio/ogg',
+      'audio/webm;codecs=opus',
+      'audio/webm;codecs=pcm',
+      'audio/webm;codecs=vorbis',
+      ''  // Empty string is a valid fallback
+    ];
+    
+    for (const type of types) {
+      if (type === '' || MediaRecorder.isTypeSupported(type)) {
+        return type;
+      }
+    }
+    
+    return ''; // Fallback to default
+  };
+
   // Add the new function to send audio to API
   const sendAudioToTranscriptionAPI = async (audioBlob: Blob) => {
     try {
       setTranscribedText("Transcribing your answer...");
       
       const formData = new FormData();
-      formData.append('audio', audioBlob, 'recording.wav');
+      formData.append('audio', audioBlob, 'recording.webm');
       formData.append('language', 'en-US');
 
       const response = await fetch('http://localhost:5000/api/v1/transcribe', {
@@ -125,7 +150,7 @@ export const SelfSupervisedInterview = ({
       if (result.success) {
         setTranscribedText(result.data.transcription);
       } else {
-        throw new Error(result.error.message || 'Transcription failed');
+        throw new Error(result.error?.message || 'Transcription failed');
       }
     } catch (error) {
       console.error('Error transcribing audio:', error);
