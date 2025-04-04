@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -35,6 +34,7 @@ export const SelfSupervisedInterview = ({
   // Reference for the audio recorder
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+  const audioContextRef = useRef<AudioContext | null>(null);
   
   // Fetch questions when component mounts
   useEffect(() => {
@@ -68,6 +68,9 @@ export const SelfSupervisedInterview = ({
       // Get supported MIME types for this browser
       const mimeType = getSupportedMimeType();
       
+      // Create an AudioContext to process the audio later
+      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      
       // Configure with supported MIME type
       const mediaRecorder = new MediaRecorder(stream, {
         mimeType: mimeType
@@ -85,7 +88,19 @@ export const SelfSupervisedInterview = ({
       mediaRecorder.onstop = async () => {
         // Use the correct MIME type based on what was supported
         const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
-        await sendAudioToTranscriptionAPI(audioBlob);
+        
+        try {
+          // Convert to WAV before sending to API
+          const wavBlob = await convertToWav(audioBlob);
+          await sendAudioToTranscriptionAPI(wavBlob);
+        } catch (error) {
+          console.error('Error processing audio:', error);
+          toast({
+            title: "Processing Error",
+            description: "Failed to process audio recording",
+            variant: "destructive",
+          });
+        }
         
         // Close audio tracks
         stream.getTracks().forEach(track => track.stop());
@@ -107,6 +122,106 @@ export const SelfSupervisedInterview = ({
         description: "Could not access your microphone. Please check permissions.",
         variant: "destructive",
       });
+    }
+  };
+
+  // Function to convert audio blob to WAV format
+  const convertToWav = async (audioBlob: Blob): Promise<Blob> => {
+    return new Promise((resolve, reject) => {
+      // Create file reader to read the blob
+      const fileReader = new FileReader();
+      
+      fileReader.onloadend = async () => {
+        try {
+          const arrayBuffer = fileReader.result as ArrayBuffer;
+          const audioContext = audioContextRef.current as AudioContext;
+          
+          // Decode the audio data
+          const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+          
+          // Convert to WAV
+          const wavBuffer = audioBufferToWav(audioBuffer);
+          const wavBlob = new Blob([new DataView(wavBuffer)], { type: 'audio/wav' });
+          
+          resolve(wavBlob);
+        } catch (error) {
+          reject(error);
+        }
+      };
+      
+      fileReader.onerror = () => {
+        reject(new Error('Failed to read audio file'));
+      };
+      
+      // Read the blob as array buffer
+      fileReader.readAsArrayBuffer(audioBlob);
+    });
+  };
+  
+  // Helper function to convert AudioBuffer to WAV format
+  const audioBufferToWav = (buffer: AudioBuffer): ArrayBuffer => {
+    const numOfChannels = buffer.numberOfChannels;
+    const length = buffer.length * numOfChannels * 2; // 16-bit audio (2 bytes per sample)
+    const sampleRate = buffer.sampleRate;
+    
+    // Create the WAV file buffer
+    const arrayBuffer = new ArrayBuffer(44 + length);
+    const view = new DataView(arrayBuffer);
+    
+    // RIFF identifier
+    writeString(view, 0, 'RIFF');
+    // File length minus RIFF identifier length and file description length
+    view.setUint32(4, 36 + length, true);
+    // WAVE identifier
+    writeString(view, 8, 'WAVE');
+    // Format chunk identifier
+    writeString(view, 12, 'fmt ');
+    // Format chunk length
+    view.setUint32(16, 16, true);
+    // Sample format (PCM)
+    view.setUint16(20, 1, true);
+    // Channel count
+    view.setUint16(22, numOfChannels, true);
+    // Sample rate
+    view.setUint32(24, sampleRate, true);
+    // Byte rate (sample rate * block align)
+    view.setUint32(28, sampleRate * numOfChannels * 2, true);
+    // Block align (channel count * bytes per sample)
+    view.setUint16(32, numOfChannels * 2, true);
+    // Bits per sample
+    view.setUint16(34, 16, true);
+    // Data chunk identifier
+    writeString(view, 36, 'data');
+    // Data chunk length
+    view.setUint32(40, length, true);
+    
+    // Write the PCM samples
+    const channelData = [];
+    let offset = 44;
+    
+    // Extract the channel data
+    for (let i = 0; i < numOfChannels; i++) {
+      channelData.push(buffer.getChannelData(i));
+    }
+    
+    // Interleave the channels and convert to 16-bit
+    for (let i = 0; i < buffer.length; i++) {
+      for (let channel = 0; channel < numOfChannels; channel++) {
+        // Convert float audio data (range -1 to 1) to 16-bit PCM
+        const sample = Math.max(-1, Math.min(1, channelData[channel][i]));
+        const pcmSample = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
+        view.setInt16(offset, pcmSample, true);
+        offset += 2;
+      }
+    }
+    
+    return arrayBuffer;
+  };
+  
+  // Helper function to write a string to a DataView
+  const writeString = (view: DataView, offset: number, string: string): void => {
+    for (let i = 0; i < string.length; i++) {
+      view.setUint8(offset + i, string.charCodeAt(i));
     }
   };
 
@@ -137,7 +252,7 @@ export const SelfSupervisedInterview = ({
       setTranscribedText("Transcribing your answer...");
       
       const formData = new FormData();
-      formData.append('audio', audioBlob, 'recording.webm');
+      formData.append('audio', audioBlob, 'recording.wav');
       formData.append('language', 'en-US');
 
       const response = await fetch('http://localhost:5000/api/v1/transcribe', {
