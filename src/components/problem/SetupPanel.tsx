@@ -34,7 +34,7 @@ const SetupPanel: React.FC<SetupPanelProps> = ({ problem, onComplete }) => {
   ];
   
   // Get git repository URL from problem metadata or use default
-  const repoUrl = problem.repoUrl || "https://github.com/example/repo";
+  const repoUrl = problem.metadata?.gitRepo || "https://github.com/example/repo";
   
   const handleCopyCommand = () => {
     navigator.clipboard.writeText(`git clone ${repoUrl}`);

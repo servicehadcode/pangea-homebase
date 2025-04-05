@@ -481,19 +481,35 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
           
           <div className="space-y-3">
             <h4 className="font-medium mb-2">Details</h4>
-            <div className="grid gap-3">
-              {step.subproblems.map((subproblem: string, index: number) => (
-                <div 
-                  key={index}
-                  className="p-3 bg-secondary/30 rounded-lg flex items-start gap-3"
-                >
-                  <div className="flex-shrink-0 h-6 w-6 rounded-full bg-secondary flex items-center justify-center">
-                    {index + 1}
+            {step.details && step.details.length > 0 ? (
+              <div className="grid gap-3">
+                {step.details.map((detail: string, index: number) => (
+                  <div 
+                    key={index}
+                    className="p-3 bg-secondary/30 rounded-lg flex items-start gap-3"
+                  >
+                    <div className="flex-shrink-0 h-6 w-6 rounded-full bg-secondary flex items-center justify-center">
+                      {index + 1}
+                    </div>
+                    <p>{detail}</p>
                   </div>
-                  <p>{subproblem}</p>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="grid gap-3">
+                {step.subproblems.map((subproblem: string, index: number) => (
+                  <div 
+                    key={index}
+                    className="p-3 bg-secondary/30 rounded-lg flex items-start gap-3"
+                  >
+                    <div className="flex-shrink-0 h-6 w-6 rounded-full bg-secondary flex items-center justify-center">
+                      {index + 1}
+                    </div>
+                    <p>{subproblem}</p>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
           
           {acceptanceCriteria.length > 0 && (
@@ -776,4 +792,3 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
 };
 
 export default SubtaskPanel;
-
