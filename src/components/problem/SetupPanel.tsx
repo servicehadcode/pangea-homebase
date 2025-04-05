@@ -22,11 +22,22 @@ interface SetupPanelProps {
 
 const SetupPanel: React.FC<SetupPanelProps> = ({ problem, onComplete }) => {
   const { toast } = useToast();
-  const [setupCompleted, setSetupCompleted] = useState(problem.setup.isCompleted);
+  const [setupCompleted, setSetupCompleted] = useState(problem.setup?.isCompleted || false);
   const [completedSteps, setCompletedSteps] = useState<{[key: number]: boolean}>({});
   
+  // Use preparation steps from the problem data, or fallback to default steps
+  const preparationSteps = problem.preparationSteps || [
+    "Install required development tools",
+    "Clone the repository",
+    "Install dependencies",
+    "Configure the environment"
+  ];
+  
+  // Get git repository URL from problem metadata or use default
+  const repoUrl = problem.repoUrl || "https://github.com/example/repo";
+  
   const handleCopyCommand = () => {
-    navigator.clipboard.writeText(`git clone ${problem.repoUrl}`);
+    navigator.clipboard.writeText(`git clone ${repoUrl}`);
     toast({
       title: "Command Copied",
       description: "The git clone command has been copied to your clipboard."
@@ -49,7 +60,7 @@ const SetupPanel: React.FC<SetupPanelProps> = ({ problem, onComplete }) => {
     onComplete();
   };
   
-  const allStepsCompleted = problem.setup.steps.length === 
+  const allStepsCompleted = preparationSteps.length === 
     Object.values(completedSteps).filter(Boolean).length;
   
   return (
@@ -99,7 +110,7 @@ const SetupPanel: React.FC<SetupPanelProps> = ({ problem, onComplete }) => {
                     <div className="flex items-center space-x-2 mt-4">
                       <div className="grid flex-1 gap-2">
                         <div className="flex items-center p-2 bg-secondary/30 rounded-md font-mono text-sm">
-                          git clone {problem.repoUrl}
+                          git clone {repoUrl}
                         </div>
                       </div>
                       <Button size="sm" onClick={handleCopyCommand}>
@@ -119,7 +130,7 @@ const SetupPanel: React.FC<SetupPanelProps> = ({ problem, onComplete }) => {
                 <Button 
                   variant="outline" 
                   className="flex-1"
-                  onClick={() => window.open('https://github.com/servicehadcode/pangea-homebase', '_blank')}
+                  onClick={() => window.open(repoUrl, '_blank')}
                 >
                   <ExternalLink className="h-4 w-4 mr-2" />
                   View in GitHub
@@ -143,7 +154,7 @@ const SetupPanel: React.FC<SetupPanelProps> = ({ problem, onComplete }) => {
                       <div className="space-y-2">
                         <h4 className="font-medium">Clone to a specific folder</h4>
                         <div className="p-2 bg-secondary/30 rounded-md font-mono text-sm">
-                          git clone {problem.repoUrl} your-folder-name
+                          git clone {repoUrl} your-folder-name
                         </div>
                       </div>
                       
@@ -192,7 +203,7 @@ const SetupPanel: React.FC<SetupPanelProps> = ({ problem, onComplete }) => {
               <h3 className="text-lg font-medium">Setup Steps</h3>
               
               <div className="space-y-3">
-                {problem.setup.steps.map((step: string, index: number) => (
+                {preparationSteps.map((step: string, index: number) => (
                   <div 
                     key={index}
                     className="flex items-start gap-3 p-3 rounded-md border"
@@ -212,7 +223,7 @@ const SetupPanel: React.FC<SetupPanelProps> = ({ problem, onComplete }) => {
                         {step}
                       </label>
                       
-                      {step.includes('download') && (
+                      {step.toLowerCase().includes('download') && (
                         <Button variant="outline" size="sm">
                           <Download className="h-4 w-4 mr-1" />
                           Download Resource

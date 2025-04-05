@@ -60,7 +60,11 @@ const Problems = () => {
             difficulty: p.difficulty,
             tags: p.tags,
             steps: p.steps.length,
-            isCompleted: false
+            isCompleted: false,
+            // Include new fields if available
+            downloadableItems: p.downloadableItems,
+            preparationSteps: p.preparationSteps,
+            metadata: p.metadata
           }));
 
         const transformedProblems = {

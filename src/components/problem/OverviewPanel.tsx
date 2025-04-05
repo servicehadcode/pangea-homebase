@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -16,7 +16,6 @@ import {
   Loader2,
   AlertCircle
 } from 'lucide-react';
-import { getDownloadableItems } from '@/services/databaseService';
 import { useToast } from '@/components/ui/use-toast';
 
 interface OverviewPanelProps {
@@ -35,9 +34,19 @@ const OverviewPanel: React.FC<OverviewPanelProps> = ({
   onBack
 }) => {
   const { toast } = useToast();
-  const [downloadableItems, setDownloadableItems] = useState<any[]>([]);
   const [isLoadingItems, setIsLoadingItems] = useState<boolean>(false);
 
+  // Transform downloadable items from the problem data
+  const downloadableItems = problem.downloadableItems?.map((item: string, index: number) => ({
+    id: index.toString(),
+    name: item,
+    description: `Resource for problem ${problem.id}`,
+    size: "500KB", // Sample size (could be dynamic in future)
+    fileType: item.toLowerCase().endsWith('.pdf') ? 'pdf' : 
+              item.toLowerCase().endsWith('.csv') ? 'csv' : 'file',
+    uploadDate: new Date().toLocaleDateString() // Sample date
+  })) || [];
+  
   // Filter out system tasks (setup, collaboration, problem analysis)
   const systemTasks = ['setup', 'collaboration', 'analysis'];
   const actualSubtasks = problem.steps.filter((step: any) => 
@@ -54,24 +63,6 @@ const OverviewPanel: React.FC<OverviewPanelProps> = ({
   const progressPercentage = actualSubtasks.length > 0 
     ? (completedSteps / actualSubtasks.length) * 100 
     : 0;
-
-  useEffect(() => {
-    const fetchDownloadableItems = async () => {
-      if (problem && problem.id) {
-        setIsLoadingItems(true);
-        try {
-          const items = await getDownloadableItems(problem.id.toString());
-          setDownloadableItems(items);
-        } catch (error) {
-          console.error('Error fetching downloadable items:', error);
-        } finally {
-          setIsLoadingItems(false);
-        }
-      }
-    };
-
-    fetchDownloadableItems();
-  }, [problem]);
 
   const handleDownload = (item: any) => {
     toast({

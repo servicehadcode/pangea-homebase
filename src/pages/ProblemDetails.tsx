@@ -172,16 +172,17 @@ const ProblemDetails = () => {
           id: String(index + 1),
           title: `Step ${step.step}: ${step.description.split(':')[0] || 'Task'}`,
           description: step.description,
+          details: step.details || [],
+          acceptanceCriteria: step.acceptanceCriteria || [
+            "Implementation complete",
+            "Tests passing",
+            "Documentation updated"
+          ],
           isCompleted: false,
           subproblems: [
             `Implement ${step.description}`,
             `Test ${step.description}`,
             `Document ${step.description}`
-          ],
-          acceptanceCriteria: [
-            "Implementation complete",
-            "Tests passing",
-            "Documentation updated"
           ],
           assignedTo: null
         }));
@@ -202,6 +203,9 @@ const ProblemDetails = () => {
             title: resource.description, 
             url: resource.url 
           })),
+          downloadableItems: problemData.downloadableItems || [],
+          preparationSteps: problemData.preparationSteps || [],
+          repoUrl: problemData.metadata?.gitRepo || "https://github.com/example/repo",
           isCompleted: false,
         };
         

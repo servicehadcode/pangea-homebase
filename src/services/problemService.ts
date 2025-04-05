@@ -16,12 +16,19 @@ export interface Problem {
     id: string;
     step: number;
     description: string;
+    details?: string[]; // New field for step details
+    acceptanceCriteria?: string[]; // New field for acceptance criteria
   }>;
   resources: Array<{
     type: string;
     url: string;
     description: string;
   }>;
+  metadata?: {
+    gitRepo?: string; // New field for git repository
+  };
+  downloadableItems?: string[]; // New field for downloadable items
+  preparationSteps?: string[]; // New field for preparation steps
 }
 
 export interface TransformedProblem {
