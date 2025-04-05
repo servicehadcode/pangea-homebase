@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -143,10 +144,10 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
         
         if (savedState.acceptanceCriteria && savedState.acceptanceCriteria.length > 0) {
           setAcceptanceCriteria(savedState.acceptanceCriteria);
-        } else if (step.acceptanceCriteria) {
+        } else if (step && step.acceptanceCriteria && step.acceptanceCriteria.length > 0) {
           setAcceptanceCriteria(
             step.acceptanceCriteria.map((criteria: string, index: number) => ({
-              id: `criteria-${index}`,
+              id: `criteria-${step.id}-${index}`,
               text: criteria,
               completed: false
             }))
@@ -168,10 +169,11 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
         setIsEditingReporter(false);
         setIsEditingAssignee(false);
         
-        if (step.acceptanceCriteria) {
+        // Initialize acceptance criteria from step data if available
+        if (step && step.acceptanceCriteria && step.acceptanceCriteria.length > 0) {
           setAcceptanceCriteria(
             step.acceptanceCriteria.map((criteria: string, index: number) => ({
-              id: `criteria-${index}`,
+              id: `criteria-${step.id}-${index}`,
               text: criteria,
               completed: false
             }))
@@ -210,6 +212,30 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
     acceptanceCriteria,
     onStateChange
   ]);
+  
+  // This effect will update acceptance criteria whenever the step prop changes
+  useEffect(() => {
+    if (step && step.acceptanceCriteria && isStateInitialized) {
+      // Only update if we don't have saved criteria for this step
+      const hasNoSavedCriteria = !acceptanceCriteria.length || 
+        (savedState && (!savedState.acceptanceCriteria || !savedState.acceptanceCriteria.length));
+      
+      // Or if we detect we're on a different step than the one the criteria was saved for
+      const isCriteriaFromDifferentStep = acceptanceCriteria.length > 0 && 
+        acceptanceCriteria[0].id && 
+        !acceptanceCriteria[0].id.includes(`criteria-${step.id}`);
+      
+      if (hasNoSavedCriteria || isCriteriaFromDifferentStep) {
+        setAcceptanceCriteria(
+          step.acceptanceCriteria.map((criteria: string, index: number) => ({
+            id: `criteria-${step.id}-${index}`,
+            text: criteria,
+            completed: false
+          }))
+        );
+      }
+    }
+  }, [step, isStateInitialized, savedState, acceptanceCriteria]);
   
   const handleCreateBranch = () => {
     setBranchCreated(true);
@@ -337,6 +363,8 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
             completed: false
           }))
         );
+      } else {
+        setAcceptanceCriteria([]);
       }
     } catch (error) {
       console.error('Error refreshing subtask data:', error);
@@ -505,7 +533,7 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
               </div>
             ) : (
               <div className="grid gap-3">
-                {step.subproblems.map((subproblem: string, index: number) => (
+                {step.subproblems && step.subproblems.map((subproblem: string, index: number) => (
                   <div 
                     key={index}
                     className="p-3 bg-secondary/30 rounded-lg flex items-start gap-3"
@@ -520,7 +548,7 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
             )}
           </div>
           
-          {acceptanceCriteria.length > 0 && (
+          {acceptanceCriteria.length > 0 ? (
             <>
               <Separator />
               
@@ -551,7 +579,7 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
                 </div>
               </div>
             </>
-          )}
+          ) : null}
         </CardContent>
       </Card>
       

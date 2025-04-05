@@ -173,18 +173,15 @@ const ProblemDetails = () => {
           title: `Step ${step.step}: ${step.description.split(':')[0] || 'Task'}`,
           description: step.description,
           details: step.details || [],
-          acceptanceCriteria: step.acceptanceCriteria || [
-            "Implementation complete",
-            "Tests passing",
-            "Documentation updated"
-          ],
+          acceptanceCriteria: step.acceptanceCriteria || [],
           isCompleted: false,
           subproblems: [
             `Implement ${step.description}`,
             `Test ${step.description}`,
             `Document ${step.description}`
           ],
-          assignedTo: null
+          assignedTo: null,
+          step: step.step
         }));
         
         const transformedData = {
