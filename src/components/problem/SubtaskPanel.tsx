@@ -329,6 +329,14 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
             completed: false
           }))
         );
+      } else if (step.acceptanceCriteria && step.acceptanceCriteria.length > 0) {
+        setAcceptanceCriteria(
+          step.acceptanceCriteria.map((criteria: string, index: number) => ({
+            id: `criteria-${step.id}-${index}`,
+            text: criteria,
+            completed: false
+          }))
+        );
       }
     } catch (error) {
       console.error('Error refreshing subtask data:', error);
