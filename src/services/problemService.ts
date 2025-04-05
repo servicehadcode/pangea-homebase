@@ -16,8 +16,8 @@ export interface Problem {
     id: string;
     step: number;
     description: string;
-    details?: string[]; // New field for step details
-    acceptanceCriteria?: string[]; // New field for acceptance criteria
+    details?: string[]; // Field for step details
+    acceptanceCriteria?: string[]; // Now this field exists within each step
   }>;
   resources: Array<{
     type: string;
@@ -25,10 +25,10 @@ export interface Problem {
     description: string;
   }>;
   metadata?: {
-    gitRepo?: string; // New field for git repository
+    gitRepo?: string;
   };
-  downloadableItems?: string[]; // New field for downloadable items
-  preparationSteps?: string[]; // New field for preparation steps
+  downloadableItems?: string[];
+  preparationSteps?: string[];
 }
 
 export interface TransformedProblem {
