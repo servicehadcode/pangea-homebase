@@ -105,6 +105,10 @@ export const getProblemById = async (problemNum: string): Promise<Problem> => {
 
 export const createProblemInstance = async (problemInstance: ProblemInstance): Promise<{instanceId: string, message: string}> => {
   try {
+    if (!problemInstance.problemNum) {
+      throw new Error('Problem number is required');
+    }
+    
     const url = 'http://localhost:5000/api/problem-instances';
     console.log('Creating problem instance:', problemInstance);
 

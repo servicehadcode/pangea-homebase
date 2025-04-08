@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -38,6 +38,12 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
   const [instanceId, setInstanceId] = useState<string | null>(null);
   const [isCreatingInstance, setIsCreatingInstance] = useState(false);
   const [showCollaboratorSection, setShowCollaboratorSection] = useState(false);
+
+  // Debug information
+  useEffect(() => {
+    console.log("Problem data:", problem);
+    console.log("Problem number:", problem.problem_num);
+  }, [problem]);
 
   const handleInviteCollaborator = async () => {
     if (!collaboratorEmail || !collaboratorEmail.includes('@')) {
@@ -116,10 +122,14 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
       localStorage.setItem('inviterName', ownerName);
       
       // Create problem instance in the database
-      // Extract the problem number directly from the problem object
-      const problemNum = problem.problem_num;
+      // Make sure we're accessing the problem number correctly
+      const problemNum = problem?.problem_num;
       
       console.log("Creating problem instance with problem number:", problemNum);
+      
+      if (!problemNum) {
+        throw new Error("Problem number is missing");
+      }
       
       const response = await createProblemInstance({
         problemNum: problemNum,
@@ -215,6 +225,7 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
           value={mode} 
           onValueChange={(value: 'solo' | 'pair') => setMode(value)}
           className="space-y-4"
+          disabled={isNameSaved}
         >
           <div className="flex items-center space-x-2">
             <RadioGroupItem value="solo" id="solo" disabled={isNameSaved} />
