@@ -14,10 +14,12 @@ import {
   User,
   ChevronLeft,
   Loader2,
-  MailCheck
+  MailCheck,
+  Save
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { sendCollaborationInvite } from '@/services/collaborationService';
+import { createProblemInstance, addCollaborator } from '@/services/problemService';
 
 interface CollaborationSetupPanelProps {
   onComplete: (mode: 'solo' | 'pair') => void;
@@ -35,6 +37,7 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
   const [isNameSaved, setIsNameSaved] = useState(false);
   const [instanceId, setInstanceId] = useState<string | null>(null);
   const [isCreatingInstance, setIsCreatingInstance] = useState(false);
+  const [showCollaboratorSection, setShowCollaboratorSection] = useState(false);
 
   const handleInviteCollaborator = async () => {
     if (!collaboratorEmail || !collaboratorEmail.includes('@')) {
@@ -63,31 +66,19 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
       
       if (response.success) {
         // Now add the collaborator to the problem instance
-        const collaboratorResponse = await fetch(`http://localhost:5000/api/problem-instances/${instanceId}/collaborators`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            userId: `user-${Date.now()}`, // Generate a unique ID (in real app, this would come from auth)
-            username: collaboratorEmail.split('@')[0], // Use part of email as username
-            email: collaboratorEmail
-          }),
+        const collaboratorResponse = await addCollaborator(instanceId, {
+          userId: `user-${Date.now()}`, // Generate a unique ID (in real app, this would come from auth)
+          username: collaboratorEmail.split('@')[0], // Use part of email as username
+          email: collaboratorEmail
         });
 
-        if (collaboratorResponse.ok) {
-          const collaboratorData = await collaboratorResponse.json();
-          
-          toast({
-            title: "Invitation Sent",
-            description: `${collaboratorData.message || "Collaborator added successfully"}`,
-          });
-          
-          setInvitedEmails([...invitedEmails, collaboratorEmail]);
-          setCollaboratorEmail('');
-        } else {
-          throw new Error("Failed to add collaborator to database");
-        }
+        toast({
+          title: "Invitation Sent",
+          description: collaboratorResponse.message || "Collaborator added successfully",
+        });
+        
+        setInvitedEmails([...invitedEmails, collaboratorEmail]);
+        setCollaboratorEmail('');
       } else {
         toast({
           title: "Invitation Failed",
@@ -125,34 +116,33 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
       localStorage.setItem('inviterName', ownerName);
       
       // Create problem instance in the database
-      const response = await fetch('http://localhost:5000/api/problem-instances', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+      const problemNum = problem.id || problem.problem_num;
+      
+      console.log("Creating problem instance with problem number:", problemNum);
+      
+      const response = await createProblemInstance({
+        problemNum: problemNum,
+        owner: {
+          userId: "user123", // In a real app, this would come from authentication
+          username: ownerName,
+          email: "user@example.com" // In a real app, this would come from authentication
         },
-        body: JSON.stringify({
-          problemNum: problem.id || problem.problem_num,
-          owner: {
-            userId: "user123", // In a real app, this would come from authentication
-            username: ownerName,
-            email: "user@example.com" // In a real app, this would come from authentication
-          },
-          collaborationMode: mode
-        }),
+        collaborationMode: mode
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to create problem instance');
-      }
-
-      const data = await response.json();
-      setInstanceId(data.instanceId);
+      setInstanceId(response.instanceId);
       setIsNameSaved(true);
       
       toast({
         title: "Name Saved",
         description: "Your name has been saved and problem instance created successfully.",
       });
+      
+      // Show collaborator section if team mode is selected
+      if (mode === 'pair') {
+        setShowCollaboratorSection(true);
+      }
+      
     } catch (error) {
       console.error("Error creating problem instance:", error);
       toast({
@@ -160,8 +150,6 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
         description: "An error occurred while saving your name and creating the problem instance.",
         variant: "destructive",
       });
-      // Still set the name saved state to true but with a warning
-      setIsNameSaved(true);
     } finally {
       setIsCreatingInstance(false);
     }
@@ -217,37 +205,10 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
               value={ownerName}
               onChange={(e) => setOwnerName(e.target.value)}
               placeholder="Enter your name"
-              disabled={isNameSaved && instanceId !== null}
+              disabled={isNameSaved}
             />
-            <Button 
-              variant="outline"
-              onClick={handleSaveOwnerName}
-              disabled={isCreatingInstance || (isNameSaved && instanceId !== null)}
-              className="flex items-center gap-1"
-            >
-              {isCreatingInstance ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Saving...
-                </>
-              ) : isNameSaved ? (
-                <>
-                  <CheckCircle className="h-4 w-4 text-green-500" />
-                  Saved
-                </>
-              ) : (
-                'Save'
-              )}
-            </Button>
           </div>
-          {!isNameSaved && (
-            <p className="text-sm text-amber-600">
-              *You must save your name before proceeding
-            </p>
-          )}
         </div>
-
-        <Separator />
 
         <RadioGroup 
           value={mode} 
@@ -255,7 +216,7 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
           className="space-y-4"
         >
           <div className="flex items-center space-x-2">
-            <RadioGroupItem value="solo" id="solo" />
+            <RadioGroupItem value="solo" id="solo" disabled={isNameSaved} />
             <Label htmlFor="solo" className="flex items-center gap-2">
               <User className="h-4 w-4" />
               Solo Mode
@@ -263,7 +224,7 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
           </div>
           
           <div className="flex items-center space-x-2">
-            <RadioGroupItem value="pair" id="pair" />
+            <RadioGroupItem value="pair" id="pair" disabled={isNameSaved} />
             <Label htmlFor="pair" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
               Team Mode
@@ -271,7 +232,40 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
           </div>
         </RadioGroup>
 
-        {mode === 'pair' && (
+        <div className="pt-2">
+          <Button 
+            variant="outline"
+            onClick={handleSaveOwnerName}
+            disabled={isCreatingInstance || isNameSaved}
+            className="flex items-center gap-2 w-full"
+          >
+            {isCreatingInstance ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Saving...
+              </>
+            ) : isNameSaved ? (
+              <>
+                <CheckCircle className="h-4 w-4 text-green-500" />
+                Saved
+              </>
+            ) : (
+              <>
+                <Save className="h-4 w-4" />
+                Save
+              </>
+            )}
+          </Button>
+          {!isNameSaved && (
+            <p className="text-sm text-amber-600 mt-2">
+              *You must save your name before proceeding
+            </p>
+          )}
+        </div>
+        
+        <Separator />
+
+        {mode === 'pair' && showCollaboratorSection && (
           <>
             <div className="space-y-3">
               <Label>Invite Collaborators</Label>
@@ -280,11 +274,11 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
                   value={collaboratorEmail}
                   onChange={(e) => setCollaboratorEmail(e.target.value)}
                   placeholder="Enter collaborator's email"
-                  disabled={isInviting || !isNameSaved}
+                  disabled={isInviting}
                 />
                 <Button 
                   onClick={handleInviteCollaborator}
-                  disabled={isInviting || !isNameSaved || !collaboratorEmail}
+                  disabled={isInviting || !collaboratorEmail}
                   className="flex items-center gap-1"
                 >
                   {isInviting ? (
@@ -345,7 +339,7 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
         <Button 
           onClick={handleContinue}
           className="pangea-button-primary"
-          disabled={!isNameSaved || (mode === 'pair' && invitedEmails.length === 0)}
+          disabled={!isNameSaved || (mode === 'pair' && showCollaboratorSection && invitedEmails.length === 0)}
         >
           Continue to Subtasks
         </Button>

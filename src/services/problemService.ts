@@ -117,7 +117,9 @@ export const createProblemInstance = async (problemInstance: ProblemInstance): P
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to create problem instance. Status: ${response.status}`);
+      const errorData = await response.json();
+      console.error('Error response:', errorData);
+      throw new Error(errorData.error || `Failed to create problem instance. Status: ${response.status}`);
     }
 
     const result = await response.json();
@@ -143,7 +145,8 @@ export const addCollaborator = async (instanceId: string, collaborator: Collabor
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to add collaborator. Status: ${response.status}`);
+      const errorData = await response.json();
+      throw new Error(errorData.error || `Failed to add collaborator. Status: ${response.status}`);
     }
 
     const result = await response.json();
