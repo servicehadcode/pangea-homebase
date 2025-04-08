@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -31,6 +32,9 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
   const [isInviting, setIsInviting] = useState(false);
   const [invitedEmails, setInvitedEmails] = useState<string[]>([]);
   const [ownerName, setOwnerName] = useState(localStorage.getItem('username') || 'You');
+  const [isNameSaved, setIsNameSaved] = useState(false);
+  const [instanceId, setInstanceId] = useState<string | null>(null);
+  const [isCreatingInstance, setIsCreatingInstance] = useState(false);
 
   const handleInviteCollaborator = async () => {
     if (!collaboratorEmail || !collaboratorEmail.includes('@')) {
@@ -42,25 +46,48 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
       return;
     }
 
-    // Ensure owner name is saved before sending invitation
-    if (ownerName.trim() && ownerName !== localStorage.getItem('username')) {
-      localStorage.setItem('username', ownerName);
-      localStorage.setItem('inviterName', ownerName);
+    if (!instanceId) {
+      toast({
+        title: "Error",
+        description: "Problem instance not created yet. Please save your name first.",
+        variant: "destructive",
+      });
+      return;
     }
 
     setIsInviting(true);
     
     try {
+      // First send the email invitation
       const response = await sendCollaborationInvite(collaboratorEmail);
       
       if (response.success) {
-        toast({
-          title: "Invitation Sent",
-          description: response.message,
+        // Now add the collaborator to the problem instance
+        const collaboratorResponse = await fetch(`http://localhost:5000/api/problem-instances/${instanceId}/collaborators`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            userId: `user-${Date.now()}`, // Generate a unique ID (in real app, this would come from auth)
+            username: collaboratorEmail.split('@')[0], // Use part of email as username
+            email: collaboratorEmail
+          }),
         });
-        
-        setInvitedEmails([...invitedEmails, collaboratorEmail]);
-        setCollaboratorEmail('');
+
+        if (collaboratorResponse.ok) {
+          const collaboratorData = await collaboratorResponse.json();
+          
+          toast({
+            title: "Invitation Sent",
+            description: `${collaboratorData.message || "Collaborator added successfully"}`,
+          });
+          
+          setInvitedEmails([...invitedEmails, collaboratorEmail]);
+          setCollaboratorEmail('');
+        } else {
+          throw new Error("Failed to add collaborator to database");
+        }
       } else {
         toast({
           title: "Invitation Failed",
@@ -69,9 +96,10 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
         });
       }
     } catch (error) {
+      console.error("Error adding collaborator:", error);
       toast({
         title: "Error",
-        description: "An error occurred while sending the invitation.",
+        description: "An error occurred while sending the invitation or adding the collaborator.",
         variant: "destructive",
       });
     } finally {
@@ -79,15 +107,63 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
     }
   };
 
-  const handleSaveOwnerName = () => {
-    if (ownerName.trim()) {
+  const handleSaveOwnerName = async () => {
+    if (!ownerName.trim()) {
+      toast({
+        title: "Invalid Name",
+        description: "Please enter a valid name.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setIsCreatingInstance(true);
+
+    try {
+      // Save the name first
       localStorage.setItem('username', ownerName);
       localStorage.setItem('inviterName', ownerName);
       
+      // Create problem instance in the database
+      const response = await fetch('http://localhost:5000/api/problem-instances', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          problemNum: problem.id || problem.problem_num,
+          owner: {
+            userId: "user123", // In a real app, this would come from authentication
+            username: ownerName,
+            email: "user@example.com" // In a real app, this would come from authentication
+          },
+          collaborationMode: mode
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create problem instance');
+      }
+
+      const data = await response.json();
+      setInstanceId(data.instanceId);
+      setIsNameSaved(true);
+      
       toast({
         title: "Name Saved",
-        description: "Your name has been saved successfully.",
+        description: "Your name has been saved and problem instance created successfully.",
       });
+    } catch (error) {
+      console.error("Error creating problem instance:", error);
+      toast({
+        title: "Error",
+        description: "An error occurred while saving your name and creating the problem instance.",
+        variant: "destructive",
+      });
+      // Still set the name saved state to true but with a warning
+      setIsNameSaved(true);
+    } finally {
+      setIsCreatingInstance(false);
     }
   };
 
@@ -101,10 +177,14 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
       return;
     }
 
-    // Save the owner name if it's different from the stored one
-    if (ownerName.trim() && ownerName !== localStorage.getItem('username')) {
-      localStorage.setItem('username', ownerName);
-      localStorage.setItem('inviterName', ownerName);
+    // Additional check to ensure owner name is saved
+    if (!isNameSaved) {
+      toast({
+        title: "Name Not Saved",
+        description: "Please save your name before continuing.",
+        variant: "destructive",
+      });
+      return;
     }
 
     onComplete(mode);
@@ -137,14 +217,34 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
               value={ownerName}
               onChange={(e) => setOwnerName(e.target.value)}
               placeholder="Enter your name"
+              disabled={isNameSaved && instanceId !== null}
             />
             <Button 
               variant="outline"
               onClick={handleSaveOwnerName}
+              disabled={isCreatingInstance || (isNameSaved && instanceId !== null)}
+              className="flex items-center gap-1"
             >
-              Save
+              {isCreatingInstance ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : isNameSaved ? (
+                <>
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                  Saved
+                </>
+              ) : (
+                'Save'
+              )}
             </Button>
           </div>
+          {!isNameSaved && (
+            <p className="text-sm text-amber-600">
+              *You must save your name before proceeding
+            </p>
+          )}
         </div>
 
         <Separator />
@@ -180,11 +280,11 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
                   value={collaboratorEmail}
                   onChange={(e) => setCollaboratorEmail(e.target.value)}
                   placeholder="Enter collaborator's email"
-                  disabled={isInviting}
+                  disabled={isInviting || !isNameSaved}
                 />
                 <Button 
                   onClick={handleInviteCollaborator}
-                  disabled={isInviting}
+                  disabled={isInviting || !isNameSaved || !collaboratorEmail}
                   className="flex items-center gap-1"
                 >
                   {isInviting ? (
@@ -245,6 +345,7 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
         <Button 
           onClick={handleContinue}
           className="pangea-button-primary"
+          disabled={!isNameSaved || (mode === 'pair' && invitedEmails.length === 0)}
         >
           Continue to Subtasks
         </Button>
