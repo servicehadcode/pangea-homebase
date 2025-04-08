@@ -116,7 +116,8 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
       localStorage.setItem('inviterName', ownerName);
       
       // Create problem instance in the database
-      const problemNum = problem.id || problem.problem_num;
+      // Extract the problem number directly from the problem object
+      const problemNum = problem.problem_num;
       
       console.log("Creating problem instance with problem number:", problemNum);
       
