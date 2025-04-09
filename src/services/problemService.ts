@@ -48,7 +48,7 @@ export interface ProblemInstanceOwner {
 }
 
 export interface ProblemInstance {
-  problemNum: string;
+  problemNum: string;  // Explicitly define as string
   owner: ProblemInstanceOwner;
   collaborationMode: 'solo' | 'pair';
 }
@@ -110,19 +110,20 @@ export const createProblemInstance = async (problemInstance: ProblemInstance): P
     }
     
     // Ensure problemNum is a string
-    if (typeof problemInstance.problemNum !== 'string') {
-      problemInstance.problemNum = String(problemInstance.problemNum);
-    }
+    const instanceData = {
+      ...problemInstance,
+      problemNum: String(problemInstance.problemNum)
+    };
     
     const url = 'http://localhost:5000/api/problem-instances';
-    console.log('Creating problem instance:', problemInstance);
+    console.log('Creating problem instance:', instanceData);
 
     const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(problemInstance)
+      body: JSON.stringify(instanceData)
     });
 
     if (!response.ok) {
@@ -135,7 +136,7 @@ export const createProblemInstance = async (problemInstance: ProblemInstance): P
     console.log('Problem instance created:', result);
     return result;
   } catch (error) {
-    console.error('Error creating problem instance:', error);
+    console.error('Error in createProblemInstance:', error);
     throw error;
   }
 };

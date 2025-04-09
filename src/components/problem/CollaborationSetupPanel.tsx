@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -39,7 +38,6 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
   const [isCreatingInstance, setIsCreatingInstance] = useState(false);
   const [showCollaboratorSection, setShowCollaboratorSection] = useState(false);
 
-  // Enhanced debug information
   useEffect(() => {
     console.log("Problem data:", problem);
     console.log("Problem number from problem_num:", problem?.problem_num);
@@ -70,14 +68,12 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
     setIsInviting(true);
     
     try {
-      // First send the email invitation
       const response = await sendCollaborationInvite(collaboratorEmail);
       
       if (response.success) {
-        // Now add the collaborator to the problem instance
         const collaboratorResponse = await addCollaborator(instanceId, {
-          userId: `user-${Date.now()}`, // Generate a unique ID (in real app, this would come from auth)
-          username: collaboratorEmail.split('@')[0], // Use part of email as username
+          userId: `user-${Date.now()}`,
+          username: collaboratorEmail.split('@')[0],
           email: collaboratorEmail
         });
 
@@ -120,32 +116,23 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
     setIsCreatingInstance(true);
 
     try {
-      // Save the name first
       localStorage.setItem('username', ownerName);
       localStorage.setItem('inviterName', ownerName);
       
-      // Create problem instance in the database
-      // Enhanced debugging for problem number access
-      console.log("Full problem object:", problem);
+      const problemNum = String(problem?.problem_num || problem?.id);
       
-      // Try to get problem number from different potential properties
-      // Ensure we convert it to a string if it's a number (from id property)
-      const problemNum = String(problem?.problem_num || problem?.problemNum || problem?.id || "");
-      
-      console.log("Creating problem instance with problem number:", problemNum);
-      console.log("Problem number type:", typeof problemNum);
-      
-      if (!problemNum || problemNum === "undefined" || problemNum === "") {
-        console.error("Problem number is missing. Problem object:", problem);
-        throw new Error("Problem number is missing or undefined");
+      if (!problemNum) {
+        throw new Error('Problem number is missing or invalid');
       }
+
+      console.log("Creating problem instance with problem number:", problemNum);
       
       const instanceData = {
-        problemNum: problemNum,
+        problemNum,
         owner: {
-          userId: "user123", // In a real app, this would come from authentication
+          userId: "user123",
           username: ownerName,
-          email: "user@example.com" // In a real app, this would come from authentication
+          email: "user@example.com"
         },
         collaborationMode: mode
       };
@@ -162,16 +149,16 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
         description: "Your name has been saved and problem instance created successfully.",
       });
       
-      // Show collaborator section if team mode is selected
       if (mode === 'pair') {
         setShowCollaboratorSection(true);
       }
       
     } catch (error) {
       console.error("Error creating problem instance:", error);
+      const errorMessage = error instanceof Error ? error.message : "An error occurred while saving your name and creating the problem instance.";
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "An error occurred while saving your name and creating the problem instance.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -189,7 +176,6 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
       return;
     }
 
-    // Additional check to ensure owner name is saved
     if (!isNameSaved) {
       toast({
         title: "Name Not Saved",
