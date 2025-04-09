@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -182,6 +181,12 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
         },
         collaborationMode: mode,
       };
+      
+      if (existingInstance) {
+        instanceData.status = existingInstance.status || 'in-progress';
+      } else {
+        instanceData.status = 'in-progress';
+      }
       
       console.log("Sending instance data:", instanceData);
       

@@ -150,6 +150,16 @@ export const createProblemInstance = async (problemInstance: ProblemInstance): P
       console.log('Updating existing problem instance:', existingInstance._id);
       
       instanceData.lastUpdatedAt = new Date().toISOString();
+      
+      // Ensure we're keeping the existing status if it's not provided in the update
+      if (!instanceData.status && existingInstance.status) {
+        instanceData.status = existingInstance.status;
+      }
+      
+      // If no status exists at all, set a default one for updates
+      if (!instanceData.status) {
+        instanceData.status = 'in-progress';
+      }
     } else {
       instanceData.startedAt = new Date().toISOString();
       instanceData.lastUpdatedAt = instanceData.startedAt;
