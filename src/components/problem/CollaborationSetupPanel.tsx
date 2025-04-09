@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -14,11 +15,12 @@ import {
   ChevronLeft,
   Loader2,
   MailCheck,
-  Save
+  Save,
+  RefreshCw
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { sendCollaborationInvite } from '@/services/collaborationService';
-import { createProblemInstance, addCollaborator } from '@/services/problemService';
+import { createProblemInstance, addCollaborator, getProblemInstance, ProblemInstance } from '@/services/problemService';
 
 interface CollaborationSetupPanelProps {
   onComplete: (mode: 'solo' | 'pair') => void;
@@ -37,14 +39,58 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
   const [instanceId, setInstanceId] = useState<string | null>(null);
   const [isCreatingInstance, setIsCreatingInstance] = useState(false);
   const [showCollaboratorSection, setShowCollaboratorSection] = useState(false);
+  const [isLoadingInstance, setIsLoadingInstance] = useState(true);
+  const [existingInstance, setExistingInstance] = useState<ProblemInstance | null>(null);
+  
+  // Mock user ID - in a real app this would come from authentication
+  const mockUserId = "user123";
 
   useEffect(() => {
-    console.log("Problem data:", problem);
-    console.log("Problem number from problem_num:", problem?.problem_num);
-    console.log("Problem number from id:", problem?.id);
-    console.log("Problem type:", typeof problem);
-    console.log("Problem keys:", problem ? Object.keys(problem) : "Problem is null or undefined");
-  }, [problem]);
+    // Fetch existing problem instance if any
+    const fetchExistingInstance = async () => {
+      try {
+        const problemNum = String(problem?.problem_num || problem?.id);
+        
+        if (!problemNum) {
+          console.error("Problem number missing");
+          setIsLoadingInstance(false);
+          return;
+        }
+        
+        console.log("Checking for existing instance with problem number:", problemNum);
+        
+        const instance = await getProblemInstance(problemNum, mockUserId);
+        
+        if (instance) {
+          console.log("Found existing instance:", instance);
+          setExistingInstance(instance);
+          setInstanceId(instance._id || null);
+          setMode(instance.collaborationMode || 'solo');
+          setIsNameSaved(true);
+          
+          if (instance.collaborationMode === 'pair') {
+            setShowCollaboratorSection(true);
+            // Extract emails from collaborators if any
+            const emails = (instance.collaborators || [])
+              .map(collab => collab.email)
+              .filter(Boolean);
+            setInvitedEmails(emails);
+          }
+          
+          toast({
+            title: "Existing Work Found",
+            description: "We found your previous work on this problem",
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching existing instance:", error);
+      } finally {
+        setIsLoadingInstance(false);
+      }
+    };
+    
+    fetchExistingInstance();
+  }, [problem, toast]);
 
   const handleInviteCollaborator = async () => {
     if (!collaboratorEmail || !collaboratorEmail.includes('@')) {
@@ -125,16 +171,16 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
         throw new Error('Problem number is missing or invalid');
       }
 
-      console.log("Creating problem instance with problem number:", problemNum);
+      console.log("Creating/updating problem instance with problem number:", problemNum);
       
-      const instanceData = {
+      const instanceData: ProblemInstance = {
         problemNum,
         owner: {
-          userId: "user123",
+          userId: mockUserId,
           username: ownerName,
-          email: "user@example.com"
+          email: "user@example.com" // In a real app, this would come from authentication
         },
-        collaborationMode: mode
+        collaborationMode: mode,
       };
       
       console.log("Sending instance data:", instanceData);
@@ -145,16 +191,20 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
       setIsNameSaved(true);
       
       toast({
-        title: "Name Saved",
-        description: "Your name has been saved and problem instance created successfully.",
+        title: existingInstance ? "Settings Updated" : "Name Saved",
+        description: existingInstance 
+          ? "Your settings have been updated successfully." 
+          : "Your name has been saved and problem instance created successfully.",
       });
       
       if (mode === 'pair') {
         setShowCollaboratorSection(true);
+      } else {
+        setShowCollaboratorSection(false);
       }
       
     } catch (error) {
-      console.error("Error creating problem instance:", error);
+      console.error("Error creating/updating problem instance:", error);
       const errorMessage = error instanceof Error ? error.message : "An error occurred while saving your name and creating the problem instance.";
       toast({
         title: "Error",
@@ -188,6 +238,34 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
     onComplete(mode);
   };
 
+  const resetSettings = () => {
+    setMode(existingInstance?.collaborationMode || 'solo');
+    setOwnerName(localStorage.getItem('username') || 'You');
+    if (existingInstance?.collaborationMode === 'pair') {
+      setShowCollaboratorSection(true);
+    } else {
+      setShowCollaboratorSection(false);
+    }
+    
+    toast({
+      title: "Settings Reset",
+      description: "Your settings have been reset to the last saved state.",
+    });
+  };
+
+  if (isLoadingInstance) {
+    return (
+      <Card>
+        <CardContent className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
+            <p>Loading your progress...</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -204,10 +282,22 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
           </Button>
         </div>
         <CardDescription>
-          Choose how you want to work on this problem
+          {existingInstance 
+            ? "Update your collaboration settings for this problem" 
+            : "Choose how you want to work on this problem"}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
+        {existingInstance && (
+          <Alert>
+            <AlertTitle>Previous work found</AlertTitle>
+            <AlertDescription>
+              You started working on this problem on {new Date(existingInstance.startedAt || "").toLocaleDateString()}. 
+              You can continue with your current settings or update them.
+            </AlertDescription>
+          </Alert>
+        )}
+        
         <div className="space-y-3">
           <Label>Your Name</Label>
           <div className="flex gap-2">
@@ -215,7 +305,7 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
               value={ownerName}
               onChange={(e) => setOwnerName(e.target.value)}
               placeholder="Enter your name"
-              disabled={isNameSaved}
+              disabled={isCreatingInstance}
             />
           </div>
         </div>
@@ -224,10 +314,10 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
           value={mode} 
           onValueChange={(value: 'solo' | 'pair') => setMode(value)}
           className="space-y-4"
-          disabled={isNameSaved}
+          disabled={isCreatingInstance}
         >
           <div className="flex items-center space-x-2">
-            <RadioGroupItem value="solo" id="solo" disabled={isNameSaved} />
+            <RadioGroupItem value="solo" id="solo" disabled={isCreatingInstance} />
             <Label htmlFor="solo" className="flex items-center gap-2">
               <User className="h-4 w-4" />
               Solo Mode
@@ -235,7 +325,7 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
           </div>
           
           <div className="flex items-center space-x-2">
-            <RadioGroupItem value="pair" id="pair" disabled={isNameSaved} />
+            <RadioGroupItem value="pair" id="pair" disabled={isCreatingInstance} />
             <Label htmlFor="pair" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
               Team Mode
@@ -243,40 +333,49 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
           </div>
         </RadioGroup>
 
-        <div className="pt-2">
+        <div className="pt-2 flex gap-2">
           <Button 
             variant="outline"
             onClick={handleSaveOwnerName}
-            disabled={isCreatingInstance || isNameSaved}
-            className="flex items-center gap-2 w-full"
+            disabled={isCreatingInstance}
+            className="flex items-center gap-2 flex-1"
           >
             {isCreatingInstance ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Saving...
-              </>
-            ) : isNameSaved ? (
-              <>
-                <CheckCircle className="h-4 w-4 text-green-500" />
-                Saved
+                {existingInstance ? "Updating..." : "Saving..."}
               </>
             ) : (
               <>
                 <Save className="h-4 w-4" />
-                Save
+                {existingInstance ? "Update Settings" : "Save Settings"}
               </>
             )}
           </Button>
-          {!isNameSaved && (
-            <p className="text-sm text-amber-600 mt-2">
-              *You must save your name before proceeding
-            </p>
+          
+          {existingInstance && (
+            <Button
+              variant="ghost"
+              onClick={resetSettings}
+              disabled={isCreatingInstance}
+              className="flex items-center gap-1"
+              title="Reset to saved settings"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Reset
+            </Button>
           )}
         </div>
         
+        {!isNameSaved && !existingInstance && (
+          <p className="text-sm text-amber-600 mt-2">
+            *You must save your settings before proceeding
+          </p>
+        )}
+        
         <Separator />
 
-        {mode === 'pair' && showCollaboratorSection && (
+        {mode === 'pair' && (isNameSaved || showCollaboratorSection) && (
           <>
             <div className="space-y-3">
               <Label>Invite Collaborators</Label>
@@ -350,7 +449,7 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
         <Button 
           onClick={handleContinue}
           className="pangea-button-primary"
-          disabled={!isNameSaved || (mode === 'pair' && showCollaboratorSection && invitedEmails.length === 0)}
+          disabled={!isNameSaved && !existingInstance || (mode === 'pair' && showCollaboratorSection && invitedEmails.length === 0)}
         >
           Continue to Subtasks
         </Button>

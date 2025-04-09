@@ -1,4 +1,3 @@
-
 export interface Problem {
   problem_num: string;
   title: string;
@@ -51,17 +50,16 @@ export interface ProblemInstance {
   problemNum: string;  // Explicitly define as string
   owner: ProblemInstanceOwner;
   collaborationMode: 'solo' | 'pair';
-}
-
-export interface Collaborator {
-  userId: string;
-  username: string;
-  email: string;
+  status?: string;
+  startedAt?: string;
+  lastUpdatedAt?: string;
+  completedAt?: string | null;
+  _id?: string;
+  collaborators?: any[];
 }
 
 export const getAllProblems = async (category?: string): Promise<Problem[]> => {
   try {
-    // Log the request URL for debugging
     const url = category 
       ? `http://localhost:5000/api/problems?category=${encodeURIComponent(category)}`
       : 'http://localhost:5000/api/problems';
@@ -103,23 +101,65 @@ export const getProblemById = async (problemNum: string): Promise<Problem> => {
   }
 };
 
+export const getProblemInstance = async (problemNum: string, userId: string): Promise<ProblemInstance | null> => {
+  try {
+    const url = `http://localhost:5000/api/problem-instances/${encodeURIComponent(problemNum)}/${encodeURIComponent(userId)}`;
+    console.log('Fetching problem instance from:', url);
+
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        console.log(`No instance found for problem ${problemNum} and user ${userId}`);
+        return null;
+      }
+      throw new Error(`Failed to fetch problem instance. Status: ${response.status}`);
+    }
+
+    const instance: ProblemInstance = await response.json();
+    console.log('Fetched problem instance:', instance);
+    return instance;
+  } catch (error) {
+    console.error('Error fetching problem instance:', error);
+    return null;
+  }
+};
+
 export const createProblemInstance = async (problemInstance: ProblemInstance): Promise<{instanceId: string, message: string}> => {
   try {
     if (!problemInstance.problemNum) {
       throw new Error('Problem number is required');
     }
     
-    // Ensure problemNum is a string
     const instanceData = {
       ...problemInstance,
       problemNum: String(problemInstance.problemNum)
     };
+
+    const existingInstance = await getProblemInstance(
+      instanceData.problemNum, 
+      instanceData.owner.userId
+    );
+
+    let url = 'http://localhost:5000/api/problem-instances';
+    let method = 'POST';
     
-    const url = 'http://localhost:5000/api/problem-instances';
-    console.log('Creating problem instance:', instanceData);
+    if (existingInstance && existingInstance._id) {
+      url = `http://localhost:5000/api/problem-instances/${existingInstance._id}`;
+      method = 'PATCH';
+      console.log('Updating existing problem instance:', existingInstance._id);
+      
+      instanceData.lastUpdatedAt = new Date().toISOString();
+    } else {
+      instanceData.startedAt = new Date().toISOString();
+      instanceData.lastUpdatedAt = instanceData.startedAt;
+      instanceData.status = 'in-progress';
+    }
+    
+    console.log(`${method === 'POST' ? 'Creating' : 'Updating'} problem instance:`, instanceData);
 
     const response = await fetch(url, {
-      method: 'POST',
+      method,
       headers: {
         'Content-Type': 'application/json'
       },
@@ -129,14 +169,41 @@ export const createProblemInstance = async (problemInstance: ProblemInstance): P
     if (!response.ok) {
       const errorData = await response.json();
       console.error('Error response:', errorData);
-      throw new Error(errorData.error || `Failed to create problem instance. Status: ${response.status}`);
+      throw new Error(errorData.error || `Failed to ${method === 'POST' ? 'create' : 'update'} problem instance. Status: ${response.status}`);
     }
 
     const result = await response.json();
-    console.log('Problem instance created:', result);
+    console.log(`Problem instance ${method === 'POST' ? 'created' : 'updated'}:`, result);
     return result;
   } catch (error) {
     console.error('Error in createProblemInstance:', error);
+    throw error;
+  }
+};
+
+export const updateProblemInstanceStatus = async (instanceId: string, statusUpdate: { status: string, completedAt?: string }): Promise<{message: string}> => {
+  try {
+    const url = `http://localhost:5000/api/problem-instances/${instanceId}`;
+    console.log(`Updating problem instance ${instanceId} status:`, statusUpdate);
+
+    const response = await fetch(url, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(statusUpdate)
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || `Failed to update problem instance status. Status: ${response.status}`);
+    }
+
+    const result = await response.json();
+    console.log('Status updated:', result);
+    return result;
+  } catch (error) {
+    console.error('Error updating problem instance status:', error);
     throw error;
   }
 };
@@ -167,3 +234,9 @@ export const addCollaborator = async (instanceId: string, collaborator: Collabor
     throw error;
   }
 };
+
+export interface Collaborator {
+  userId: string;
+  username: string;
+  email: string;
+}
