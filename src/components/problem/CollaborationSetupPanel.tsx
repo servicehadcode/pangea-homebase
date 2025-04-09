@@ -39,10 +39,12 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
   const [isCreatingInstance, setIsCreatingInstance] = useState(false);
   const [showCollaboratorSection, setShowCollaboratorSection] = useState(false);
 
-  // Debug information
+  // Enhanced debug information
   useEffect(() => {
     console.log("Problem data:", problem);
-    console.log("Problem number:", problem.problem_num);
+    console.log("Problem number:", problem?.problem_num);
+    console.log("Problem type:", typeof problem);
+    console.log("Problem keys:", problem ? Object.keys(problem) : "Problem is null or undefined");
   }, [problem]);
 
   const handleInviteCollaborator = async () => {
@@ -122,16 +124,21 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
       localStorage.setItem('inviterName', ownerName);
       
       // Create problem instance in the database
-      // Make sure we're accessing the problem number correctly
-      const problemNum = problem?.problem_num;
+      // Enhanced debugging for problem number access
+      console.log("Full problem object:", problem);
+      
+      // Try to get problem number from different potential properties
+      const problemNum = problem?.problem_num || problem?.problemNum || problem?.id;
       
       console.log("Creating problem instance with problem number:", problemNum);
+      console.log("Problem number type:", typeof problemNum);
       
       if (!problemNum) {
-        throw new Error("Problem number is missing");
+        console.error("Problem number is missing. Problem object:", problem);
+        throw new Error("Problem number is missing or undefined");
       }
       
-      const response = await createProblemInstance({
+      const instanceData = {
         problemNum: problemNum,
         owner: {
           userId: "user123", // In a real app, this would come from authentication
@@ -139,7 +146,11 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
           email: "user@example.com" // In a real app, this would come from authentication
         },
         collaborationMode: mode
-      });
+      };
+      
+      console.log("Sending instance data:", instanceData);
+      
+      const response = await createProblemInstance(instanceData);
 
       setInstanceId(response.instanceId);
       setIsNameSaved(true);
@@ -158,7 +169,7 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
       console.error("Error creating problem instance:", error);
       toast({
         title: "Error",
-        description: "An error occurred while saving your name and creating the problem instance.",
+        description: error instanceof Error ? error.message : "An error occurred while saving your name and creating the problem instance.",
         variant: "destructive",
       });
     } finally {
