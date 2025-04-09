@@ -109,6 +109,11 @@ export const createProblemInstance = async (problemInstance: ProblemInstance): P
       throw new Error('Problem number is required');
     }
     
+    // Ensure problemNum is a string
+    if (typeof problemInstance.problemNum !== 'string') {
+      problemInstance.problemNum = String(problemInstance.problemNum);
+    }
+    
     const url = 'http://localhost:5000/api/problem-instances';
     console.log('Creating problem instance:', problemInstance);
 

@@ -42,7 +42,8 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
   // Enhanced debug information
   useEffect(() => {
     console.log("Problem data:", problem);
-    console.log("Problem number:", problem?.problem_num);
+    console.log("Problem number from problem_num:", problem?.problem_num);
+    console.log("Problem number from id:", problem?.id);
     console.log("Problem type:", typeof problem);
     console.log("Problem keys:", problem ? Object.keys(problem) : "Problem is null or undefined");
   }, [problem]);
@@ -128,12 +129,13 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
       console.log("Full problem object:", problem);
       
       // Try to get problem number from different potential properties
-      const problemNum = problem?.problem_num || problem?.problemNum || problem?.id;
+      // Ensure we convert it to a string if it's a number (from id property)
+      const problemNum = String(problem?.problem_num || problem?.problemNum || problem?.id || "");
       
       console.log("Creating problem instance with problem number:", problemNum);
       console.log("Problem number type:", typeof problemNum);
       
-      if (!problemNum) {
+      if (!problemNum || problemNum === "undefined" || problemNum === "") {
         console.error("Problem number is missing. Problem object:", problem);
         throw new Error("Problem number is missing or undefined");
       }
