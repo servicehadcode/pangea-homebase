@@ -178,66 +178,28 @@ export const evaluateAnswer = async (
   question: InterviewQuestion, 
   answer: string
 ): Promise<InterviewFeedback> => {
-  // Simulate network request
-  await new Promise(resolve => setTimeout(resolve, 2000));
   
   try {
-    // This is a dummy service that returns predefined feedback
-    // In a real implementation, this would call an AI evaluation service
-    
-    // Generate a random score between 70 and 95
-    const score = Math.floor(Math.random() * 26) + 70;
-    
-    // Generic feedback based on score ranges
-    let feedback: InterviewFeedback;
-    
-    if (score >= 90) {
-      feedback = {
-        score,
-        strengths: [
-          "Comprehensive understanding of the core concepts",
-          "Excellent articulation of technical details",
-          "Strong real-world examples provided"
-        ],
-        improvements: [
-          "Could further discuss potential scalability considerations",
-          "Consider mentioning alternative approaches"
-        ],
-        overallFeedback: "Your answer demonstrates exceptional knowledge and communication skills. You provided comprehensive information and backed it with appropriate examples."
-      };
-    } else if (score >= 80) {
-      feedback = {
-        score,
-        strengths: [
-          "Good grasp of the fundamental concepts",
-          "Clear explanation of key points",
-          "Provided relevant examples"
-        ],
-        improvements: [
-          "Could elaborate more on certain technical aspects",
-          "Consider structuring your answer with a clearer introduction and conclusion",
-          "Additional real-world examples would strengthen your response"
-        ],
-        overallFeedback: "Your answer demonstrates solid knowledge of the subject. You covered most key points effectively, but could add more depth in certain areas."
-      };
-    } else {
-      feedback = {
-        score,
-        strengths: [
-          "Demonstrated basic understanding of the concept",
-          "Touched on some important points"
-        ],
-        improvements: [
-          "Need more technical depth in your explanation",
-          "Important concepts were missing from your answer",
-          "Try to provide specific examples to illustrate your points",
-          "Work on structuring your answer more clearly"
-        ],
-        overallFeedback: "Your answer shows some understanding of the topic, but lacks depth in key areas. Focus on strengthening your technical knowledge and providing more concrete examples."
-      };
+    // Connect to API endpoint
+    const response = await fetch('http://localhost:5000/api/v1/transcribe/evaluate', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ 
+        question: question.question, 
+        transcribedText: answer 
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to evaluate answer');
     }
+
+    const evaluatedFeedback: InterviewFeedback = await response.json();
+    return evaluatedFeedback;
     
-    return feedback;
   } catch (error) {
     console.error("Error evaluating answer:", error);
     toast.error("Failed to evaluate answer");

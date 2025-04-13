@@ -1,0 +1,262 @@
+Get List of Available Projects
+
+Endpoint: /api/project/list
+
+Method: GET
+
+Headers:
+
+makefile
+Copy
+Edit
+Authorization: Bearer <jwt_token>
+Response:
+
+json
+Copy
+Edit
+[
+  {
+    "project_id": "98765",
+    "project_name": "AI-Powered Chatbot",
+    "category": "AI & Machine Learning",
+    "difficulty_level": "Intermediate",
+    "status": "Available"
+  },
+  {
+    "project_id": "54321",
+    "project_name": "E-commerce Data Analysis",
+    "category": "Data Science",
+    "difficulty_level": "Advanced",
+    "status": "Available"
+  }
+]
+✅ 2.2 Get Project Details
+Endpoint: /api/project/{project_id}
+
+Method: GET
+
+Headers:
+
+makefile
+Copy
+Edit
+Authorization: Bearer <jwt_token>
+Response:
+
+json
+Copy
+Edit
+{
+  "project_id": "98765",
+  "project_name": "AI-Powered Chatbot",
+  "description": "Develop an AI chatbot for customer service",
+  "category": "AI & Machine Learning",
+  "difficulty_level": "Intermediate",
+  "status": "Available",
+  "tasks": [
+    {"task_id": "1", "task_name": "Define chatbot flow", "status": "Pending"},
+    {"task_id": "2", "task_name": "Train AI model", "status": "Pending"}
+  ]
+}
+✅ 2.3 Start a Project
+Endpoint: /api/project/start
+
+Method: POST
+
+Request Body:
+
+json
+Copy
+Edit
+{
+  "user_id": "12345",
+  "project_id": "98765"
+}
+Response:
+
+json
+Copy
+Edit
+{
+  "message": "Project started successfully",
+  "project_id": "98765",
+  "status": "In Progress"
+}
+✅ 2.4 Submit Project for Review
+Endpoint: /api/project/submit/{project_id}
+
+Method: POST
+
+Headers:
+
+makefile
+Copy
+Edit
+Authorization: Bearer <jwt_token>
+Request Body:
+
+json
+Copy
+Edit
+{
+  "submission_url": "https://github.com/user/project-repo",
+  "comments": "Completed all tasks and tested the chatbot."
+}
+Response:
+
+json
+Copy
+Edit
+{
+  "message": "Project submitted successfully. Awaiting review."
+}
+✅ 2.5 Get User’s Completed Projects
+Endpoint: /api/project/completed/{user_id}
+
+Method: GET
+
+Headers:
+
+makefile
+Copy
+Edit
+Authorization: Bearer <jwt_token>
+Response:
+
+json
+Copy
+Edit
+[
+  {
+    "project_id": "54321",
+    "project_name": "E-commerce Data Analysis",
+    "status": "Completed",
+    "completion_date": "2025-03-20"
+  },
+  {
+    "project_id": "98765",
+    "project_name": "AI-Powered Chatbot",
+    "status": "Completed",
+    "completion_date": "2025-03-25"
+  }
+]
+✅ 2.6 Get Project Submission Status
+Endpoint: /api/project/status/{project_id}
+
+Method: GET
+
+Response:
+
+json
+Copy
+Edit
+{
+  "project_id": "98765",
+  "status": "Under Review",
+  "review_feedback": "Good work on chatbot flow, but improve NLP training."
+}
+📚 4. Portfolio APIs (Updated)
+✅ 4.1 Get User Portfolio
+Endpoint: /api/portfolio/{user_id}
+
+Method: GET
+
+Headers:
+
+makefile
+Copy
+Edit
+Authorization: Bearer <jwt_token>
+Response:
+
+json
+Copy
+Edit
+{
+  "user_id": "12345",
+  "portfolio_url": "https://app.example.com/portfolio/12345",
+  "projects": [
+    {
+      "project_name": "AI-Powered Chatbot",
+      "description": "Developed an AI chatbot using NLP.",
+      "status": "Completed",
+      "completion_date": "2025-03-25"
+    },
+    {
+      "project_name": "E-commerce Data Analysis",
+      "description": "Analyzed sales data to identify trends.",
+      "status": "Completed",
+      "completion_date": "2025-03-20"
+    }
+  ]
+}
+🤝 5. Collaboration APIs (Updated)
+✅ 5.1 Join a Project as Collaborator
+Endpoint: /api/project/join
+
+Method: POST
+
+Request Body:
+
+json
+Copy
+Edit
+{
+  "project_id": "98765",
+  "user_id": "12345"
+}
+Response:
+
+json
+Copy
+Edit
+{
+  "message": "You have joined the project successfully."
+}
+✅ 5.2 Get List of Collaborators for a Project
+Endpoint: /api/project/{project_id}/collaborators
+
+Method: GET
+
+Response:
+
+json
+Copy
+Edit
+[
+  {
+    "user_id": "user_id_2",
+    "name": "Jane Doe",
+    "role": "Data Scientist"
+  },
+  {
+    "user_id": "user_id_3",
+    "name": "Mark Smith",
+    "role": "Backend Engineer"
+  }
+]
+✅ 5.3 Submit Collaborative Task for Review
+Endpoint: /api/project/task/submit
+
+Method: POST
+
+Request Body:
+
+json
+Copy
+Edit
+{
+  "project_id": "98765",
+  "task_id": "1",
+  "collaborator_id": "user_id_2",
+  "submission_url": "https://github.com/user/task-repo"
+}
+Response:
+
+json
+Copy
+Edit
+{
+  "message": "Task submitted successfully. Awaiting review."
+}
