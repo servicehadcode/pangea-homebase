@@ -116,9 +116,19 @@ export const getProblemInstance = async (problemNum: string, userId: string): Pr
       throw new Error(`Failed to fetch problem instance. Status: ${response.status}`);
     }
 
-    const instance: ProblemInstance = await response.json();
-    console.log('Fetched problem instance:', instance);
-    return instance;
+    const data = await response.json();
+    
+    // Validate the startedAt date before returning
+    if (data && data.startedAt) {
+      const startDate = new Date(data.startedAt);
+      if (isNaN(startDate.getTime())) {
+        console.log('Invalid startedAt date detected, setting to current date');
+        data.startedAt = new Date().toISOString();
+      }
+    }
+    
+    console.log('Fetched problem instance:', data);
+    return data;
   } catch (error) {
     console.error('Error fetching problem instance:', error);
     return null;

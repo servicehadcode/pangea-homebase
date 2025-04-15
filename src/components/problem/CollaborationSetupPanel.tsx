@@ -312,17 +312,17 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
           </Button>
         </div>
         <CardDescription>
-          {existingInstance 
-            ? "Update your collaboration settings for this problem" 
-            : "Choose how you want to work on this problem"}
+          {existingInstance && existingInstance.startedAt 
+            ? `Update your collaboration settings for this problem (Started on ${new Date(existingInstance.startedAt).toLocaleDateString()})`
+            : "Choose how you want to work on this problem and set up your collaboration preferences"}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        {existingInstance && (
+        {existingInstance && existingInstance.startedAt && (
           <Alert>
             <AlertTitle>Previous work found</AlertTitle>
             <AlertDescription>
-              You started working on this problem on {new Date(existingInstance.startedAt || "").toLocaleDateString()}. 
+              You started working on this problem on {new Date(existingInstance.startedAt).toLocaleDateString()}. 
               You can update your collaboration mode below.
             </AlertDescription>
           </Alert>
