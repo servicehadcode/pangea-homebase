@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -41,14 +40,18 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
   const [isLoadingInstance, setIsLoadingInstance] = useState(true);
   const [existingInstance, setExistingInstance] = useState<ProblemInstance | null>(null);
   
-  // Mock user ID - in a real app this would come from authentication
   const mockUserId = "user123";
 
   useEffect(() => {
     const fetchExistingInstance = async () => {
       try {
-        // Get the correct problem number from the problem object
+        console.log("Problem object:", problem);
+        console.log("Problem num:", problem?.problem_num);
+        console.log("Problem id:", problem?.id);
+        
         const problemNum = String(problem?.problem_num || problem?.id);
+        
+        console.log("Extracted problem number:", problemNum);
         
         if (!problemNum) {
           console.error("Problem number missing");
@@ -58,7 +61,6 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
         
         console.log("Checking for existing instance with problem number:", problemNum);
         
-        // Check if this specific problem instance exists for this user
         try {
           const instance = await getProblemInstance(problemNum, mockUserId);
           
@@ -83,13 +85,11 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
               description: "We found your previous work on this problem",
             });
           } else {
-            // No existing instance found, this is a new attempt
             setExistingInstance(null);
             setInstanceId(null);
             console.log("No existing instance found for this problem and user");
           }
         } catch (error: any) {
-          // If we get a 404, it means no instance exists, which is fine for a new problem
           if (error.response && error.response.status === 404) {
             console.log("No existing instance found - new problem");
             setExistingInstance(null);
@@ -181,7 +181,6 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
       localStorage.setItem('username', ownerName);
       localStorage.setItem('inviterName', ownerName);
       
-      // Get the correct problem number from the problem object
       const problemNum = String(problem?.problem_num || problem?.id);
       
       if (!problemNum) {
@@ -203,7 +202,6 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
       
       let response;
       if (existingInstance && instanceId) {
-        // Update existing instance
         response = await fetch(`http://localhost:5000/api/problem-instances/${instanceId}`, {
           method: 'PATCH',
           headers: {
@@ -222,7 +220,6 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
         const result = await response.json();
         console.log("Updated instance:", result);
       } else {
-        // Create new instance
         response = await createProblemInstance(instanceData);
         
         if (!response.ok && 'status' in response) {
@@ -274,7 +271,7 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
     if (!isNameSaved) {
       toast({
         title: "Name Not Saved",
-        description: "Please save your name before continuing.",
+        description: "Please save your name before proceeding.",
         variant: "destructive",
       });
       return;
