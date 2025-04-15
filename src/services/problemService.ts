@@ -146,40 +146,11 @@ export const createProblemInstance = async (problemInstance: ProblemInstance): P
       problemNum: String(problemInstance.problemNum)
     };
 
-    const existingInstance = await getProblemInstance(
-      instanceData.problemNum, 
-      instanceData.owner.userId
-    );
-
-    let url = 'http://localhost:5000/api/problem-instances';
-    let method = 'POST';
-    
-    if (existingInstance && existingInstance._id) {
-      url = `http://localhost:5000/api/problem-instances/${existingInstance._id}`;
-      method = 'PATCH';
-      console.log('Updating existing problem instance:', existingInstance._id);
-      
-      instanceData.lastUpdatedAt = new Date().toISOString();
-      
-      // Ensure we're keeping the existing status if it's not provided in the update
-      if (!instanceData.status && existingInstance.status) {
-        instanceData.status = existingInstance.status;
-      }
-      
-      // If no status exists at all, set a default one for updates
-      if (!instanceData.status) {
-        instanceData.status = 'in-progress';
-      }
-    } else {
-      instanceData.startedAt = new Date().toISOString();
-      instanceData.lastUpdatedAt = instanceData.startedAt;
-      instanceData.status = 'in-progress';
-    }
-    
-    console.log(`${method === 'POST' ? 'Creating' : 'Updating'} problem instance:`, instanceData);
+    const url = 'http://localhost:5000/api/problem-instances';
+    console.log('Creating new problem instance:', instanceData);
 
     const response = await fetch(url, {
-      method,
+      method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
@@ -189,11 +160,11 @@ export const createProblemInstance = async (problemInstance: ProblemInstance): P
     if (!response.ok) {
       const errorData = await response.json();
       console.error('Error response:', errorData);
-      throw new Error(errorData.error || `Failed to ${method === 'POST' ? 'create' : 'update'} problem instance. Status: ${response.status}`);
+      throw new Error(errorData.error || `Failed to create problem instance. Status: ${response.status}`);
     }
 
     const result = await response.json();
-    console.log(`Problem instance ${method === 'POST' ? 'created' : 'updated'}:`, result);
+    console.log('Problem instance created:', result);
     return result;
   } catch (error) {
     console.error('Error in createProblemInstance:', error);

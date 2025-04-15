@@ -186,6 +186,7 @@ const ProblemDetails = () => {
         
         const transformedData = {
           id: parseInt(problemData.problem_num, 10),
+          problem_num: problemData.problem_num,
           title: problemData.title,
           description: problemData.description,
           longDescription: problemData.longDescription,

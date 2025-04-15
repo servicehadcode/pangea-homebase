@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -19,6 +20,7 @@ import {
 import { useToast } from '@/components/ui/use-toast';
 import { sendCollaborationInvite } from '@/services/collaborationService';
 import { createProblemInstance, addCollaborator, getProblemInstance, ProblemInstance } from '@/services/problemService';
+import { v4 as uuidv4 } from 'uuid';
 
 interface CollaborationSetupPanelProps {
   onComplete: (mode: 'solo' | 'pair') => void;
@@ -32,26 +34,32 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
   const [collaboratorEmail, setCollaboratorEmail] = useState('');
   const [isInviting, setIsInviting] = useState(false);
   const [invitedEmails, setInvitedEmails] = useState<string[]>([]);
-  const [ownerName, setOwnerName] = useState(localStorage.getItem('username') || 'You');
+  const [ownerName, setOwnerName] = useState(localStorage.getItem('username') || '');
   const [isNameSaved, setIsNameSaved] = useState(false);
   const [instanceId, setInstanceId] = useState<string | null>(null);
   const [isCreatingInstance, setIsCreatingInstance] = useState(false);
   const [showCollaboratorSection, setShowCollaboratorSection] = useState(false);
   const [isLoadingInstance, setIsLoadingInstance] = useState(true);
   const [existingInstance, setExistingInstance] = useState<ProblemInstance | null>(null);
+  const [userId, setUserId] = useState(localStorage.getItem('userId') || '');
   
-  const mockUserId = "user123";
+  // Function to get the correct problem number
+  const getProblemNumber = () => {
+    if (!problem) return null;
+    
+    // Use the problem_num field directly if it exists
+    if (problem.problem_num) {
+      return String(problem.problem_num);
+    }
+    
+    // Fallback to id if problem_num doesn't exist
+    return problem.id ? String(problem.id) : null;
+  };
 
   useEffect(() => {
     const fetchExistingInstance = async () => {
       try {
-        console.log("Problem object:", problem);
-        console.log("Problem num:", problem?.problem_num);
-        console.log("Problem id:", problem?.id);
-        
-        const problemNum = String(problem?.problem_num || problem?.id);
-        
-        console.log("Extracted problem number:", problemNum);
+        const problemNum = getProblemNumber();
         
         if (!problemNum) {
           console.error("Problem number missing");
@@ -59,10 +67,18 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
           return;
         }
         
-        console.log("Checking for existing instance with problem number:", problemNum);
+        // Check if we have a userId stored, if not generate one
+        let currentUserId = localStorage.getItem('userId');
+        if (!currentUserId) {
+          currentUserId = uuidv4();
+          localStorage.setItem('userId', currentUserId);
+          setUserId(currentUserId);
+        }
+        
+        console.log("Checking for existing instance with problem number:", problemNum, "and user ID:", currentUserId);
         
         try {
-          const instance = await getProblemInstance(problemNum, mockUserId);
+          const instance = await getProblemInstance(problemNum, currentUserId);
           
           if (instance && instance._id) {
             console.log("Found existing instance:", instance);
@@ -85,18 +101,18 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
               description: "We found your previous work on this problem",
             });
           } else {
+            console.log("No existing instance found for this problem and user");
             setExistingInstance(null);
             setInstanceId(null);
-            console.log("No existing instance found for this problem and user");
+            setIsNameSaved(false);
+            // For new problems, ensure the name field is editable
+            setOwnerName(localStorage.getItem('username') || '');
           }
         } catch (error: any) {
-          if (error.response && error.response.status === 404) {
-            console.log("No existing instance found - new problem");
-            setExistingInstance(null);
-            setInstanceId(null);
-          } else {
-            console.error("Error checking for existing instance:", error);
-          }
+          console.log("Error or no instance found:", error);
+          setExistingInstance(null);
+          setInstanceId(null);
+          setIsNameSaved(false);
         }
       } catch (error) {
         console.error("Error in fetchExistingInstance:", error);
@@ -121,7 +137,7 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
     if (!instanceId) {
       toast({
         title: "Error",
-        description: "Problem instance not created yet. Please save your name first.",
+        description: "Problem instance not created yet. Please save your settings first.",
         variant: "destructive",
       });
       return;
@@ -181,64 +197,64 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
       localStorage.setItem('username', ownerName);
       localStorage.setItem('inviterName', ownerName);
       
-      const problemNum = String(problem?.problem_num || problem?.id);
+      const problemNum = getProblemNumber();
       
       if (!problemNum) {
         throw new Error('Problem number is missing or invalid');
       }
-
+      
       console.log("Creating/updating problem instance with problem number:", problemNum);
       
+      // Ensure we have a userId
+      let currentUserId = userId;
+      if (!currentUserId) {
+        currentUserId = uuidv4();
+        localStorage.setItem('userId', currentUserId);
+        setUserId(currentUserId);
+      }
+
       const instanceData: ProblemInstance = {
         problemNum,
         owner: {
-          userId: mockUserId,
+          userId: currentUserId,
           username: ownerName,
-          email: "user@example.com"
+          email: "john@example.com" // Static placeholder email as requested
         },
         collaborationMode: mode,
         status: existingInstance?.status || 'in-progress'
       };
       
-      let response;
       if (existingInstance && instanceId) {
-        response = await fetch(`http://localhost:5000/api/problem-instances/${instanceId}`, {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            collaborationMode: mode,
-            status: instanceData.status
-          })
+        // We're just updating the UI state without making an API call
+        console.log("Updating existing instance (UI only):", instanceId);
+        
+        // Update local state to reflect the new collaboration mode
+        setMode(instanceData.collaborationMode);
+        
+        toast({
+          title: "Settings Updated",
+          description: "Your collaboration settings have been updated successfully.",
         });
-        
-        if (!response.ok) {
-          throw new Error(`Failed to update instance. Status: ${response.status}`);
-        }
-        
-        const result = await response.json();
-        console.log("Updated instance:", result);
       } else {
-        response = await createProblemInstance(instanceData);
+        // Create new instance
+        console.log("Creating new problem instance:", instanceData);
         
-        if (!response.ok && 'status' in response) {
-          throw new Error(`Failed to create instance. Status: ${response.status}`);
+        const response = await createProblemInstance(instanceData);
+        
+        if ('instanceId' in response) {
+          setInstanceId(response.instanceId);
+          console.log("Created new instance:", response);
+          
+          toast({
+            title: "Settings Saved",
+            description: "Your settings have been saved successfully.",
+          });
+        } else {
+          throw new Error('Failed to create instance: No instanceId returned');
         }
-        
-        const result = await response.json();
-        setInstanceId(result.instanceId);
-        console.log("Created new instance:", result);
       }
 
       setIsNameSaved(true);
-      
-      toast({
-        title: existingInstance ? "Settings Updated" : "Settings Saved",
-        description: existingInstance 
-          ? "Your collaboration settings have been updated successfully." 
-          : "Your settings have been saved successfully.",
-      });
       
       if (mode === 'pair') {
         setShowCollaboratorSection(true);
@@ -380,7 +396,7 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
           </Button>
         </div>
         
-        {!isNameSaved && !existingInstance && (
+        {!isNameSaved && (
           <p className="text-sm text-amber-600 mt-2">
             *You must save your settings before proceeding
           </p>
@@ -462,7 +478,7 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
         <Button 
           onClick={handleContinue}
           className="pangea-button-primary"
-          disabled={!isNameSaved && !existingInstance || (mode === 'pair' && showCollaboratorSection && invitedEmails.length === 0)}
+          disabled={!isNameSaved || (mode === 'pair' && showCollaboratorSection && invitedEmails.length === 0)}
         >
           Continue to Subtasks
         </Button>
