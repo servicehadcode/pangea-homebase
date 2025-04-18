@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,12 +9,20 @@ import { Badge } from '@/components/ui/badge';
 import { ChevronLeft, UserPlus, Mail, Send, CheckCircle, Loader2, ChevronRight } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { assignSubtaskToUser } from '@/services/assignmentService';
-import { getInvitedCollaborators } from '@/services/collaborationService';
+import { getProblemInstance } from '@/services/problemService';
 
 interface SubtaskAssignmentPanelProps {
   subtasks: any[];
   onComplete: () => void;
   onBack: () => void;
+}
+
+interface Collaborator {
+  userId: string;
+  username: string;
+  email: string;
+  status?: string;
+  invitedAt?: string;
 }
 
 const SubtaskAssignmentPanel: React.FC<SubtaskAssignmentPanelProps> = ({ 
@@ -25,68 +32,58 @@ const SubtaskAssignmentPanel: React.FC<SubtaskAssignmentPanelProps> = ({
 }) => {
   const { toast } = useToast();
   const [assignments, setAssignments] = useState<Record<string, string>>({});
-  const [invitedUsers, setInvitedUsers] = useState<any[]>([]);
+  const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [isSending, setIsSending] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
-  const [isLoadingCollaborators, setIsLoadingCollaborators] = useState(true);
-  
-  // Fetch invited collaborators from the service
+  const [isLoading, setIsLoading] = useState(true);
+
   useEffect(() => {
-    const fetchCollaborators = async () => {
+    const fetchProblemInstance = async () => {
       try {
-        setIsLoadingCollaborators(true);
-        const collaborators = await getInvitedCollaborators();
-        
-        // Add the current user as a collaborator
-        const currentUser = {
-          id: 'current-user',
-          name: localStorage.getItem('username') || 'You',
-          email: 'you@example.com',
-          status: 'active'
-        };
-        
-        // If no collaborators were invited, use dummy data
-        if (collaborators.length === 0) {
-          setInvitedUsers([
-            currentUser,
-            { id: 'user1', name: 'Alice Johnson', email: 'alice@example.com', status: 'invited' },
-            { id: 'user2', name: 'Bob Smith', email: 'bob@example.com', status: 'invited' },
-            { id: 'user3', name: 'Charlie Davis', email: 'charlie@example.com', status: 'invited' }
-          ]);
-        } else {
-          // Format the collaborators data
-          const formattedCollaborators = collaborators.map((collab: any) => ({
-            id: collab.email,
-            name: collab.name,
-            email: collab.email,
-            status: collab.status
-          }));
-          
-          setInvitedUsers([currentUser, ...formattedCollaborators]);
+        setIsLoading(true);
+        const urlParts = window.location.pathname.split('/');
+        const problemNum = urlParts[urlParts.length - 1];
+        const userId = localStorage.getItem('userId');
+
+        if (!problemNum || !userId) {
+          throw new Error('Missing problem number or user ID');
         }
+
+        const instance = await getProblemInstance(problemNum, userId);
+        
+        if (!instance) {
+          throw new Error('Problem instance not found');
+        }
+
+        // Add owner as a collaborator
+        const allCollaborators: Collaborator[] = [{
+          userId: instance.owner.userId,
+          username: instance.owner.username,
+          email: instance.owner.email,
+          status: 'active'
+        }];
+
+        // Add other collaborators if they exist
+        if (instance.collaborators && instance.collaborators.length > 0) {
+          allCollaborators.push(...instance.collaborators);
+        }
+
+        setCollaborators(allCollaborators);
       } catch (error) {
-        console.error('Error fetching collaborators:', error);
+        console.error('Error fetching problem instance:', error);
         toast({
           title: "Error",
-          description: "Failed to load collaborators. Using default collaborators instead.",
+          description: "Failed to load collaborators. Please try again.",
           variant: "destructive"
         });
-        
-        // Fallback to dummy data
-        setInvitedUsers([
-          { id: 'current-user', name: localStorage.getItem('username') || 'You', email: 'you@example.com', status: 'active' },
-          { id: 'user1', name: 'Alice Johnson', email: 'alice@example.com', status: 'invited' },
-          { id: 'user2', name: 'Bob Smith', email: 'bob@example.com', status: 'invited' },
-          { id: 'user3', name: 'Charlie Davis', email: 'charlie@example.com', status: 'invited' }
-        ]);
       } finally {
-        setIsLoadingCollaborators(false);
+        setIsLoading(false);
       }
     };
-    
-    fetchCollaborators();
+
+    fetchProblemInstance();
   }, [toast]);
-  
+
   const handleAssignUser = async (subtaskId: string, userId: string) => {
     setAssignments(prev => ({
       ...prev,
@@ -95,7 +92,7 @@ const SubtaskAssignmentPanel: React.FC<SubtaskAssignmentPanelProps> = ({
     
     try {
       // Find the assigned user's info
-      const assignedUser = invitedUsers.find(user => user.id === userId);
+      const assignedUser = collaborators.find(user => user.userId === userId);
       
       if (!assignedUser) {
         throw new Error('User not found');
@@ -107,8 +104,8 @@ const SubtaskAssignmentPanel: React.FC<SubtaskAssignmentPanelProps> = ({
       
       // Add the assignment with complete user details
       subtaskAssignments[subtaskId] = {
-        userId: assignedUser.id,
-        userName: assignedUser.name,
+        userId: assignedUser.userId,
+        userName: assignedUser.username,
         userEmail: assignedUser.email,
         assignedAt: new Date().toISOString(),
         status: assignedUser.status
@@ -122,7 +119,7 @@ const SubtaskAssignmentPanel: React.FC<SubtaskAssignmentPanelProps> = ({
       
       toast({
         title: "User Assigned",
-        description: `${assignedUser.name} has been assigned to this subtask.`,
+        description: `${assignedUser.username} has been assigned to this subtask.`,
       });
     } catch (error) {
       console.error('Error assigning user:', error);
@@ -195,7 +192,7 @@ const SubtaskAssignmentPanel: React.FC<SubtaskAssignmentPanelProps> = ({
         ) : (
           <>
             <div className="space-y-4">
-              {isLoadingCollaborators ? (
+              {isLoading ? (
                 <div className="flex justify-center items-center py-8">
                   <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                   <span className="ml-2 text-muted-foreground">Loading collaborators...</span>
@@ -223,9 +220,9 @@ const SubtaskAssignmentPanel: React.FC<SubtaskAssignmentPanelProps> = ({
                                 <SelectValue placeholder="Select a team member" />
                               </SelectTrigger>
                               <SelectContent>
-                                {invitedUsers.map(user => (
-                                  <SelectItem key={user.id} value={user.id}>
-                                    {user.name} ({user.email})
+                                {collaborators.map(user => (
+                                  <SelectItem key={user.userId} value={user.userId}>
+                                    {user.username} ({user.email})
                                   </SelectItem>
                                 ))}
                               </SelectContent>
@@ -256,18 +253,18 @@ const SubtaskAssignmentPanel: React.FC<SubtaskAssignmentPanelProps> = ({
             <Separator />
             
             <div className="space-y-4">
-              <h3 className="font-medium">Invited Team Members</h3>
+              <h3 className="font-medium">Team Members</h3>
               
               <div className="space-y-2">
-                {isLoadingCollaborators ? (
+                {isLoading ? (
                   <div className="flex justify-center items-center py-4">
                     <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                   </div>
                 ) : (
-                  invitedUsers.map(user => (
-                    <div key={user.id} className="flex items-center justify-between p-3 border rounded-md">
+                  collaborators.map(user => (
+                    <div key={user.userId} className="flex items-center justify-between p-3 border rounded-md">
                       <div>
-                        <p className="font-medium">{user.name}</p>
+                        <p className="font-medium">{user.username}</p>
                         <p className="text-sm text-muted-foreground">{user.email}</p>
                       </div>
                       
@@ -297,7 +294,7 @@ const SubtaskAssignmentPanel: React.FC<SubtaskAssignmentPanelProps> = ({
         {!isComplete && (
           <Button 
             onClick={handleCompleteAssignments}
-            disabled={isSending || isLoadingCollaborators || Object.keys(assignments).length !== subtasks.length}
+            disabled={isSending || isLoading || Object.keys(assignments).length !== subtasks.length}
             className="flex items-center gap-1"
           >
             {isSending ? (
