@@ -302,37 +302,39 @@ export const updateCollaboratorSubtaskAssignments = async (
   assignments: Record<string, string>
 ): Promise<{message: string}> => {
   try {
-    const instance = await getProblemInstance(instanceId, 'user123'); // Get current instance
-    
-    if (!instance || !instance.collaborators) {
-      throw new Error('Problem instance or collaborators not found');
-    }
-    
-    // Transform assignments to include subtask step numbers
-    const updatedCollaborators = instance.collaborators.map(collaborator => {
-      // Find all subtasks assigned to this collaborator
-      const assignedSubtasks = Object.entries(assignments)
-        .filter(([_, userId]) => userId === collaborator.userId)
-        .map(([subtaskId]) => parseInt(subtaskId, 10));
-      
-      return {
-        ...collaborator,
-        subtaskSteps: assignedSubtasks
-      };
-    });
-
     const url = `http://localhost:5000/api/problem-instances/${instanceId}`;
-    console.log('Updating collaborator subtask assignments:', { collaborators: updatedCollaborators });
+    console.log('Updating collaborator subtask assignments:', assignments);
+    
+    // Transform assignments to a format the API expects
+    const collaboratorUpdates = [];
+    const assignmentEntries = Object.entries(assignments);
+    
+    // Group assignments by user
+    const userAssignments: Record<string, number[]> = {};
+    
+    // Collect all subtasks assigned to each user
+    assignmentEntries.forEach(([subtaskId, userId]) => {
+      if (!userAssignments[userId]) {
+        userAssignments[userId] = [];
+      }
+      // Convert subtaskId to number (step number)
+      userAssignments[userId].push(parseInt(subtaskId, 10));
+    });
+    
+    // Prepare the update payload
+    const updateData = {
+      collaboratorSubtasks: userAssignments,
+      lastUpdatedAt: new Date().toISOString()
+    };
+    
+    console.log('Sending update with payload:', updateData);
 
     const response = await fetch(url, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({
-        collaborators: updatedCollaborators,
-        lastUpdatedAt: new Date().toISOString()
-      })
+      body: JSON.stringify(updateData)
     });
 
     if (!response.ok) {

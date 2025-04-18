@@ -36,6 +36,7 @@ const SubtaskAssignmentPanel: React.FC<SubtaskAssignmentPanelProps> = ({
   const [isSending, setIsSending] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [instanceId, setInstanceId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchProblemInstance = async () => {
@@ -53,6 +54,10 @@ const SubtaskAssignmentPanel: React.FC<SubtaskAssignmentPanelProps> = ({
         
         if (!instance) {
           throw new Error('Problem instance not found');
+        }
+
+        if (instance._id) {
+          setInstanceId(instance._id);
         }
 
         const allCollaborators: Collaborator[] = [{
@@ -139,21 +144,14 @@ const SubtaskAssignmentPanel: React.FC<SubtaskAssignmentPanelProps> = ({
     setIsSending(true);
     
     try {
-      const urlParts = window.location.pathname.split('/');
-      const problemNum = urlParts[urlParts.length - 1];
-      const userId = localStorage.getItem('userId');
-
-      if (!problemNum || !userId) {
-        throw new Error('Missing problem number or user ID');
+      if (!instanceId) {
+        throw new Error('Problem instance ID not found');
       }
 
-      const instance = await getProblemInstance(problemNum, userId);
-      
-      if (!instance || !instance._id) {
-        throw new Error('Problem instance not found');
-      }
+      console.log('Submitting assignments:', assignments);
+      console.log('For instance ID:', instanceId);
 
-      await updateCollaboratorSubtaskAssignments(instance._id, assignments);
+      await updateCollaboratorSubtaskAssignments(instanceId, assignments);
       
       setIsComplete(true);
       
@@ -169,7 +167,7 @@ const SubtaskAssignmentPanel: React.FC<SubtaskAssignmentPanelProps> = ({
       console.error('Error completing assignments:', error);
       toast({
         title: "Error",
-        description: "There was an error completing the assignments. Please try again.",
+        description: `There was an error completing the assignments: ${error instanceof Error ? error.message : 'Unknown error'}`,
         variant: "destructive"
       });
     } finally {
