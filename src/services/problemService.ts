@@ -261,6 +261,42 @@ export const updateProblemInstanceCollaboration = async (
   }
 };
 
+export const updateProblemInstanceCollaborator = async (
+  instanceId: string, 
+  email: string
+): Promise<{message: string}> => {
+  try {
+    const url = `http://localhost:5000/api/problem-instances/${instanceId}`;
+    console.log(`Adding collaborator email ${email} to problem instance ${instanceId}`);
+
+    const updateData = {
+      collaborationDetails: {
+        assigneeEmail: email
+      }
+    };
+
+    const response = await fetch(url, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(updateData)
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || `Failed to update collaborator. Status: ${response.status}`);
+    }
+
+    const result = await response.json();
+    console.log('Collaborator email added:', result);
+    return result;
+  } catch (error) {
+    console.error('Error updating collaborator:', error);
+    throw error;
+  }
+};
+
 export interface Collaborator {
   userId: string;
   username: string;

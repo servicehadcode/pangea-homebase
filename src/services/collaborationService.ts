@@ -40,6 +40,18 @@ export const sendCollaborationInvite = async (email: string): Promise<{
     const data = await response.json();
 
     if (response.ok) {
+      // Get the instanceId from localStorage using the problem number from the URL
+      const urlParts = window.location.pathname.split('/');
+      const problemNum = urlParts[urlParts.length - 1];
+      const instanceId = localStorage.getItem(`problemInstance_${problemNum}`);
+
+      if (!instanceId) {
+        throw new Error('Problem instance not found');
+      }
+
+      // Update the problem instance with the collaborator email
+      await updateProblemInstanceCollaborator(instanceId, email);
+      
       // Store the invited collaborator in localStorage
       const invitedCollaboratorsStr = localStorage.getItem('invitedCollaborators');
       let invitedCollaborators = invitedCollaboratorsStr ? 
