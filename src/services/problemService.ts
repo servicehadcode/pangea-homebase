@@ -302,44 +302,69 @@ export const updateCollaboratorSubtaskAssignments = async (
   assignments: Record<string, string>
 ): Promise<{message: string}> => {
   try {
+    // First get the current instance to access existing collaborators
     const url = `http://localhost:5000/api/problem-instances/${instanceId}`;
-    console.log('Updating collaborator subtask assignments:', assignments);
+    const getResponse = await fetch(url);
     
-    // Transform assignments to a format the API expects
-    const collaboratorUpdates = [];
-    const assignmentEntries = Object.entries(assignments);
+    if (!getResponse.ok) {
+      throw new Error('Failed to fetch current problem instance');
+    }
     
-    // Group assignments by user
-    const userAssignments: Record<string, number[]> = {};
-    
-    // Collect all subtasks assigned to each user
-    assignmentEntries.forEach(([subtaskId, userId]) => {
-      if (!userAssignments[userId]) {
-        userAssignments[userId] = [];
-      }
-      // Convert subtaskId to number (step number)
-      userAssignments[userId].push(parseInt(subtaskId, 10));
-    });
-    
-    // Prepare the update payload
-    const updateData = {
-      collaboratorSubtasks: userAssignments,
-      lastUpdatedAt: new Date().toISOString()
-    };
-    
-    console.log('Sending update with payload:', updateData);
+    const currentInstance = await getResponse.json();
+    if (!currentInstance.collaborators) {
+      throw new Error('No collaborators found in problem instance');
+    }
 
+    // Update collaborators array with subtask assignments
+    const updatedCollaborators = currentInstance.collaborators.map(collaborator => {
+      // Find assigned subtask for this collaborator
+      const assignedSubtaskEntry = Object.entries(assignments).find(
+        ([_, userId]) => userId === collaborator.userId
+      );
+      
+      if (assignedSubtaskEntry) {
+        // Use the subtask ID (which is the step number) as the subtask assignment
+        return {
+          ...collaborator,
+          subtask: parseInt(assignedSubtaskEntry[0], 10)
+        };
+      }
+      return collaborator;
+    });
+
+    // Also need to handle owner if they have assignments
+    if (currentInstance.owner) {
+      const ownerAssignment = Object.entries(assignments).find(
+        ([_, userId]) => userId === currentInstance.owner.userId
+      );
+      
+      if (ownerAssignment) {
+        const ownerCollaborator = {
+          ...currentInstance.owner,
+          subtask: parseInt(ownerAssignment[0], 10),
+          status: 'active'
+        };
+        updatedCollaborators.push(ownerCollaborator);
+      }
+    }
+
+    console.log('Updating collaborators with subtasks:', updatedCollaborators);
+
+    // Send PATCH request with updated collaborators
     const response = await fetch(url, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(updateData)
+      body: JSON.stringify({
+        collaborators: updatedCollaborators,
+        lastUpdatedAt: new Date().toISOString()
+      })
     });
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new Error(errorData.error || `Failed to update subtask assignments. Status: ${response.status}`);
+      throw new Error(errorData.error || `Failed to update collaborator subtasks. Status: ${response.status}`);
     }
 
     const result = await response.json();
