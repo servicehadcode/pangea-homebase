@@ -1,4 +1,6 @@
+
 // Collaboration microservice implementations
+import { updateProblemInstanceCollaborator } from './problemService';
 
 /**
  * Sends collaboration invitation via email using contact API
