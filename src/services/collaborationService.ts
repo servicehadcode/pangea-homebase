@@ -20,34 +20,52 @@ export const sendCollaborationInvite = async (email: string): Promise<{
   
   try {
     const inviterName = localStorage.getItem('username') || 'Someone';
+    const currentUrl = window.location.href;
     
-    // Instead of making an actual API call that's failing, we'll simulate success
-    // In a real implementation, this would be replaced with an actual working API
-    console.log(`Simulating invitation email to ${email} from ${inviterName}`);
-    
-    // Store the invited collaborator in localStorage
-    const invitedCollaboratorsStr = localStorage.getItem('invitedCollaborators');
-    let invitedCollaborators = invitedCollaboratorsStr ? 
-      JSON.parse(invitedCollaboratorsStr) : {};
-    
-    invitedCollaborators[email] = {
-      email,
-      name: email.split('@')[0],
-      status: 'invited',
-      timestamp: new Date().toISOString()
+    const formData = {
+      name: inviterName,
+      email: email,
+      subject: `${inviterName} is inviting you to collaborate on a problem`,
+      message: `Hello,\n\n${inviterName} has invited you to collaborate on solving a problem together.\n\nYou can join the collaboration by visiting:\n${currentUrl}\n\nBest regards,\nThe Problem Solving Team`
     };
-    
-    localStorage.setItem('invitedCollaborators', JSON.stringify(invitedCollaborators));
-    
-    return {
-      success: true,
-      message: `Invitation sent successfully to ${email}. They will receive an email shortly.`
-    };
+
+    const response = await fetch('http://localhost:5000/api/contact', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(formData),
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      // Store the invited collaborator in localStorage
+      const invitedCollaboratorsStr = localStorage.getItem('invitedCollaborators');
+      let invitedCollaborators = invitedCollaboratorsStr ? 
+        JSON.parse(invitedCollaboratorsStr) : {};
+      
+      invitedCollaborators[email] = {
+        email,
+        name: email.split('@')[0],
+        status: 'invited',
+        timestamp: new Date().toISOString()
+      };
+      
+      localStorage.setItem('invitedCollaborators', JSON.stringify(invitedCollaborators));
+      
+      return {
+        success: true,
+        message: data.message || `Invitation sent successfully to ${email}`
+      };
+    } else {
+      throw new Error(data.error || 'Failed to send invitation');
+    }
   } catch (error) {
     console.error('Error sending invitation:', error);
     return {
       success: false,
-      message: 'Failed to send invitation. Please try again later.'
+      message: error instanceof Error ? error.message : 'Failed to send invitation. Please try again later.'
     };
   }
 };
