@@ -269,18 +269,14 @@ export const updateProblemInstanceCollaborator = async (
     const url = `http://localhost:5000/api/problem-instances/${instanceId}`;
     console.log(`Adding collaborator email ${email} to problem instance ${instanceId}`);
 
-    const updateData = {
-      collaborationDetails: {
-        assigneeEmail: email
-      }
-    };
-
     const response = await fetch(url, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(updateData)
+      body: JSON.stringify({
+        lastUpdatedAt: new Date().toISOString()
+      })
     });
 
     if (!response.ok) {
