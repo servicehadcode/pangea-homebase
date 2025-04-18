@@ -1,4 +1,3 @@
-
 export interface Problem {
   problem_num: string;
   title: string;
@@ -301,9 +300,18 @@ export const updateCollaboratorSubtaskAssignments = async (
   try {
     console.log(`Updating subtask assignments for instance ${instanceId}:`, assignments);
     
-    // First get the current instance to access existing collaborators
-    const url = `http://localhost:5000/api/problem-instances/${instanceId}`;
-    const getResponse = await fetch(url);
+    // Get problemNum and userId from localStorage to fetch the instance correctly
+    const urlParts = window.location.pathname.split('/');
+    const problemNum = urlParts[urlParts.length - 1]; 
+    const userId = localStorage.getItem('userId');
+    
+    if (!problemNum || !userId) {
+      throw new Error('Could not determine problem number or user ID from the current context');
+    }
+    
+    // Use the correct endpoint pattern that works: /api/problem-instances/:problemNum/:userId
+    const getUrl = `http://localhost:5000/api/problem-instances/${encodeURIComponent(problemNum)}/${encodeURIComponent(userId)}`;
+    const getResponse = await fetch(getUrl);
     
     if (!getResponse.ok) {
       const errorText = await getResponse.text();
@@ -318,72 +326,69 @@ export const updateCollaboratorSubtaskAssignments = async (
       throw new Error('Problem instance not found');
     }
     
-    // Create a map of subtaskId to numeric step value
-    const subtaskStepMap: Record<string, number> = {};
-    for (const [subtaskId, userId] of Object.entries(assignments)) {
-      // Try to parse the subtask ID to get the step number
-      try {
-        // The subtask ID could be in various formats, try to extract a numeric value
-        const stepNumber = parseInt(subtaskId, 10);
-        if (!isNaN(stepNumber)) {
-          subtaskStepMap[userId] = stepNumber;
-        }
-      } catch (error) {
-        console.warn(`Could not parse step number from subtask ID: ${subtaskId}`);
-      }
-    }
-    
-    console.log('Subtask step map:', subtaskStepMap);
-    
-    // Start with an empty collaborators array if none exists
-    const updatedCollaborators = currentInstance.collaborators || [];
-    
-    // Update existing collaborators with subtask assignments
-    const updatedCollaboratorsList = updatedCollaborators.map(collaborator => {
-      const subtaskStep = subtaskStepMap[collaborator.userId];
-      if (subtaskStep !== undefined) {
+    // Update collaborators with subtask assignments
+    const updatedCollaborators = currentInstance.collaborators?.map(collaborator => {
+      // Check if this collaborator has any assignments
+      const assignedSubtaskIds = Object.entries(assignments)
+        .filter(([, userId]) => userId === collaborator.userId)
+        .map(([subtaskId]) => parseInt(subtaskId, 10))
+        .filter(id => !isNaN(id));
+      
+      // If has assignments, add the first subtask to the collaborator
+      if (assignedSubtaskIds.length > 0) {
         return {
           ...collaborator,
-          subtask: subtaskStep
+          subtask: assignedSubtaskIds[0] // Assign the first matching subtask
         };
       }
+      
       return collaborator;
-    });
+    }) || [];
     
-    // Check if owner has an assignment
-    if (currentInstance.owner && subtaskStepMap[currentInstance.owner.userId] !== undefined) {
-      // Find if owner is already in the collaborators list
-      const ownerIndex = updatedCollaboratorsList.findIndex(
-        collab => collab.userId === currentInstance.owner.userId
+    // Check if owner has assignments and add them to the owner object
+    const ownerAssignedSubtaskIds = Object.entries(assignments)
+      .filter(([, userId]) => userId === currentInstance.owner.userId)
+      .map(([subtaskId]) => parseInt(subtaskId, 10))
+      .filter(id => !isNaN(id));
+    
+    // We'll need this updated owner data if they have a subtask assigned
+    const ownerHasAssignment = ownerAssignedSubtaskIds.length > 0;
+    
+    // Send PATCH request to update the instance
+    const updateUrl = `http://localhost:5000/api/problem-instances/${instanceId}`;
+    
+    // Create the payload with updated collaborators
+    const payload: any = {
+      collaborators: updatedCollaborators,
+      lastUpdatedAt: new Date().toISOString()
+    };
+    
+    // If owner has assignments, handle that in a separate owner_subtask field
+    // This is just one approach - the backend needs to support this
+    if (ownerHasAssignment) {
+      // Check if owner is already in collaborators array
+      const ownerAlreadyInCollaborators = updatedCollaborators.some(
+        c => c.userId === currentInstance.owner.userId
       );
       
-      if (ownerIndex >= 0) {
-        // Update existing entry
-        updatedCollaboratorsList[ownerIndex].subtask = subtaskStepMap[currentInstance.owner.userId];
-      } else {
-        // Add owner to collaborators list with subtask
-        updatedCollaboratorsList.push({
+      if (!ownerAlreadyInCollaborators) {
+        // Add owner to collaborators with subtask
+        payload.collaborators.push({
           userId: currentInstance.owner.userId,
           username: currentInstance.owner.username,
           email: currentInstance.owner.email,
           status: 'active',
-          subtask: subtaskStepMap[currentInstance.owner.userId]
+          subtask: ownerAssignedSubtaskIds[0]
         });
       }
     }
     
-    console.log('Updated collaborators list:', updatedCollaboratorsList);
-    
-    // Send PATCH request with updated collaborators
-    const response = await fetch(url, {
+    const response = await fetch(updateUrl, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({
-        collaborators: updatedCollaboratorsList,
-        lastUpdatedAt: new Date().toISOString()
-      })
+      body: JSON.stringify(payload)
     });
     
     if (!response.ok) {

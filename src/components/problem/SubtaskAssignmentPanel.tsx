@@ -2,15 +2,15 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { ChevronLeft, UserPlus, Mail, Send, CheckCircle, Loader2, ChevronRight } from 'lucide-react';
+import { ChevronLeft, UserPlus, Mail, Send, CheckCircle, Loader2, ChevronRight, AlertCircle } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { assignSubtaskToUser } from '@/services/assignmentService';
 import { getProblemInstance, updateCollaboratorSubtaskAssignments } from '@/services/problemService';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
 interface SubtaskAssignmentPanelProps {
   subtasks: any[];
@@ -40,11 +40,13 @@ const SubtaskAssignmentPanel: React.FC<SubtaskAssignmentPanelProps> = ({
   const [instanceId, setInstanceId] = useState<string | null>(null);
   const [problemNum, setProblemNum] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchProblemInstance = async () => {
       try {
         setIsLoading(true);
+        setErrorMessage(null);
         const urlParts = window.location.pathname.split('/');
         const problemNum = urlParts[urlParts.length - 1];
         const userId = localStorage.getItem('userId');
@@ -80,6 +82,7 @@ const SubtaskAssignmentPanel: React.FC<SubtaskAssignmentPanelProps> = ({
         setCollaborators(allCollaborators);
       } catch (error) {
         console.error('Error fetching problem instance:', error);
+        setErrorMessage('Failed to load collaborators. Please try refreshing the page.');
         toast({
           title: "Error",
           description: "Failed to load collaborators. Please try again.",
@@ -148,6 +151,7 @@ const SubtaskAssignmentPanel: React.FC<SubtaskAssignmentPanelProps> = ({
     }
     
     setIsSending(true);
+    setErrorMessage(null);
     
     try {
       if (!instanceId || !problemNum || !userId) {
@@ -156,13 +160,6 @@ const SubtaskAssignmentPanel: React.FC<SubtaskAssignmentPanelProps> = ({
 
       console.log('Submitting assignments:', assignments);
       console.log('For instance ID:', instanceId);
-
-      // Get fresh instance data before updating to ensure we have the latest state
-      const currentInstance = await getProblemInstance(problemNum, userId);
-      
-      if (!currentInstance || !currentInstance._id) {
-        throw new Error('Failed to retrieve current problem instance before updating');
-      }
       
       await updateCollaboratorSubtaskAssignments(instanceId, assignments);
       
@@ -178,9 +175,12 @@ const SubtaskAssignmentPanel: React.FC<SubtaskAssignmentPanelProps> = ({
       }, 1000);
     } catch (error) {
       console.error('Error completing assignments:', error);
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error occurred';
+      setErrorMessage(`Failed to update assignments: ${errorMsg}. Please try again.`);
+      
       toast({
         title: "Error",
-        description: `There was an error completing the assignments: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        description: `There was an error completing the assignments. Please try again.`,
         variant: "destructive"
       });
     } finally {
@@ -198,6 +198,14 @@ const SubtaskAssignmentPanel: React.FC<SubtaskAssignmentPanelProps> = ({
       </CardHeader>
       
       <CardContent className="space-y-6">
+        {errorMessage && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Error</AlertTitle>
+            <AlertDescription>{errorMessage}</AlertDescription>
+          </Alert>
+        )}
+        
         {isComplete ? (
           <div className="p-8 text-center space-y-4">
             <CheckCircle className="h-16 w-16 text-green-500 mx-auto" />
