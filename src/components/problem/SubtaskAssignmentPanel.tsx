@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { ChevronLeft, UserPlus, Mail, Send, CheckCircle, Loader2, ChevronRight } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { assignSubtaskToUser } from '@/services/assignmentService';
-import { getProblemInstance } from '@/services/problemService';
+import { getProblemInstance, updateCollaboratorSubtaskAssignments } from '@/services/problemService';
 
 interface SubtaskAssignmentPanelProps {
   subtasks: any[];
@@ -55,7 +55,6 @@ const SubtaskAssignmentPanel: React.FC<SubtaskAssignmentPanelProps> = ({
           throw new Error('Problem instance not found');
         }
 
-        // Add owner as a collaborator
         const allCollaborators: Collaborator[] = [{
           userId: instance.owner.userId,
           username: instance.owner.username,
@@ -63,7 +62,6 @@ const SubtaskAssignmentPanel: React.FC<SubtaskAssignmentPanelProps> = ({
           status: 'active'
         }];
 
-        // Add other collaborators if they exist
         if (instance.collaborators && instance.collaborators.length > 0) {
           allCollaborators.push(...instance.collaborators);
         }
@@ -91,18 +89,15 @@ const SubtaskAssignmentPanel: React.FC<SubtaskAssignmentPanelProps> = ({
     }));
     
     try {
-      // Find the assigned user's info
       const assignedUser = collaborators.find(user => user.userId === userId);
       
       if (!assignedUser) {
         throw new Error('User not found');
       }
       
-      // Store the subtask assignment in localStorage
       const subtaskAssignmentsStr = localStorage.getItem('subtaskAssignments');
       let subtaskAssignments = subtaskAssignmentsStr ? JSON.parse(subtaskAssignmentsStr) : {};
       
-      // Add the assignment with complete user details
       subtaskAssignments[subtaskId] = {
         userId: assignedUser.userId,
         userName: assignedUser.username,
@@ -111,10 +106,8 @@ const SubtaskAssignmentPanel: React.FC<SubtaskAssignmentPanelProps> = ({
         status: assignedUser.status
       };
       
-      // Save back to localStorage
       localStorage.setItem('subtaskAssignments', JSON.stringify(subtaskAssignments));
       
-      // Call the assignment service to send notification
       await assignSubtaskToUser(subtaskId, userId);
       
       toast({
@@ -146,7 +139,6 @@ const SubtaskAssignmentPanel: React.FC<SubtaskAssignmentPanelProps> = ({
     setIsSending(true);
     
     try {
-      // Get the current problem instance ID
       const urlParts = window.location.pathname.split('/');
       const problemNum = urlParts[urlParts.length - 1];
       const userId = localStorage.getItem('userId');
@@ -161,7 +153,6 @@ const SubtaskAssignmentPanel: React.FC<SubtaskAssignmentPanelProps> = ({
         throw new Error('Problem instance not found');
       }
 
-      // Update the collaborator assignments
       await updateCollaboratorSubtaskAssignments(instance._id, assignments);
       
       setIsComplete(true);
@@ -171,7 +162,6 @@ const SubtaskAssignmentPanel: React.FC<SubtaskAssignmentPanelProps> = ({
         description: "All subtasks have been assigned successfully.",
       });
       
-      // Wait a moment before completing
       setTimeout(() => {
         onComplete();
       }, 1000);
