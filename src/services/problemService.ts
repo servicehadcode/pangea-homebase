@@ -226,6 +226,41 @@ export const addCollaborator = async (instanceId: string, collaborator: Collabor
   }
 };
 
+export const updateProblemInstanceCollaboration = async (
+  instanceId: string, 
+  collaborationMode: 'solo' | 'pair'
+): Promise<{message: string}> => {
+  try {
+    const url = `http://localhost:5000/api/problem-instances/${instanceId}`;
+    console.log(`Updating problem instance ${instanceId} collaboration mode:`, collaborationMode);
+
+    const updateData = {
+      collaborationMode,
+      lastUpdatedAt: new Date().toISOString()
+    };
+
+    const response = await fetch(url, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(updateData)
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || `Failed to update collaboration mode. Status: ${response.status}`);
+    }
+
+    const result = await response.json();
+    console.log('Collaboration mode updated:', result);
+    return result;
+  } catch (error) {
+    console.error('Error updating collaboration mode:', error);
+    throw error;
+  }
+};
+
 export interface Collaborator {
   userId: string;
   username: string;

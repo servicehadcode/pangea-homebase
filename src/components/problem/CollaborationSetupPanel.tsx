@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -19,7 +18,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { sendCollaborationInvite } from '@/services/collaborationService';
-import { createProblemInstance, addCollaborator, getProblemInstance, ProblemInstance } from '@/services/problemService';
+import { createProblemInstance, addCollaborator, getProblemInstance, updateProblemInstanceCollaboration, ProblemInstance } from '@/services/problemService';
 import { v4 as uuidv4 } from 'uuid';
 
 interface CollaborationSetupPanelProps {
@@ -42,17 +41,14 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
   const [isLoadingInstance, setIsLoadingInstance] = useState(true);
   const [existingInstance, setExistingInstance] = useState<ProblemInstance | null>(null);
   const [userId, setUserId] = useState(localStorage.getItem('userId') || '');
-  
-  // Function to get the correct problem number
+
   const getProblemNumber = () => {
     if (!problem) return null;
     
-    // Use the problem_num field directly if it exists
     if (problem.problem_num) {
       return String(problem.problem_num);
     }
     
-    // Fallback to id if problem_num doesn't exist
     return problem.id ? String(problem.id) : null;
   };
 
@@ -67,15 +63,12 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
           return;
         }
         
-        // Check if we have a userId stored, if not generate one
         let currentUserId = localStorage.getItem('userId');
         if (!currentUserId) {
           currentUserId = uuidv4();
           localStorage.setItem('userId', currentUserId);
           setUserId(currentUserId);
         }
-        
-        console.log("Checking for existing instance with problem number:", problemNum, "and user ID:", currentUserId);
         
         try {
           const instance = await getProblemInstance(problemNum, currentUserId);
@@ -84,6 +77,7 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
             console.log("Found existing instance:", instance);
             setExistingInstance(instance);
             setInstanceId(instance._id);
+            localStorage.setItem(`problemInstance_${problemNum}`, instance._id);
             setMode(instance.collaborationMode || 'solo');
             setIsNameSaved(true);
             setOwnerName(instance.owner.username);
@@ -105,7 +99,6 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
             setExistingInstance(null);
             setInstanceId(null);
             setIsNameSaved(false);
-            // For new problems, ensure the name field is editable
             setOwnerName(localStorage.getItem('username') || '');
           }
         } catch (error: any) {
@@ -202,47 +195,48 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
       if (!problemNum) {
         throw new Error('Problem number is missing or invalid');
       }
-      
-      console.log("Creating/updating problem instance with problem number:", problemNum);
-      
-      // Ensure we have a userId
-      let currentUserId = userId;
-      if (!currentUserId) {
-        currentUserId = uuidv4();
-        localStorage.setItem('userId', currentUserId);
-        setUserId(currentUserId);
-      }
 
-      const instanceData: ProblemInstance = {
-        problemNum,
-        owner: {
-          userId: currentUserId,
-          username: ownerName,
-          email: "john@example.com" // Static placeholder email as requested
-        },
-        collaborationMode: mode,
-        status: existingInstance?.status || 'in-progress'
-      };
-      
       if (existingInstance && instanceId) {
-        // We're just updating the UI state without making an API call
-        console.log("Updating existing instance (UI only):", instanceId);
+        console.log("Updating existing instance:", instanceId);
         
-        // Update local state to reflect the new collaboration mode
-        setMode(instanceData.collaborationMode);
+        const response = await updateProblemInstanceCollaboration(instanceId, mode);
         
-        toast({
-          title: "Settings Updated",
-          description: "Your collaboration settings have been updated successfully.",
-        });
+        if (response) {
+          toast({
+            title: "Settings Updated",
+            description: "Your collaboration settings have been updated successfully.",
+          });
+          
+          setMode(mode);
+          setShowCollaboratorSection(mode === 'pair');
+        }
       } else {
-        // Create new instance
+        let currentUserId = userId;
+        if (!currentUserId) {
+          currentUserId = uuidv4();
+          localStorage.setItem('userId', currentUserId);
+          setUserId(currentUserId);
+        }
+
+        const instanceData: ProblemInstance = {
+          problemNum,
+          owner: {
+            userId: currentUserId,
+            username: ownerName,
+            email: "john@example.com"
+          },
+          collaborationMode: mode,
+          status: 'in-progress'
+        };
+        
         console.log("Creating new problem instance:", instanceData);
         
         const response = await createProblemInstance(instanceData);
         
         if ('instanceId' in response) {
-          setInstanceId(response.instanceId);
+          const newInstanceId = response.instanceId;
+          setInstanceId(newInstanceId);
+          localStorage.setItem(`problemInstance_${problemNum}`, newInstanceId);
           console.log("Created new instance:", response);
           
           toast({
