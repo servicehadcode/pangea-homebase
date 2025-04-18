@@ -146,8 +146,23 @@ const SubtaskAssignmentPanel: React.FC<SubtaskAssignmentPanelProps> = ({
     setIsSending(true);
     
     try {
-      // Simulate backend process
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Get the current problem instance ID
+      const urlParts = window.location.pathname.split('/');
+      const problemNum = urlParts[urlParts.length - 1];
+      const userId = localStorage.getItem('userId');
+
+      if (!problemNum || !userId) {
+        throw new Error('Missing problem number or user ID');
+      }
+
+      const instance = await getProblemInstance(problemNum, userId);
+      
+      if (!instance || !instance._id) {
+        throw new Error('Problem instance not found');
+      }
+
+      // Update the collaborator assignments
+      await updateCollaboratorSubtaskAssignments(instance._id, assignments);
       
       setIsComplete(true);
       
@@ -161,6 +176,7 @@ const SubtaskAssignmentPanel: React.FC<SubtaskAssignmentPanelProps> = ({
         onComplete();
       }, 1000);
     } catch (error) {
+      console.error('Error completing assignments:', error);
       toast({
         title: "Error",
         description: "There was an error completing the assignments. Please try again.",

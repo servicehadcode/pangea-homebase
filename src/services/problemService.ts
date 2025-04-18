@@ -297,6 +297,58 @@ export const updateProblemInstanceCollaborator = async (
   }
 };
 
+export const updateCollaboratorSubtaskAssignments = async (
+  instanceId: string,
+  assignments: Record<string, string>
+): Promise<{message: string}> => {
+  try {
+    const instance = await getProblemInstance(instanceId, 'user123'); // Get current instance
+    
+    if (!instance || !instance.collaborators) {
+      throw new Error('Problem instance or collaborators not found');
+    }
+    
+    // Transform assignments to include subtask step numbers
+    const updatedCollaborators = instance.collaborators.map(collaborator => {
+      // Find all subtasks assigned to this collaborator
+      const assignedSubtasks = Object.entries(assignments)
+        .filter(([_, userId]) => userId === collaborator.userId)
+        .map(([subtaskId]) => parseInt(subtaskId, 10));
+      
+      return {
+        ...collaborator,
+        subtaskSteps: assignedSubtasks
+      };
+    });
+
+    const url = `http://localhost:5000/api/problem-instances/${instanceId}`;
+    console.log('Updating collaborator subtask assignments:', { collaborators: updatedCollaborators });
+
+    const response = await fetch(url, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        collaborators: updatedCollaborators,
+        lastUpdatedAt: new Date().toISOString()
+      })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || `Failed to update subtask assignments. Status: ${response.status}`);
+    }
+
+    const result = await response.json();
+    console.log('Subtask assignments updated:', result);
+    return result;
+  } catch (error) {
+    console.error('Error updating subtask assignments:', error);
+    throw error;
+  }
+};
+
 export interface Collaborator {
   userId: string;
   username: string;
