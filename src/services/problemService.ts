@@ -1,3 +1,4 @@
+
 export interface Problem {
   problem_num: string;
   title: string;
@@ -298,54 +299,81 @@ export const updateCollaboratorSubtaskAssignments = async (
   assignments: Record<string, string>
 ): Promise<{message: string}> => {
   try {
+    console.log(`Updating subtask assignments for instance ${instanceId}:`, assignments);
+    
     // First get the current instance to access existing collaborators
     const url = `http://localhost:5000/api/problem-instances/${instanceId}`;
     const getResponse = await fetch(url);
     
     if (!getResponse.ok) {
-      throw new Error('Failed to fetch current problem instance');
+      const errorText = await getResponse.text();
+      console.error('Failed to fetch current problem instance:', errorText);
+      throw new Error(`Failed to fetch current problem instance. Status: ${getResponse.status}`);
     }
     
     const currentInstance = await getResponse.json();
-    if (!currentInstance.collaborators) {
-      throw new Error('No collaborators found in problem instance');
+    console.log('Current instance data:', currentInstance);
+    
+    if (!currentInstance) {
+      throw new Error('Problem instance not found');
     }
-
-    // Update collaborators array with subtask assignments
-    const updatedCollaborators = currentInstance.collaborators.map(collaborator => {
-      // Find assigned subtask for this collaborator
-      const assignedSubtaskEntry = Object.entries(assignments).find(
-        ([_, userId]) => userId === collaborator.userId
-      );
-      
-      if (assignedSubtaskEntry) {
-        // Use the subtask ID (which is the step number) as the subtask assignment
+    
+    // Create a map of subtaskId to numeric step value
+    const subtaskStepMap: Record<string, number> = {};
+    for (const [subtaskId, userId] of Object.entries(assignments)) {
+      // Try to parse the subtask ID to get the step number
+      try {
+        // The subtask ID could be in various formats, try to extract a numeric value
+        const stepNumber = parseInt(subtaskId, 10);
+        if (!isNaN(stepNumber)) {
+          subtaskStepMap[userId] = stepNumber;
+        }
+      } catch (error) {
+        console.warn(`Could not parse step number from subtask ID: ${subtaskId}`);
+      }
+    }
+    
+    console.log('Subtask step map:', subtaskStepMap);
+    
+    // Start with an empty collaborators array if none exists
+    const updatedCollaborators = currentInstance.collaborators || [];
+    
+    // Update existing collaborators with subtask assignments
+    const updatedCollaboratorsList = updatedCollaborators.map(collaborator => {
+      const subtaskStep = subtaskStepMap[collaborator.userId];
+      if (subtaskStep !== undefined) {
         return {
           ...collaborator,
-          subtask: parseInt(assignedSubtaskEntry[0], 10)
+          subtask: subtaskStep
         };
       }
       return collaborator;
     });
-
-    // Also need to handle owner if they have assignments
-    if (currentInstance.owner) {
-      const ownerAssignment = Object.entries(assignments).find(
-        ([_, userId]) => userId === currentInstance.owner.userId
+    
+    // Check if owner has an assignment
+    if (currentInstance.owner && subtaskStepMap[currentInstance.owner.userId] !== undefined) {
+      // Find if owner is already in the collaborators list
+      const ownerIndex = updatedCollaboratorsList.findIndex(
+        collab => collab.userId === currentInstance.owner.userId
       );
       
-      if (ownerAssignment) {
-        const ownerCollaborator = {
-          ...currentInstance.owner,
-          subtask: parseInt(ownerAssignment[0], 10),
-          status: 'active'
-        };
-        updatedCollaborators.push(ownerCollaborator);
+      if (ownerIndex >= 0) {
+        // Update existing entry
+        updatedCollaboratorsList[ownerIndex].subtask = subtaskStepMap[currentInstance.owner.userId];
+      } else {
+        // Add owner to collaborators list with subtask
+        updatedCollaboratorsList.push({
+          userId: currentInstance.owner.userId,
+          username: currentInstance.owner.username,
+          email: currentInstance.owner.email,
+          status: 'active',
+          subtask: subtaskStepMap[currentInstance.owner.userId]
+        });
       }
     }
-
-    console.log('Updating collaborators with subtasks:', updatedCollaborators);
-
+    
+    console.log('Updated collaborators list:', updatedCollaboratorsList);
+    
     // Send PATCH request with updated collaborators
     const response = await fetch(url, {
       method: 'PATCH',
@@ -353,18 +381,21 @@ export const updateCollaboratorSubtaskAssignments = async (
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        collaborators: updatedCollaborators,
+        collaborators: updatedCollaboratorsList,
         lastUpdatedAt: new Date().toISOString()
       })
     });
-
+    
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || `Failed to update collaborator subtasks. Status: ${response.status}`);
+      const errorData = await response.json().catch(() => null) || await response.text();
+      console.error('Error response from server:', errorData);
+      throw new Error(typeof errorData === 'object' && errorData.error 
+        ? errorData.error 
+        : `Failed to update collaborator subtasks. Status: ${response.status}`);
     }
-
+    
     const result = await response.json();
-    console.log('Subtask assignments updated:', result);
+    console.log('Subtask assignments updated successfully:', result);
     return result;
   } catch (error) {
     console.error('Error updating subtask assignments:', error);

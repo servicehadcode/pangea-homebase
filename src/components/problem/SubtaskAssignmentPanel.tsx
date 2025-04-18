@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -37,6 +38,8 @@ const SubtaskAssignmentPanel: React.FC<SubtaskAssignmentPanelProps> = ({
   const [isComplete, setIsComplete] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [instanceId, setInstanceId] = useState<string | null>(null);
+  const [problemNum, setProblemNum] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchProblemInstance = async () => {
@@ -49,6 +52,9 @@ const SubtaskAssignmentPanel: React.FC<SubtaskAssignmentPanelProps> = ({
         if (!problemNum || !userId) {
           throw new Error('Missing problem number or user ID');
         }
+
+        setProblemNum(problemNum);
+        setUserId(userId);
 
         const instance = await getProblemInstance(problemNum, userId);
         
@@ -144,13 +150,20 @@ const SubtaskAssignmentPanel: React.FC<SubtaskAssignmentPanelProps> = ({
     setIsSending(true);
     
     try {
-      if (!instanceId) {
-        throw new Error('Problem instance ID not found');
+      if (!instanceId || !problemNum || !userId) {
+        throw new Error('Missing required data (instance ID, problem number, or user ID)');
       }
 
       console.log('Submitting assignments:', assignments);
       console.log('For instance ID:', instanceId);
 
+      // Get fresh instance data before updating to ensure we have the latest state
+      const currentInstance = await getProblemInstance(problemNum, userId);
+      
+      if (!currentInstance || !currentInstance._id) {
+        throw new Error('Failed to retrieve current problem instance before updating');
+      }
+      
       await updateCollaboratorSubtaskAssignments(instanceId, assignments);
       
       setIsComplete(true);
