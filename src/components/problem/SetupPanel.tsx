@@ -11,9 +11,11 @@ import {
   CheckCircle,
   ExternalLink,
   Download,
-  HelpCircle
+  HelpCircle,
+  AlertTriangle
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface SetupPanelProps {
   problem: any;
@@ -24,6 +26,7 @@ const SetupPanel: React.FC<SetupPanelProps> = ({ problem, onComplete }) => {
   const { toast } = useToast();
   const [setupCompleted, setSetupCompleted] = useState(problem.setup?.isCompleted || false);
   const [completedSteps, setCompletedSteps] = useState<{[key: number]: boolean}>({});
+  const [showGitWarning, setShowGitWarning] = useState(false);
   
   // Use preparation steps from the problem data, or fallback to default steps
   const preparationSteps = problem.preparationSteps || [
@@ -49,6 +52,11 @@ const SetupPanel: React.FC<SetupPanelProps> = ({ problem, onComplete }) => {
       ...completedSteps,
       [index]: !completedSteps[index]
     });
+    
+    // If this is the clone repository step, show git warning
+    if (preparationSteps[index]?.toLowerCase().includes('clone') && !completedSteps[index]) {
+      setShowGitWarning(true);
+    }
   };
   
   const handleCompleteSetup = () => {
@@ -196,6 +204,16 @@ const SetupPanel: React.FC<SetupPanelProps> = ({ problem, onComplete }) => {
                   </DialogContent>
                 </Dialog>
               </div>
+
+              {showGitWarning && (
+                <Alert variant="warning" className="mt-4 bg-amber-50 border-amber-200">
+                  <AlertTriangle className="h-4 w-4 text-amber-600" />
+                  <AlertDescription className="text-amber-700">
+                    You might encounter a 400 error during the automatic Git setup later in the process.
+                    If this happens, set up your branch manually using the Git commands provided in the Git Help dialog.
+                  </AlertDescription>
+                </Alert>
+              )}
             </div>
             
             {/* Setup Steps */}

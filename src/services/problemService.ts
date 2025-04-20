@@ -47,6 +47,14 @@ export interface ProblemInstanceOwner {
   gitUsername?: string; // Add gitUsername as an optional property
 }
 
+export interface Collaborator {
+  userId: string;
+  username: string;
+  email: string;
+  status?: string;
+  subtask?: number;
+}
+
 export interface ProblemInstance {
   problemNum: string;
   owner: ProblemInstanceOwner;
@@ -431,10 +439,27 @@ export const setupGitBranch = async (request: BranchSetupRequest): Promise<Branc
     console.log('Setting up git branch with payload:', JSON.stringify(request, null, 2));
 
     // Validate the request payload before sending
-    if (!request.repoUrl || !request.username || !request.branchOff || !request.branchTo) {
-      console.error('Invalid request payload - missing required fields:', request);
-      throw new Error('Missing required fields in git branch setup request');
+    if (!request.repoUrl) {
+      console.error('Invalid request payload - missing repoUrl:', request);
+      throw new Error('Repository URL is required for git branch setup');
     }
+    
+    if (!request.username) {
+      console.error('Invalid request payload - missing username:', request);
+      throw new Error('GitHub username is required for git branch setup');
+    }
+    
+    if (!request.branchOff) {
+      console.error('Invalid request payload - missing branchOff:', request);
+      throw new Error('Base branch name is required for git branch setup');
+    }
+    
+    if (!request.branchTo) {
+      console.error('Invalid request payload - missing branchTo:', request);
+      throw new Error('Target branch name is required for git branch setup');
+    }
+
+    console.log('Git branch request validation passed, sending request to API');
 
     const response = await fetch(url, {
       method: 'POST',
@@ -445,6 +470,7 @@ export const setupGitBranch = async (request: BranchSetupRequest): Promise<Branc
     });
 
     console.log('Git branch setup response status:', response.status);
+    console.log('Git branch setup response headers:', Object.fromEntries([...response.headers.entries()]));
     
     // Always get the full response text first
     const responseText = await response.text();
@@ -463,8 +489,9 @@ export const setupGitBranch = async (request: BranchSetupRequest): Promise<Branc
     }
 
     if (!response.ok) {
-      console.error('Git branch setup error - Status:', response.status, 'Response:', responseData);
-      throw new Error(responseData.message || `Failed to setup git branch. Status: ${response.status}`);
+      const errorMessage = responseData.message || `Failed to setup git branch. Status: ${response.status}`;
+      console.error('Git branch setup error -', errorMessage);
+      throw new Error(errorMessage);
     }
 
     console.log('Git branch setup successful, result:', responseData);
