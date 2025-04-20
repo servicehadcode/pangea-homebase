@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,11 +11,9 @@ import {
   CheckCircle,
   ExternalLink,
   Download,
-  HelpCircle,
-  AlertTriangle
+  HelpCircle
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface SetupPanelProps {
   problem: any;
@@ -25,8 +24,8 @@ const SetupPanel: React.FC<SetupPanelProps> = ({ problem, onComplete }) => {
   const { toast } = useToast();
   const [setupCompleted, setSetupCompleted] = useState(problem.setup?.isCompleted || false);
   const [completedSteps, setCompletedSteps] = useState<{[key: number]: boolean}>({});
-  const [showGitWarning, setShowGitWarning] = useState(false);
   
+  // Use preparation steps from the problem data, or fallback to default steps
   const preparationSteps = problem.preparationSteps || [
     "Install required development tools",
     "Clone the repository",
@@ -34,6 +33,7 @@ const SetupPanel: React.FC<SetupPanelProps> = ({ problem, onComplete }) => {
     "Configure the environment"
   ];
   
+  // Get git repository URL from problem metadata or use default
   const repoUrl = problem.metadata?.gitRepo || "https://github.com/example/repo";
   
   const handleCopyCommand = () => {
@@ -49,10 +49,6 @@ const SetupPanel: React.FC<SetupPanelProps> = ({ problem, onComplete }) => {
       ...completedSteps,
       [index]: !completedSteps[index]
     });
-    
-    if (preparationSteps[index]?.toLowerCase().includes('clone') && !completedSteps[index]) {
-      setShowGitWarning(true);
-    }
   };
   
   const handleCompleteSetup = () => {
@@ -93,6 +89,7 @@ const SetupPanel: React.FC<SetupPanelProps> = ({ problem, onComplete }) => {
           </div>
         ) : (
           <>
+            {/* Repository Section */}
             <div className="space-y-3">
               <h3 className="text-lg font-medium">Repository</h3>
               <div className="flex gap-2 mt-2">
@@ -199,18 +196,9 @@ const SetupPanel: React.FC<SetupPanelProps> = ({ problem, onComplete }) => {
                   </DialogContent>
                 </Dialog>
               </div>
-
-              {showGitWarning && (
-                <Alert variant="default" className="mt-4 bg-amber-50 border-amber-200">
-                  <AlertTriangle className="h-4 w-4 text-amber-600" />
-                  <AlertDescription className="text-amber-700">
-                    You might encounter a 400 error during the automatic Git setup later in the process.
-                    If this happens, set up your branch manually using the Git commands provided in the Git Help dialog.
-                  </AlertDescription>
-                </Alert>
-              )}
             </div>
             
+            {/* Setup Steps */}
             <div className="space-y-3">
               <h3 className="text-lg font-medium">Setup Steps</h3>
               
@@ -247,6 +235,7 @@ const SetupPanel: React.FC<SetupPanelProps> = ({ problem, onComplete }) => {
               </div>
             </div>
             
+            {/* Complete Setup Button */}
             <div className="pt-4">
               <Button 
                 onClick={handleCompleteSetup} 

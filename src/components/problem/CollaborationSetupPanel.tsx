@@ -15,8 +15,6 @@ import {
   Loader2,
   MailCheck,
   Save,
-  AlertTriangle,
-  GitBranch
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { sendCollaborationInvite } from '@/services/collaborationService';
@@ -46,8 +44,6 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
   const [existingInstance, setExistingInstance] = useState<ProblemInstance | null>(null);
   const [userId, setUserId] = useState(localStorage.getItem('userId') || '');
   const [isSettingUpGit, setIsSettingUpGit] = useState(false);
-  const [gitSetupSkipped, setGitSetupSkipped] = useState(false);
-  const [gitSetupError, setGitSetupError] = useState<string | null>(null);
 
   const getProblemNumber = () => {
     if (!problem) return null;
@@ -287,17 +283,16 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
     }
   };
 
-  const skipGitSetup = () => {
-    setGitSetupSkipped(true);
-    setIsSettingUpGit(false);
-    toast({
-      title: "Git Setup Skipped",
-      description: "You can set up the Git branch manually later.",
-    });
-    onComplete(mode);
-  };
-
   const handleContinue = async () => {
+    if (mode === 'pair' && invitedEmails.length === 0) {
+      toast({
+        title: "No Collaborators",
+        description: "Please invite at least one collaborator or switch to solo mode.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!isNameSaved) {
       toast({
         title: "Name Not Saved",
@@ -307,20 +302,22 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
       return;
     }
 
-    if (mode === 'pair' && showCollaboratorSection && invitedEmails.length === 0) {
-      toast({
-        title: "No Collaborators",
-        description: "Please invite at least one collaborator or switch to solo mode.",
-        variant: "destructive",
-      });
-      return;
-    }
-
     try {
       setIsSettingUpGit(true);
-      setGitSetupError(null);
 
-      // Validate we have required data
+      const problemNum = getProblemNumber();
+      const problemDetails = await getProblemById(problemNum || '');
+      console.log('Problem details for git setup:', problemDetails);
+      
+      const repoUrl = problemDetails.metadata?.gitRepo;
+      console.log('Repository URL from problem metadata:', repoUrl);
+
+      if (!repoUrl) {
+        console.log('No repository URL found, continuing without git setup');
+        onComplete(mode);
+        return;
+      }
+
       if (!gitUsername) {
         toast({
           title: "GitHub Username Required",
@@ -330,47 +327,40 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
         return;
       }
 
-      // Check if we have the repository URL from problem metadata
-      if (!problem.metadata?.gitRepo) {
-        console.log('No repository URL found in problem metadata, continuing without git setup');
-        onComplete(mode);
-        return;
-      }
-
-      // Prepare the branch names
-      const baseBranch = 'main';
-      const targetBranch = `${gitUsername}-${baseBranch}`;
-
+      console.log('Setting up git branch with repo:', repoUrl, 'and username:', gitUsername);
+      
       const branchSetupRequest = {
-        repoUrl: problem.metadata.gitRepo,
+        repoUrl,
         username: gitUsername,
-        branchOff: baseBranch,
-        branchTo: targetBranch
+        branchOff: 'main',
+        branchTo: `${gitUsername}-main`
       };
 
-      console.log('Sending git branch setup request:', branchSetupRequest);
-      
+      console.log('Sending branch setup request:', branchSetupRequest);
       const result = await setupGitBranch(branchSetupRequest);
       
       console.log('Git setup completed successfully:', result);
       
+      let toastDescription = result.message;
+      if (result.gitCommands && result.gitCommands.length > 0) {
+        toastDescription += ` Use: ${result.gitCommands[0]}`;
+        console.log('Git commands for user:', result.gitCommands);
+      }
+      
       toast({
         title: "Git Setup Success",
-        description: result.gitCommands ? 
-          `Branch created successfully. Use: ${result.gitCommands[0]}` : 
-          "Branch setup completed",
+        description: toastDescription,
       });
-      
+
       onComplete(mode);
     } catch (error: any) {
-      console.error('Git setup error:', error);
-      setGitSetupError(error.message || "An unexpected error occurred");
-      
+      console.error('Error setting up git branch:', error);
       toast({
         title: "Git Setup Failed",
-        description: error.message || "Failed to setup git branch. You can continue by setting up Git manually.",
+        description: error.message || "Failed to setup git branch. Please try again.",
         variant: "destructive",
       });
+      onComplete(mode);
     } finally {
       setIsSettingUpGit(false);
     }
@@ -440,9 +430,6 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
             placeholder="Enter your GitHub username"
             disabled={isCreatingInstance}
           />
-          <p className="text-xs text-muted-foreground">
-            This username must match your GitHub account for Git branch creation to work correctly.
-          </p>
         </div>
 
         <RadioGroup 
@@ -557,33 +544,6 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
             </div>
           </>
         )}
-
-        {isNameSaved && !gitSetupSkipped && (
-          <Alert variant="default" className="mt-4 bg-amber-50 border-amber-200">
-            <AlertTriangle className="h-4 w-4 text-amber-600" />
-            <AlertDescription className="text-amber-700">
-              <div className="font-medium mb-1">
-                About Git Setup
-              </div>
-              <p className="mb-2">
-                When you continue, we'll try to set up a Git branch for you. If this fails, you can set up the branch manually.
-              </p>
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {gitSetupError && (
-          <Alert variant="destructive" className="mt-4">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Git Setup Failed</AlertTitle>
-            <AlertDescription>
-              <p className="mb-2">Error: {gitSetupError}</p>
-              <p>
-                You can continue without Git setup and create a branch manually later, or try again.
-              </p>
-            </AlertDescription>
-          </Alert>
-        )}
       </CardContent>
       <CardFooter className="flex justify-between pt-6">
         <Button 
@@ -595,37 +555,20 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
           Back
         </Button>
         
-        <div className="flex gap-2">
-          {gitSetupError && (
-            <Button 
-              onClick={skipGitSetup}
-              variant="outline"
-              disabled={isSettingUpGit}
-            >
-              Continue Without Git
-            </Button>
+        <Button 
+          onClick={handleContinue}
+          className="pangea-button-primary"
+          disabled={!isNameSaved || (mode === 'pair' && showCollaboratorSection && invitedEmails.length === 0) || isSettingUpGit}
+        >
+          {isSettingUpGit ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              Setting up Git...
+            </>
+          ) : (
+            'Continue to Subtasks'
           )}
-          
-          <Button 
-            onClick={handleContinue}
-            className={gitSetupError ? "bg-secondary hover:bg-secondary/90" : "pangea-button-primary"}
-            disabled={!isNameSaved || (mode === 'pair' && showCollaboratorSection && invitedEmails.length === 0) || isSettingUpGit}
-          >
-            {isSettingUpGit ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                Setting up Git...
-              </>
-            ) : gitSetupError ? (
-              <>
-                <GitBranch className="h-4 w-4 mr-2" />
-                Try Git Setup Again
-              </>
-            ) : (
-              'Continue to Subtasks'
-            )}
-          </Button>
-        </div>
+        </Button>
       </CardFooter>
     </Card>
   );
