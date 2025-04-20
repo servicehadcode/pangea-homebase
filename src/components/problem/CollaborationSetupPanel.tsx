@@ -34,6 +34,7 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
   const [isInviting, setIsInviting] = useState(false);
   const [invitedEmails, setInvitedEmails] = useState<string[]>([]);
   const [ownerName, setOwnerName] = useState(localStorage.getItem('username') || '');
+  const [gitUsername, setGitUsername] = useState('');
   const [isNameSaved, setIsNameSaved] = useState(false);
   const [instanceId, setInstanceId] = useState<string | null>(null);
   const [isCreatingInstance, setIsCreatingInstance] = useState(false);
@@ -81,6 +82,7 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
             setMode(instance.collaborationMode || 'solo');
             setIsNameSaved(true);
             setOwnerName(instance.owner.username);
+            setGitUsername(instance.owner.gitUsername || '');
             
             if (instance.collaborationMode === 'pair') {
               setShowCollaboratorSection(true);
@@ -100,6 +102,7 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
             setInstanceId(null);
             setIsNameSaved(false);
             setOwnerName(localStorage.getItem('username') || '');
+            setGitUsername('');
           }
         } catch (error: any) {
           console.log("Error or no instance found:", error);
@@ -184,6 +187,15 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
       return;
     }
     
+    if (!gitUsername.trim()) {
+      toast({
+        title: "Invalid GitHub Username",
+        description: "Please enter a valid GitHub username.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setIsCreatingInstance(true);
 
     try {
@@ -199,7 +211,7 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
       if (existingInstance && instanceId) {
         console.log("Updating existing instance:", instanceId);
         
-        const response = await updateProblemInstanceCollaboration(instanceId, mode);
+        const response = await updateProblemInstanceCollaboration(instanceId, mode, gitUsername);
         
         if (response) {
           toast({
@@ -226,7 +238,8 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
             email: "john@example.com"
           },
           collaborationMode: mode,
-          status: 'in-progress'
+          status: 'in-progress',
+          gitUsername: gitUsername
         };
         
         console.log("Creating new problem instance:", instanceData);
@@ -343,6 +356,16 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
             placeholder="Enter your name"
             disabled={isCreatingInstance || existingInstance !== null}
             className={existingInstance ? "bg-gray-100" : ""}
+          />
+        </div>
+
+        <div className="space-y-3">
+          <Label>Your GitHub Username</Label>
+          <Input 
+            value={gitUsername}
+            onChange={(e) => setGitUsername(e.target.value)}
+            placeholder="Enter your GitHub username"
+            disabled={isCreatingInstance}
           />
         </div>
 

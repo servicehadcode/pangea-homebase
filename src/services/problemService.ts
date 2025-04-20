@@ -47,7 +47,7 @@ export interface ProblemInstanceOwner {
 }
 
 export interface ProblemInstance {
-  problemNum: string;  // Explicitly define as string
+  problemNum: string;
   owner: ProblemInstanceOwner;
   collaborationMode: 'solo' | 'pair';
   status?: string;
@@ -56,6 +56,7 @@ export interface ProblemInstance {
   completedAt?: string | null;
   _id?: string;
   collaborators?: any[];
+  gitUsername?: string;
 }
 
 export const getAllProblems = async (category?: string): Promise<Problem[]> => {
@@ -143,7 +144,8 @@ export const createProblemInstance = async (problemInstance: ProblemInstance): P
     
     const instanceData = {
       ...problemInstance,
-      problemNum: String(problemInstance.problemNum)
+      problemNum: String(problemInstance.problemNum),
+      gitUsername: problemInstance.gitUsername
     };
 
     const url = 'http://localhost:5000/api/problem-instances';
@@ -228,7 +230,8 @@ export const addCollaborator = async (instanceId: string, collaborator: Collabor
 
 export const updateProblemInstanceCollaboration = async (
   instanceId: string, 
-  collaborationMode: 'solo' | 'pair'
+  collaborationMode: 'solo' | 'pair',
+  gitUsername?: string
 ): Promise<{message: string}> => {
   try {
     const url = `http://localhost:5000/api/problem-instances/${instanceId}`;
@@ -236,6 +239,7 @@ export const updateProblemInstanceCollaboration = async (
 
     const updateData = {
       collaborationMode,
+      gitUsername,
       lastUpdatedAt: new Date().toISOString()
     };
 
