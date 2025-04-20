@@ -428,7 +428,7 @@ interface BranchSetupRequest {
 
 export const setupGitBranch = async (request: BranchSetupRequest): Promise<{ message: string }> => {
   try {
-    const url = 'http://localhost:5000/api/setup-git-branch';
+    const url = 'http://localhost:5000/git/create-branch';
     console.log('Setting up git branch with:', request);
 
     const response = await fetch(url, {
