@@ -231,8 +231,7 @@ export const addCollaborator = async (instanceId: string, collaborator: Collabor
 
 export const updateProblemInstanceCollaboration = async (
   instanceId: string, 
-  collaborationMode: 'solo' | 'pair',
-  gitUsername?: string
+  collaborationMode: 'solo' | 'pair'
 ): Promise<{message: string}> => {
   try {
     const url = `http://localhost:5000/api/problem-instances/${instanceId}`;
@@ -240,7 +239,6 @@ export const updateProblemInstanceCollaboration = async (
 
     const updateData = {
       collaborationMode,
-      gitUsername,
       lastUpdatedAt: new Date().toISOString()
     };
 

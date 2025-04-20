@@ -217,7 +217,7 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({
       if (existingInstance && instanceId) {
         console.log("Updating existing instance:", instanceId);
         
-        const response = await updateProblemInstanceCollaboration(instanceId, mode, gitUsername);
+        const response = await updateProblemInstanceCollaboration(instanceId, mode);
         
         if (response) {
           toast({
@@ -262,13 +262,13 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({
             title: "Settings Saved",
             description: "Your settings have been saved successfully.",
           });
+          
+          setIsNameSaved(true);
         } else {
           throw new Error('Failed to create instance: No instanceId returned');
         }
       }
 
-      setIsNameSaved(true);
-      
       if (mode === 'pair') {
         setShowCollaboratorSection(true);
       } else {
@@ -421,8 +421,8 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({
             value={ownerName}
             onChange={(e) => setOwnerName(e.target.value)}
             placeholder="Enter your name"
-            disabled={isCreatingInstance || existingInstance !== null}
-            className={existingInstance ? "bg-gray-100" : ""}
+            disabled={isCreatingInstance || isNameSaved}
+            className={isNameSaved ? "bg-gray-100" : ""}
           />
         </div>
 
@@ -470,12 +470,12 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({
             {isCreatingInstance ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                {existingInstance ? "Updating..." : "Saving..."}
+                {isNameSaved ? "Updating..." : "Saving..."}
               </>
             ) : (
               <>
                 <Save className="h-4 w-4" />
-                {existingInstance ? "Update Settings" : "Save Settings"}
+                {isNameSaved ? "Update Settings" : "Save Settings"}
               </>
             )}
           </Button>
