@@ -298,15 +298,6 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
   };
 
   const handleContinue = async () => {
-    if (mode === 'pair' && invitedEmails.length === 0) {
-      toast({
-        title: "No Collaborators",
-        description: "Please invite at least one collaborator or switch to solo mode.",
-        variant: "destructive",
-      });
-      return;
-    }
-
     if (!isNameSaved) {
       toast({
         title: "Name Not Saved",
@@ -316,83 +307,68 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
       return;
     }
 
+    if (mode === 'pair' && showCollaboratorSection && invitedEmails.length === 0) {
+      toast({
+        title: "No Collaborators",
+        description: "Please invite at least one collaborator or switch to solo mode.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       setIsSettingUpGit(true);
       setGitSetupError(null);
 
-      const problemNum = getProblemNumber();
-      if (!problemNum) {
-        console.error('Could not determine problem number');
-        throw new Error('Could not determine problem number');
-      }
-      
-      console.log('Fetching problem details for problem number:', problemNum);
-      const problemDetails = await getProblemById(problemNum);
-      console.log('Problem details for git setup:', problemDetails);
-      
-      const repoUrl = problemDetails.metadata?.gitRepo;
-      console.log('Repository URL from problem metadata:', repoUrl);
+      // Get the problem number from URL
+      const urlParts = window.location.pathname.split('/');
+      const problemNum = urlParts[urlParts.length - 1];
+      console.log('Problem number for git setup:', problemNum);
 
-      if (!repoUrl) {
-        console.log('No repository URL found, continuing without git setup');
-        onComplete(mode);
-        return;
-      }
-
+      // Validate we have required data
       if (!gitUsername) {
         toast({
           title: "GitHub Username Required",
           description: "Please save your GitHub username before proceeding.",
           variant: "destructive",
         });
-        setIsSettingUpGit(false);
         return;
       }
 
-      console.log('Setting up git branch with repo:', repoUrl, 'and username:', gitUsername);
-      
+      if (!problem.metadata?.gitRepo) {
+        console.log('No repository URL found in problem metadata, continuing without git setup');
+        onComplete(mode);
+        return;
+      }
+
       const branchSetupRequest = {
-        repoUrl: repoUrl,
+        repoUrl: problem.metadata.gitRepo,
         username: gitUsername,
         branchOff: 'main',
         branchTo: `${gitUsername}-main`
       };
 
-      console.log('Sending branch setup request:', JSON.stringify(branchSetupRequest, null, 2));
+      console.log('Sending git branch setup request:', branchSetupRequest);
       
-      try {
-        const result = await setupGitBranch(branchSetupRequest);
-        
-        console.log('Git setup completed successfully:', result);
-        
-        let toastDescription = result.message || 'Branch created successfully';
-        if (result.gitCommands && result.gitCommands.length > 0) {
-          toastDescription += ` Use: ${result.gitCommands[0]}`;
-          console.log('Git commands for user:', result.gitCommands);
-        }
-        
-        toast({
-          title: "Git Setup Success",
-          description: toastDescription,
-        });
-        
-        onComplete(mode);
-      } catch (gitError: any) {
-        console.error('Git setup error caught in component:', gitError);
-        
-        setGitSetupError(gitError.message || "Unknown error");
-        
-        toast({
-          title: "Git Setup Failed",
-          description: gitError.message || "Failed to setup git branch. You can continue by setting up Git manually.",
-          variant: "destructive",
-        });
-      }
-    } catch (error: any) {
-      console.error('Error in handleContinue:', error);
+      const result = await setupGitBranch(branchSetupRequest);
+      
+      console.log('Git setup completed successfully:', result);
+      
       toast({
-        title: "Error",
-        description: error.message || "An unexpected error occurred. Please try again.",
+        title: "Git Setup Success",
+        description: result.gitCommands ? 
+          `Branch created successfully. Use: ${result.gitCommands[0]}` : 
+          "Branch setup completed",
+      });
+      
+      onComplete(mode);
+    } catch (error: any) {
+      console.error('Git setup error:', error);
+      setGitSetupError(error.message || "An unexpected error occurred");
+      
+      toast({
+        title: "Git Setup Failed",
+        description: error.message || "Failed to setup git branch. You can continue by setting up Git manually.",
         variant: "destructive",
       });
     } finally {
