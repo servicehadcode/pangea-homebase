@@ -426,9 +426,14 @@ interface BranchSetupRequest {
   branchTo: string;
 }
 
-export const setupGitBranch = async (request: BranchSetupRequest): Promise<{ message: string }> => {
+interface BranchSetupResponse {
+  message: string;
+  gitCommands?: string[];
+}
+
+export const setupGitBranch = async (request: BranchSetupRequest): Promise<BranchSetupResponse> => {
   try {
-    const url = 'http://localhost:5000/git/create-branch';
+    const url = 'http://localhost:5000/api/git/create-branch';
     console.log('Setting up git branch with:', request);
 
     const response = await fetch(url, {
@@ -440,16 +445,27 @@ export const setupGitBranch = async (request: BranchSetupRequest): Promise<{ mes
     });
 
     console.log('Git branch setup response status:', response.status);
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(e => ({ error: 'Cannot parse error response' }));
-      console.error('Git branch setup error:', errorData);
-      throw new Error(errorData.error || `Failed to setup git branch. Status: ${response.status}`);
+    
+    // Try to get the response body regardless of status
+    const responseText = await response.text();
+    console.log('Raw response:', responseText);
+    
+    let responseData: BranchSetupResponse;
+    try {
+      responseData = JSON.parse(responseText);
+      console.log('Parsed response data:', responseData);
+    } catch (parseError) {
+      console.error('Error parsing JSON response:', parseError);
+      responseData = { message: 'Unable to parse server response' };
     }
 
-    const result = await response.json();
-    console.log('Git branch setup result:', result);
-    return result;
+    if (!response.ok) {
+      console.error('Git branch setup error:', responseData);
+      throw new Error(responseData.message || `Failed to setup git branch. Status: ${response.status}`);
+    }
+
+    console.log('Git branch setup result:', responseData);
+    return responseData;
   } catch (error) {
     console.error('Error in setupGitBranch:', error);
     throw error;

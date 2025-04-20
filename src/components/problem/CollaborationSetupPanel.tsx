@@ -305,10 +305,12 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
     try {
       setIsSettingUpGit(true);
 
-      const problemDetails = await getProblemById(problem.problem_num);
+      const problemNum = getProblemNumber();
+      const problemDetails = await getProblemById(problemNum || '');
       console.log('Problem details for git setup:', problemDetails);
       
       const repoUrl = problemDetails.metadata?.gitRepo;
+      console.log('Repository URL from problem metadata:', repoUrl);
 
       if (!repoUrl) {
         console.log('No repository URL found, continuing without git setup');
@@ -338,9 +340,16 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
       const result = await setupGitBranch(branchSetupRequest);
       
       console.log('Git setup completed successfully:', result);
+      
+      let toastDescription = result.message;
+      if (result.gitCommands && result.gitCommands.length > 0) {
+        toastDescription += ` Use: ${result.gitCommands[0]}`;
+        console.log('Git commands for user:', result.gitCommands);
+      }
+      
       toast({
         title: "Git Setup Success",
-        description: result.message,
+        description: toastDescription,
       });
 
       onComplete(mode);
