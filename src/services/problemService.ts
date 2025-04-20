@@ -439,8 +439,11 @@ export const setupGitBranch = async (request: BranchSetupRequest): Promise<{ mes
       body: JSON.stringify(request)
     });
 
+    console.log('Git branch setup response status:', response.status);
+
     if (!response.ok) {
-      const errorData = await response.json();
+      const errorData = await response.json().catch(e => ({ error: 'Cannot parse error response' }));
+      console.error('Git branch setup error:', errorData);
       throw new Error(errorData.error || `Failed to setup git branch. Status: ${response.status}`);
     }
 

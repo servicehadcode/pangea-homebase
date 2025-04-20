@@ -306,6 +306,8 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
       setIsSettingUpGit(true);
 
       const problemDetails = await getProblemById(problem.problem_num);
+      console.log('Problem details for git setup:', problemDetails);
+      
       const repoUrl = problemDetails.metadata?.gitRepo;
 
       if (!repoUrl) {
@@ -323,6 +325,8 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
         return;
       }
 
+      console.log('Setting up git branch with repo:', repoUrl, 'and username:', gitUsername);
+      
       const branchSetupRequest = {
         repoUrl,
         username: gitUsername,
@@ -330,8 +334,10 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
         branchTo: `${gitUsername}-main`
       };
 
+      console.log('Sending branch setup request:', branchSetupRequest);
       const result = await setupGitBranch(branchSetupRequest);
       
+      console.log('Git setup completed successfully:', result);
       toast({
         title: "Git Setup Success",
         description: result.message,
@@ -345,6 +351,7 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
         description: error.message || "Failed to setup git branch. Please try again.",
         variant: "destructive",
       });
+      onComplete(mode);
     } finally {
       setIsSettingUpGit(false);
     }
