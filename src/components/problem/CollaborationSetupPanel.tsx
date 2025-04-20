@@ -583,7 +583,7 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
         )}
 
         {isNameSaved && !gitSetupSkipped && (
-          <Alert variant="warning" className="mt-4 bg-amber-50 border-amber-200">
+          <Alert variant="default" className="mt-4 bg-amber-50 border-amber-200">
             <AlertTriangle className="h-4 w-4 text-amber-600" />
             <AlertDescription className="text-amber-700">
               <div className="font-medium mb-1">
