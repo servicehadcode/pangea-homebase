@@ -314,7 +314,6 @@ export const updateCollaboratorSubtaskAssignments = async (
       throw new Error('Could not determine problem number or user ID from the current context');
     }
     
-    // Use the correct endpoint pattern that works: /api/problem-instances/:problemNum/:userId
     const getUrl = `http://localhost:5000/api/problem-instances/${encodeURIComponent(problemNum)}/${encodeURIComponent(userId)}`;
     const getResponse = await fetch(getUrl);
     
@@ -331,63 +330,59 @@ export const updateCollaboratorSubtaskAssignments = async (
       throw new Error('Problem instance not found');
     }
     
-    // Update collaborators with subtask assignments
+    // Group assignments by user
+    const assignmentsByUser = Object.entries(assignments).reduce((acc, [subtaskId, userId]) => {
+      if (!acc[userId]) {
+        acc[userId] = [];
+      }
+      acc[userId].push(parseInt(subtaskId, 10));
+      return acc;
+    }, {} as Record<string, number[]>);
+    
+    console.log('Grouped assignments by user:', assignmentsByUser);
+    
+    // Update collaborators with arrays of subtask assignments
     const updatedCollaborators = currentInstance.collaborators?.map(collaborator => {
-      // Check if this collaborator has any assignments
-      const assignedSubtaskIds = Object.entries(assignments)
-        .filter(([, userId]) => userId === collaborator.userId)
-        .map(([subtaskId]) => parseInt(subtaskId, 10))
-        .filter(id => !isNaN(id));
+      const assignedSubtasks = assignmentsByUser[collaborator.userId] || [];
       
-      // If has assignments, add the first subtask to the collaborator
-      if (assignedSubtaskIds.length > 0) {
+      if (assignedSubtasks.length > 0) {
         return {
           ...collaborator,
-          subtask: assignedSubtaskIds[0] // Assign the first matching subtask
+          subtask: assignedSubtasks // Now storing an array of subtasks
         };
       }
       
       return collaborator;
     }) || [];
     
-    // Check if owner has assignments and add them to the owner object
-    const ownerAssignedSubtaskIds = Object.entries(assignments)
-      .filter(([, userId]) => userId === currentInstance.owner.userId)
-      .map(([subtaskId]) => parseInt(subtaskId, 10))
-      .filter(id => !isNaN(id));
+    // Handle owner assignments
+    const ownerAssignedSubtasks = assignmentsByUser[currentInstance.owner.userId] || [];
     
-    // We'll need this updated owner data if they have a subtask assigned
-    const ownerHasAssignment = ownerAssignedSubtaskIds.length > 0;
-    
-    // Send PATCH request to update the instance
-    const updateUrl = `http://localhost:5000/api/problem-instances/${instanceId}`;
-    
-    // Create the payload with updated collaborators
     const payload: any = {
       collaborators: updatedCollaborators,
       lastUpdatedAt: new Date().toISOString()
     };
     
-    // If owner has assignments, handle that in a separate owner_subtask field
-    // This is just one approach - the backend needs to support this
-    if (ownerHasAssignment) {
-      // Check if owner is already in collaborators array
+    // If owner has assignments and isn't already in collaborators
+    if (ownerAssignedSubtasks.length > 0) {
       const ownerAlreadyInCollaborators = updatedCollaborators.some(
         c => c.userId === currentInstance.owner.userId
       );
       
       if (!ownerAlreadyInCollaborators) {
-        // Add owner to collaborators with subtask
         payload.collaborators.push({
           userId: currentInstance.owner.userId,
           username: currentInstance.owner.username,
           email: currentInstance.owner.email,
           status: 'active',
-          subtask: ownerAssignedSubtaskIds[0]
+          subtask: ownerAssignedSubtasks // Now storing an array of subtasks
         });
       }
     }
     
+    console.log('Sending payload to update collaborators:', payload);
+    
+    const updateUrl = `http://localhost:5000/api/problem-instances/${instanceId}`;
     const response = await fetch(updateUrl, {
       method: 'PATCH',
       headers: {

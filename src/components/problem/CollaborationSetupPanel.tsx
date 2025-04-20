@@ -28,7 +28,11 @@ interface CollaborationSetupPanelProps {
   problem: any;
 }
 
-const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onComplete, onBack, problem }) => {
+const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ 
+  onComplete, 
+  onBack, 
+  problem 
+}) => {
   const { toast } = useToast();
   const [mode, setMode] = useState<'solo' | 'pair'>('solo');
   const [collaboratorEmail, setCollaboratorEmail] = useState('');
@@ -428,7 +432,8 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
             value={gitUsername}
             onChange={(e) => setGitUsername(e.target.value)}
             placeholder="Enter your GitHub username"
-            disabled={isCreatingInstance}
+            disabled={isCreatingInstance || existingInstance !== null || isNameSaved}
+            className={isNameSaved || existingInstance ? "bg-gray-100" : ""}
           />
         </div>
 
