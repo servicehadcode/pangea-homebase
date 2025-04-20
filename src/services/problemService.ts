@@ -461,6 +461,7 @@ export const setupGitBranch = async (request: BranchSetupRequest): Promise<Branc
 
     console.log('Git branch request validation passed, sending request to API');
 
+    // Make the actual API call with appropriate headers
     const response = await fetch(url, {
       method: 'POST',
       headers: {
@@ -472,7 +473,7 @@ export const setupGitBranch = async (request: BranchSetupRequest): Promise<Branc
     console.log('Git branch setup response status:', response.status);
     console.log('Git branch setup response headers:', Object.fromEntries([...response.headers.entries()]));
     
-    // Always get the full response text first
+    // Always get the full response text first for debugging
     const responseText = await response.text();
     console.log('Raw response from git/create-branch endpoint:', responseText);
     
