@@ -418,3 +418,37 @@ export interface Collaborator {
   username: string;
   email: string;
 }
+
+interface BranchSetupRequest {
+  repoUrl: string;
+  username: string;
+  branchOff: string;
+  branchTo: string;
+}
+
+export const setupGitBranch = async (request: BranchSetupRequest): Promise<{ message: string }> => {
+  try {
+    const url = 'http://localhost:5000/api/setup-git-branch';
+    console.log('Setting up git branch with:', request);
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(request)
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || `Failed to setup git branch. Status: ${response.status}`);
+    }
+
+    const result = await response.json();
+    console.log('Git branch setup result:', result);
+    return result;
+  } catch (error) {
+    console.error('Error in setupGitBranch:', error);
+    throw error;
+  }
+};

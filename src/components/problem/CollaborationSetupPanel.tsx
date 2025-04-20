@@ -20,6 +20,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { sendCollaborationInvite } from '@/services/collaborationService';
 import { createProblemInstance, addCollaborator, getProblemInstance, updateProblemInstanceCollaboration, ProblemInstance } from '@/services/problemService';
 import { v4 as uuidv4 } from 'uuid';
+import { getProblemById, setupGitBranch } from '@/services/problemService';
 
 interface CollaborationSetupPanelProps {
   onComplete: (mode: 'solo' | 'pair') => void;
@@ -42,6 +43,7 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
   const [isLoadingInstance, setIsLoadingInstance] = useState(true);
   const [existingInstance, setExistingInstance] = useState<ProblemInstance | null>(null);
   const [userId, setUserId] = useState(localStorage.getItem('userId') || '');
+  const [isSettingUpGit, setIsSettingUpGit] = useState(false);
 
   const getProblemNumber = () => {
     if (!problem) return null;
@@ -281,7 +283,7 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
     }
   };
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     if (mode === 'pair' && invitedEmails.length === 0) {
       toast({
         title: "No Collaborators",
@@ -300,7 +302,52 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
       return;
     }
 
-    onComplete(mode);
+    try {
+      setIsSettingUpGit(true);
+
+      const problemDetails = await getProblemById(problem.problem_num);
+      const repoUrl = problemDetails.metadata?.gitRepo;
+
+      if (!repoUrl) {
+        console.log('No repository URL found, continuing without git setup');
+        onComplete(mode);
+        return;
+      }
+
+      if (!gitUsername) {
+        toast({
+          title: "GitHub Username Required",
+          description: "Please save your GitHub username before proceeding.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const branchSetupRequest = {
+        repoUrl,
+        username: gitUsername,
+        branchOff: 'main',
+        branchTo: `${gitUsername}-main`
+      };
+
+      const result = await setupGitBranch(branchSetupRequest);
+      
+      toast({
+        title: "Git Setup Success",
+        description: result.message,
+      });
+
+      onComplete(mode);
+    } catch (error: any) {
+      console.error('Error setting up git branch:', error);
+      toast({
+        title: "Git Setup Failed",
+        description: error.message || "Failed to setup git branch. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSettingUpGit(false);
+    }
   };
 
   if (isLoadingInstance) {
@@ -495,9 +542,16 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
         <Button 
           onClick={handleContinue}
           className="pangea-button-primary"
-          disabled={!isNameSaved || (mode === 'pair' && showCollaboratorSection && invitedEmails.length === 0)}
+          disabled={!isNameSaved || (mode === 'pair' && showCollaboratorSection && invitedEmails.length === 0) || isSettingUpGit}
         >
-          Continue to Subtasks
+          {isSettingUpGit ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              Setting up Git...
+            </>
+          ) : (
+            'Continue to Subtasks'
+          )}
         </Button>
       </CardFooter>
     </Card>
