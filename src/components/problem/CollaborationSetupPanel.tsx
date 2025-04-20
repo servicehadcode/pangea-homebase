@@ -320,11 +320,6 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
       setIsSettingUpGit(true);
       setGitSetupError(null);
 
-      // Get the problem number from URL
-      const urlParts = window.location.pathname.split('/');
-      const problemNum = urlParts[urlParts.length - 1];
-      console.log('Problem number for git setup:', problemNum);
-
       // Validate we have required data
       if (!gitUsername) {
         toast({
@@ -335,17 +330,22 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
         return;
       }
 
+      // Check if we have the repository URL from problem metadata
       if (!problem.metadata?.gitRepo) {
         console.log('No repository URL found in problem metadata, continuing without git setup');
         onComplete(mode);
         return;
       }
 
+      // Prepare the branch names
+      const baseBranch = 'main';
+      const targetBranch = `${gitUsername}-${baseBranch}`;
+
       const branchSetupRequest = {
         repoUrl: problem.metadata.gitRepo,
         username: gitUsername,
-        branchOff: 'main',
-        branchTo: `${gitUsername}-main`
+        branchOff: baseBranch,
+        branchTo: targetBranch
       };
 
       console.log('Sending git branch setup request:', branchSetupRequest);
