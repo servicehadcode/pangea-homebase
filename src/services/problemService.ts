@@ -44,6 +44,7 @@ export interface ProblemInstanceOwner {
   userId: string;
   username: string;
   email: string;
+  gitUsername?: string; // Add gitUsername as an optional property
 }
 
 export interface ProblemInstance {

@@ -82,7 +82,7 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
             setMode(instance.collaborationMode || 'solo');
             setIsNameSaved(true);
             setOwnerName(instance.owner.username);
-            setGitUsername(instance.owner.gitUsername || '');
+            setGitUsername(instance.owner.gitUsername || instance.gitUsername || '');
             
             if (instance.collaborationMode === 'pair') {
               setShowCollaboratorSection(true);
@@ -235,11 +235,11 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
           owner: {
             userId: currentUserId,
             username: ownerName,
-            email: "john@example.com"
+            email: "john@example.com",
+            gitUsername: gitUsername
           },
           collaborationMode: mode,
           status: 'in-progress',
-          gitUsername: gitUsername
         };
         
         console.log("Creating new problem instance:", instanceData);
