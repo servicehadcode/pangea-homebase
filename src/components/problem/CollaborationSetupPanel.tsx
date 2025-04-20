@@ -306,7 +306,12 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
       setIsSettingUpGit(true);
 
       const problemNum = getProblemNumber();
-      const problemDetails = await getProblemById(problemNum || '');
+      if (!problemNum) {
+        throw new Error('Could not determine problem number');
+      }
+      
+      console.log('Fetching problem details for problem number:', problemNum);
+      const problemDetails = await getProblemById(problemNum);
       console.log('Problem details for git setup:', problemDetails);
       
       const repoUrl = problemDetails.metadata?.gitRepo;
@@ -324,43 +329,54 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ onCom
           description: "Please save your GitHub username before proceeding.",
           variant: "destructive",
         });
+        setIsSettingUpGit(false);
         return;
       }
 
       console.log('Setting up git branch with repo:', repoUrl, 'and username:', gitUsername);
       
       const branchSetupRequest = {
-        repoUrl,
+        repoUrl: repoUrl,
         username: gitUsername,
         branchOff: 'main',
         branchTo: `${gitUsername}-main`
       };
 
-      console.log('Sending branch setup request:', branchSetupRequest);
-      const result = await setupGitBranch(branchSetupRequest);
+      console.log('Sending branch setup request:', JSON.stringify(branchSetupRequest, null, 2));
       
-      console.log('Git setup completed successfully:', result);
-      
-      let toastDescription = result.message;
-      if (result.gitCommands && result.gitCommands.length > 0) {
-        toastDescription += ` Use: ${result.gitCommands[0]}`;
-        console.log('Git commands for user:', result.gitCommands);
+      try {
+        const result = await setupGitBranch(branchSetupRequest);
+        
+        console.log('Git setup completed successfully:', result);
+        
+        let toastDescription = result.message || 'Branch created successfully';
+        if (result.gitCommands && result.gitCommands.length > 0) {
+          toastDescription += ` Use: ${result.gitCommands[0]}`;
+          console.log('Git commands for user:', result.gitCommands);
+        }
+        
+        toast({
+          title: "Git Setup Success",
+          description: toastDescription,
+        });
+      } catch (gitError: any) {
+        console.error('Git setup error caught in component:', gitError);
+        toast({
+          title: "Git Setup Failed",
+          description: gitError.message || "Failed to setup git branch. You can still continue.",
+          variant: "destructive",
+        });
       }
-      
-      toast({
-        title: "Git Setup Success",
-        description: toastDescription,
-      });
 
       onComplete(mode);
     } catch (error: any) {
-      console.error('Error setting up git branch:', error);
+      console.error('Error in handleContinue:', error);
       toast({
-        title: "Git Setup Failed",
-        description: error.message || "Failed to setup git branch. Please try again.",
+        title: "Error",
+        description: error.message || "An unexpected error occurred. Please try again.",
         variant: "destructive",
       });
-      onComplete(mode);
+      setIsSettingUpGit(false);
     } finally {
       setIsSettingUpGit(false);
     }

@@ -413,12 +413,6 @@ export const updateCollaboratorSubtaskAssignments = async (
   }
 };
 
-export interface Collaborator {
-  userId: string;
-  username: string;
-  email: string;
-}
-
 interface BranchSetupRequest {
   repoUrl: string;
   username: string;
@@ -434,7 +428,13 @@ interface BranchSetupResponse {
 export const setupGitBranch = async (request: BranchSetupRequest): Promise<BranchSetupResponse> => {
   try {
     const url = 'http://localhost:5000/api/git/create-branch';
-    console.log('Setting up git branch with:', request);
+    console.log('Setting up git branch with payload:', JSON.stringify(request, null, 2));
+
+    // Validate the request payload before sending
+    if (!request.repoUrl || !request.username || !request.branchOff || !request.branchTo) {
+      console.error('Invalid request payload - missing required fields:', request);
+      throw new Error('Missing required fields in git branch setup request');
+    }
 
     const response = await fetch(url, {
       method: 'POST',
@@ -446,27 +446,30 @@ export const setupGitBranch = async (request: BranchSetupRequest): Promise<Branc
 
     console.log('Git branch setup response status:', response.status);
     
-    // Try to get the response body regardless of status
+    // Always get the full response text first
     const responseText = await response.text();
-    console.log('Raw response:', responseText);
+    console.log('Raw response from git/create-branch endpoint:', responseText);
     
+    // Try to parse as JSON if possible
     let responseData: BranchSetupResponse;
     try {
       responseData = JSON.parse(responseText);
       console.log('Parsed response data:', responseData);
     } catch (parseError) {
       console.error('Error parsing JSON response:', parseError);
-      responseData = { message: 'Unable to parse server response' };
+      responseData = { 
+        message: `Unable to parse server response: ${responseText?.substring(0, 100)}${responseText?.length > 100 ? '...' : ''}` 
+      };
     }
 
     if (!response.ok) {
-      console.error('Git branch setup error:', responseData);
+      console.error('Git branch setup error - Status:', response.status, 'Response:', responseData);
       throw new Error(responseData.message || `Failed to setup git branch. Status: ${response.status}`);
     }
 
-    console.log('Git branch setup result:', responseData);
+    console.log('Git branch setup successful, result:', responseData);
     return responseData;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in setupGitBranch:', error);
     throw error;
   }
