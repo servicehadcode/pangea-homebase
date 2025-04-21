@@ -234,9 +234,21 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
     setIsCreatingBranch(true);
     try {
       const repoUrl = step?.repoUrl || step?.repo_url || step?.repository || step?.metadata?.gitRepo || "";
-      const githubUsername = step?.githubUsername || username;
+      
+      if (!repoUrl) {
+        throw new Error("Repository URL is missing. Make sure the problem has a valid Git repository URL.");
+      }
+      
+      const githubUsername = username || "user";
       const branchOff = `${githubUsername}-main`;
       const branchTo = `solving/${branchOff}`;
+
+      console.log('Setting up git branch with:', {
+        repoUrl,
+        username: githubUsername,
+        branchOff,
+        branchTo,
+      });
 
       const result = await setupGitBranch({
         repoUrl,
