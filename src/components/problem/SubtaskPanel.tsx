@@ -34,7 +34,7 @@ import {
   updatePRFeedbackStatus,
   getNextSubtaskData
 } from '@/services/databaseService';
-import { setupGitBranch } from "@/services/problemService";
+import { setupGitBranch, getProblemById } from "@/services/problemService";
 import { cn } from "@/lib/utils";
 
 interface SubtaskPanelProps {
@@ -89,6 +89,8 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
   const [gitCommand, setGitCommand] = useState<string | null>(null);
   const [isCopying, setIsCopying] = useState(false);
   const [isCreatingBranch, setIsCreatingBranch] = useState(false);
+  const [problemData, setProblemData] = useState<any>(null);
+  const [isLoadingProblemData, setIsLoadingProblemData] = useState(false);
 
   const defaultReporter = isSoloMode ? username : inviterName;
   const defaultAssignee = isSoloMode ? username : (step.assignedTo || 'Unassigned');
@@ -101,6 +103,27 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
   const [acceptanceCriteria, setAcceptanceCriteria] = useState<{id: string; text: string; completed: boolean}[]>([]);
   const [isStateInitialized, setIsStateInitialized] = useState(false);
   
+  useEffect(() => {
+    const fetchProblemData = async () => {
+      try {
+        const urlParts = window.location.pathname.split('/');
+        const problemNum = urlParts[urlParts.length - 1];
+        
+        if (problemNum) {
+          setIsLoadingProblemData(true);
+          const data = await getProblemById(problemNum);
+          setProblemData(data);
+          setIsLoadingProblemData(false);
+        }
+      } catch (error) {
+        console.error('Error fetching problem data:', error);
+        setIsLoadingProblemData(false);
+      }
+    };
+    
+    fetchProblemData();
+  }, []);
+
   useEffect(() => {
     const fetchCollaborators = async () => {
       try {
@@ -233,7 +256,17 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
     if (branchCreated) return;
     setIsCreatingBranch(true);
     try {
-      const repoUrl = step?.repoUrl || step?.repo_url || step?.repository || step?.metadata?.gitRepo || "";
+      let repoUrl = "";
+      
+      if (step?.repoUrl || step?.repo_url || step?.repository || step?.metadata?.gitRepo) {
+        repoUrl = step.repoUrl || step.repo_url || step.repository || step.metadata?.gitRepo;
+      } 
+      else if (problemData?.metadata?.gitRepo) {
+        repoUrl = problemData.metadata.gitRepo;
+      } 
+      else if (step?.metadata?.gitRepo) {
+        repoUrl = step.metadata.gitRepo;
+      }
       
       if (!repoUrl) {
         throw new Error("Repository URL is missing. Make sure the problem has a valid Git repository URL.");
