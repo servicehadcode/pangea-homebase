@@ -34,7 +34,7 @@ import {
   updatePRFeedbackStatus,
   getNextSubtaskData
 } from '@/services/databaseService';
-import { setupGitBranch, getProblemById } from "@/services/problemService";
+import { setupGitBranch, getProblemById, getProblemInstance } from "@/services/problemService";
 import { cn } from "@/lib/utils";
 
 interface SubtaskPanelProps {
@@ -272,7 +272,30 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
         throw new Error("Repository URL is missing. Make sure the problem has a valid Git repository URL.");
       }
       
-      const sanitizedUsername = username.replace(/[^a-zA-Z0-9_-]/g, '');
+      const urlParts = window.location.pathname.split('/');
+      const problemNum = urlParts[urlParts.length - 1];
+      const userId = localStorage.getItem('userId');
+      
+      let gitUsername = "";
+      
+      try {
+        if (userId && problemNum) {
+          const instance = await getProblemInstance(problemNum, userId);
+          if (instance && (instance.owner.gitUsername || instance.gitUsername)) {
+            gitUsername = instance.owner.gitUsername || instance.gitUsername;
+            console.log("Found GitHub username from instance:", gitUsername);
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching problem instance:", error);
+      }
+      
+      if (!gitUsername) {
+        gitUsername = "user";
+        console.warn("No GitHub username found, using default:", gitUsername);
+      }
+      
+      const sanitizedUsername = gitUsername.replace(/[^a-zA-Z0-9_-]/g, '');
       const branchOff = "main";
       const branchTo = `${sanitizedUsername}-feature`;
 
