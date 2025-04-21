@@ -272,20 +272,20 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
         throw new Error("Repository URL is missing. Make sure the problem has a valid Git repository URL.");
       }
       
-      const githubUsername = username || "user";
-      const branchOff = `${githubUsername}-main`;
-      const branchTo = `solving/${branchOff}`;
+      const sanitizedUsername = username.replace(/[^a-zA-Z0-9_-]/g, '');
+      const branchOff = "main";
+      const branchTo = `${sanitizedUsername}-feature`;
 
       console.log('Setting up git branch with:', {
         repoUrl,
-        username: githubUsername,
+        username: sanitizedUsername,
         branchOff,
         branchTo,
       });
 
       const result = await setupGitBranch({
         repoUrl,
-        username: githubUsername,
+        username: sanitizedUsername,
         branchOff,
         branchTo,
       });
