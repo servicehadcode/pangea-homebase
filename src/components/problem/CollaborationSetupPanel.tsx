@@ -15,7 +15,6 @@ import {
   Loader2,
   MailCheck,
   Save,
-  Copy
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { sendCollaborationInvite } from '@/services/collaborationService';
@@ -49,7 +48,6 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({
   const [existingInstance, setExistingInstance] = useState<ProblemInstance | null>(null);
   const [userId, setUserId] = useState(localStorage.getItem('userId') || '');
   const [isSettingUpGit, setIsSettingUpGit] = useState(false);
-  const [gitCommandUI, setGitCommandUI] = useState<{ command: string } | null>(null);
 
   const getProblemNumber = () => {
     if (!problem) return null;
@@ -313,9 +311,13 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({
 
       const problemNum = getProblemNumber();
       const problemDetails = await getProblemById(problemNum || '');
+      console.log('Problem details for git setup:', problemDetails);
+      
       const repoUrl = problemDetails.metadata?.gitRepo;
+      console.log('Repository URL from problem metadata:', repoUrl);
 
       if (!repoUrl) {
+        console.log('No repository URL found, continuing without git setup');
         onComplete(mode);
         return;
       }
@@ -329,6 +331,8 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({
         return;
       }
 
+      console.log('Setting up git branch with repo:', repoUrl, 'and username:', gitUsername);
+      
       const branchSetupRequest = {
         repoUrl,
         username: gitUsername,
@@ -336,21 +340,25 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({
         branchTo: `${gitUsername}-main`
       };
 
+      console.log('Sending branch setup request:', branchSetupRequest);
       const result = await setupGitBranch(branchSetupRequest);
-
+      
+      console.log('Git setup completed successfully:', result);
+      
+      let toastDescription = result.message;
       if (result.gitCommands && result.gitCommands.length > 0) {
-        setGitCommandUI({ command: result.gitCommands[0] });
-        setIsSettingUpGit(false);
-        return;
+        toastDescription += ` Use: ${result.gitCommands[0]}`;
+        console.log('Git commands for user:', result.gitCommands);
       }
-
+      
       toast({
         title: "Git Setup Success",
-        description: result.message,
+        description: toastDescription,
       });
 
       onComplete(mode);
     } catch (error: any) {
+      console.error('Error setting up git branch:', error);
       toast({
         title: "Git Setup Failed",
         description: error.message || "Failed to setup git branch. Please try again.",
@@ -362,26 +370,6 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({
     }
   };
 
-  const handleCopyGitCommand = async () => {
-    if (gitCommandUI?.command) {
-      try {
-        await navigator.clipboard.writeText(gitCommandUI.command);
-        toast({
-          title: "Copied!",
-          description: "Git command has been copied to clipboard.",
-        });
-      } catch {
-        toast({
-          title: "Copy Failed",
-          description: "Could not copy command to clipboard.",
-          variant: "destructive"
-        });
-      }
-      setGitCommandUI(null);
-      onComplete(mode);
-    }
-  };
-
   if (isLoadingInstance) {
     return (
       <Card>
@@ -389,33 +377,6 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({
           <div className="text-center">
             <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
             <p>Loading your progress...</p>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (gitCommandUI) {
-    return (
-      <Card>
-        <CardContent className="flex flex-col items-center py-14">
-          <h2 className="text-2xl font-bold mb-2">Git Branch Setup Command</h2>
-          <p className="mb-6 text-muted-foreground text-center max-w-md">
-            To start working on your branch, run the following command in your terminal.<br />
-            <span className="text-blue-600 font-bold">Click the copy icon to copy, then you'll be taken to the next step.</span>
-          </p>
-          <div className="relative w-full max-w-xl flex">
-            <div className="flex-1 bg-secondary/40 p-3 rounded font-mono text-base break-all border border-secondary pr-12 select-all">
-              {gitCommandUI.command}
-            </div>
-            <Button
-              variant="ghost"
-              className="absolute top-2 right-2"
-              onClick={handleCopyGitCommand}
-              aria-label="Copy command"
-            >
-              <Copy className="h-6 w-6" />
-            </Button>
           </div>
         </CardContent>
       </Card>
