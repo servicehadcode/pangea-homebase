@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -23,7 +22,8 @@ import {
   AlertCircle,
   Loader2,
   SendHorizonal,
-  CheckCircle
+  CheckCircle,
+  Copy
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { updateCollaboratorName, getInvitedCollaborators, getSubtaskAssignment } from '@/services/collaborationService';
@@ -34,6 +34,8 @@ import {
   updatePRFeedbackStatus,
   getNextSubtaskData
 } from '@/services/databaseService';
+import { setupGitBranch } from "@/services/problemService";
+import { cn } from "@/lib/utils";
 
 interface SubtaskPanelProps {
   step: any;
@@ -83,7 +85,11 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
   const [isCompletingSubtask, setIsCompletingSubtask] = useState(false);
   const [collaborators, setCollaborators] = useState<any[]>([]);
   const [isLoadingCollaborators, setIsLoadingCollaborators] = useState(true);
-  
+  const [showGitDialog, setShowGitDialog] = useState(false);
+  const [gitCommand, setGitCommand] = useState<string | null>(null);
+  const [isCopying, setIsCopying] = useState(false);
+  const [isCreatingBranch, setIsCreatingBranch] = useState(false);
+
   const defaultReporter = isSoloMode ? username : inviterName;
   const defaultAssignee = isSoloMode ? username : (step.assignedTo || 'Unassigned');
   
@@ -169,18 +175,7 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
         setIsEditingReporter(false);
         setIsEditingAssignee(false);
         
-        // Initialize acceptance criteria from step data if available
-        if (step && step.acceptanceCriteria && step.acceptanceCriteria.length > 0) {
-          setAcceptanceCriteria(
-            step.acceptanceCriteria.map((criteria: string, index: number) => ({
-              id: `criteria-${step.id}-${index}`,
-              text: criteria,
-              completed: false
-            }))
-          );
-        } else {
-          setAcceptanceCriteria([]);
-        }
+        setAcceptanceCriteria([]);
       }
       
       setIsStateInitialized(true);
@@ -213,14 +208,11 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
     onStateChange
   ]);
   
-  // This effect will update acceptance criteria whenever the step prop changes
   useEffect(() => {
     if (step && step.acceptanceCriteria && isStateInitialized) {
-      // Only update if we don't have saved criteria for this step
       const hasNoSavedCriteria = !acceptanceCriteria.length || 
         (savedState && (!savedState.acceptanceCriteria || !savedState.acceptanceCriteria.length));
       
-      // Or if we detect we're on a different step than the one the criteria was saved for
       const isCriteriaFromDifferentStep = acceptanceCriteria.length > 0 && 
         acceptanceCriteria[0].id && 
         !acceptanceCriteria[0].id.includes(`criteria-${step.id}`);
@@ -237,14 +229,64 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
     }
   }, [step, isStateInitialized, savedState, acceptanceCriteria]);
   
-  const handleCreateBranch = () => {
-    setBranchCreated(true);
-    toast({
-      title: "Branch Created",
-      description: `Created branch: ${step.id}-implementation`
-    });
+  const handleCreateBranch = async () => {
+    if (branchCreated) return;
+    setIsCreatingBranch(true);
+    try {
+      const repoUrl = step?.repoUrl || step?.repo_url || step?.repository || step?.metadata?.gitRepo || "";
+      const githubUsername = step?.githubUsername || username;
+      const branchOff = `${githubUsername}-main`;
+      const branchTo = `solving/${branchOff}`;
+
+      const result = await setupGitBranch({
+        repoUrl,
+        username: githubUsername,
+        branchOff,
+        branchTo,
+      });
+
+      const commands = Array.isArray(result.gitCommands)
+        ? result.gitCommands
+        : [result.gitCommands || result.message];
+      setGitCommand(commands && commands.length > 0 ? commands[0] : "");
+      setShowGitDialog(true);
+    } catch (err: any) {
+      toast({
+        title: "Branch Creation Failed",
+        description: err?.message || "Could not create branch.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCreatingBranch(false);
+    }
   };
-  
+
+  const handleCopyGitCommand = async () => {
+    if (!gitCommand) return;
+    setIsCopying(true);
+    try {
+      await navigator.clipboard.writeText(gitCommand);
+      toast({
+        title: "Copied!",
+        description: "The git command has been copied to your clipboard.",
+      });
+      setShowGitDialog(false);
+      setBranchCreated(true);
+      toast({
+        title: "Branch Created",
+        description: `Created branch: ${gitCommand.split(' ').slice(-1)}`,
+      });
+    } catch {
+      toast({
+        title: "Copy failed",
+        description: "Could not copy the git command.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCopying(false);
+    }
+  };
+
   const handleCreatePR = async () => {
     if (!branchCreated) {
       toast({
@@ -502,7 +544,7 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
   }
   
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 relative" style={{ pointerEvents: showGitDialog ? "none" : "auto", opacity: showGitDialog ? "0.6" : "1" }}>
       <Card className="overflow-hidden">
         <CardHeader>
           <CardTitle>Subtask Description</CardTitle>
@@ -677,10 +719,19 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
                 variant="outline" 
                 className="w-full"
                 onClick={handleCreateBranch}
-                disabled={branchCreated}
+                disabled={branchCreated || isCreatingBranch || showGitDialog}
               >
-                <GitBranch className="h-4 w-4 mr-2" />
-                {branchCreated ? "Branch Created" : "Start Development (Create Branch)"}
+                {isCreatingBranch ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Creating branch...
+                  </>
+                ) : (
+                  <>
+                    <GitBranch className="h-4 w-4 mr-2" />
+                    {branchCreated ? "Branch Created" : "Start Development (Create Branch)"}
+                  </>
+                )}
               </Button>
               
               <Button 
@@ -823,6 +874,30 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
           </div>
         </CardFooter>
       </Card>
+      
+      {showGitDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 pointer-events-auto">
+          <div className="bg-white dark:bg-zinc-900 rounded-lg shadow-xl p-8 flex flex-col items-center gap-6 relative min-w-[300px]">
+            <p className="text-base font-medium mb-2">Copy the command below in your terminal:</p>
+            <div className="flex items-center bg-muted rounded px-4 py-2">
+              <code className="text-sm font-mono select-text">{gitCommand}</code>
+              <Button
+                onClick={handleCopyGitCommand}
+                size="icon"
+                className="ml-2"
+                disabled={isCopying}
+                variant="outline"
+              >
+                <Copy className="w-4 h-4" />
+              </Button>
+            </div>
+            {isCopying && (
+              <span className="text-xs text-muted-foreground italic">Copying...</span>
+            )}
+            <p className="text-sm text-muted-foreground mt-3">The flow will continue once you copy this command.</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
