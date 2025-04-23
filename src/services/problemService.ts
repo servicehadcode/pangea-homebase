@@ -464,3 +464,34 @@ export const setupGitBranch = async (request: BranchSetupRequest): Promise<Branc
     throw error;
   }
 };
+
+interface CreatePRRequest {
+  repoUrl: string;
+  head: string;
+  base: string;
+  title: string;
+}
+
+interface CreatePRResponse {
+  pr_diff: string;
+  pr_number: number;
+  pr_title: string;
+}
+
+export const createPullRequest = async (request: CreatePRRequest): Promise<CreatePRResponse> => {
+  const response = await fetch('http://localhost:5000/api/git/create-pr', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(request)
+  });
+
+  const data = await response.json();
+  
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to create PR');
+  }
+
+  return data;
+};

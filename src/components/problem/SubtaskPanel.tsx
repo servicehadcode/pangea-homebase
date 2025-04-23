@@ -23,7 +23,8 @@ import {
   Loader2,
   SendHorizonal,
   CheckCircle,
-  Copy
+  Copy,
+  ClipboardCopy
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { updateCollaboratorName, getInvitedCollaborators, getSubtaskAssignment } from '@/services/collaborationService';
@@ -34,7 +35,7 @@ import {
   updatePRFeedbackStatus,
   getNextSubtaskData
 } from '@/services/databaseService';
-import { setupGitBranch, getProblemById, getProblemInstance } from "@/services/problemService";
+import { setupGitBranch, getProblemById, getProblemInstance, createPullRequest } from "@/services/problemService";
 import { cn } from "@/lib/utils";
 
 interface SubtaskPanelProps {
@@ -91,6 +92,15 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
   const [isCreatingBranch, setIsCreatingBranch] = useState(false);
   const [problemData, setProblemData] = useState<any>(null);
   const [isLoadingProblemData, setIsLoadingProblemData] = useState(false);
+  const [isPRDialogOpen, setIsPRDialogOpen] = useState(false);
+  const [isCreatingPR, setIsCreatingPR] = useState(false);
+
+  const gitCommands = [
+    { command: 'git status', description: 'This shows you all files that you need to push' },
+    { command: 'git add .', description: 'Use this command if you would like to add all files that were changed' },
+    { command: 'git commit -m "Adding new changes"', description: 'Use this command to commit all your changes' },
+    { command: 'git push', description: 'Use this command to push all your changes so that Pangea can see it and help you out 😊' }
+  ];
 
   const defaultReporter = isSoloMode ? username : inviterName;
   const defaultAssignee = isSoloMode ? username : (step.assignedTo || 'Unassigned');
@@ -260,11 +270,9 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
       
       if (step?.repoUrl || step?.repo_url || step?.repository || step?.metadata?.gitRepo) {
         repoUrl = step.repoUrl || step.repo_url || step.repository || step.metadata?.gitRepo;
-      } 
-      else if (problemData?.metadata?.gitRepo) {
+      } else if (problemData?.metadata?.gitRepo) {
         repoUrl = problemData.metadata.gitRepo;
-      } 
-      else if (step?.metadata?.gitRepo) {
+      } else if (step?.metadata?.gitRepo) {
         repoUrl = step.metadata.gitRepo;
       }
       
@@ -364,27 +372,91 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
       });
       return;
     }
-    
-    setPrCreated(true);
-    setIsLoadingFeedback(true);
-    
+
+    setIsCreatingPR(true);
+
     try {
-      const feedback = await getPRFeedback(step.id);
-      setPRFeedback(feedback);
+      let repoUrl = "";
+      
+      if (step?.repoUrl || step?.repo_url || step?.repository || step?.metadata?.gitRepo) {
+        repoUrl = step.repoUrl || step.repo_url || step.repository || step.metadata?.gitRepo;
+      } else if (problemData?.metadata?.gitRepo) {
+        repoUrl = problemData.metadata.gitRepo;
+      }
+
+      if (!repoUrl) {
+        throw new Error("Repository URL is missing.");
+      }
+      
+      const urlParts = window.location.pathname.split('/');
+      const problemNum = urlParts[urlParts.length - 1];
+      const userId = localStorage.getItem('userId');
+      let gitUsername = "";
+      
+      try {
+        if (userId && problemNum) {
+          const instance = await getProblemInstance(problemNum, userId);
+          if (instance && (instance.owner.gitUsername || instance.gitUsername)) {
+            gitUsername = instance.owner.gitUsername || instance.gitUsername;
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching problem instance:", error);
+      }
+      
+      gitUsername = gitUsername || "user";
+      const sanitizedUsername = gitUsername.replace(/[^a-zA-Z0-9_-]/g, '');
+
+      const head = `${sanitizedUsername}-feature`;
+      const base = `${sanitizedUsername}-main`;
+      
+      const result = await createPullRequest({
+        repoUrl,
+        head,
+        base,
+        title: `Making PR from ${head} to ${base}`
+      });
+
+      setPrCreated(true);
       setShowPRFeedback(true);
-    } catch (error) {
-      console.error('Error getting PR feedback:', error);
-      setPRFeedback([]);
+      
+      toast({
+        title: "Success",
+        description: `Pull request #${result.pr_number} created successfully!`
+      });
+
+    } catch (error: any) {
+      const errorMsg = error.message || '';
+      if (errorMsg.includes('Validation Failed')) {
+        setIsPRDialogOpen(true);
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to create pull request. Please try again.",
+          variant: "destructive"
+        });
+      }
     } finally {
-      setIsLoadingFeedback(false);
+      setIsCreatingPR(false);
     }
-    
-    toast({
-      title: "Pull Request Created",
-      description: `Created PR: Implement ${step.title}`
-    });
   };
-  
+
+  const handleCopyCommand = async (command: string) => {
+    try {
+      await navigator.clipboard.writeText(command);
+      toast({
+        title: "Copied",
+        description: "Command copied to clipboard"
+      });
+    } catch (error) {
+      toast({
+        title: "Copy failed",
+        description: "Could not copy the command.",
+        variant: "destructive"
+      });
+    }
+  };
+
   const handleUpdateName = async (type: 'reporter' | 'assignee', newName: string) => {
     try {
       const response = await updateCollaboratorName(
@@ -806,7 +878,7 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
                 variant="outline" 
                 className="w-full"
                 onClick={handleCreatePR}
-                disabled={!branchCreated || prCreated}
+                disabled={!branchCreated || prCreated || isCreatingPR}
               >
                 <GitPullRequest className="h-4 w-4 mr-2" />
                 {prCreated ? "PR Created" : "Submit Work (Create PR)"}
@@ -965,6 +1037,43 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
             <p className="text-sm text-muted-foreground mt-3">The flow will continue once you copy this command.</p>
           </div>
         </div>
+      )}
+      
+      {isPRDialogOpen && (
+        <Dialog open={true} onOpenChange={setIsPRDialogOpen}>
+          <DialogContent className="sm:max-w-md" onInteractOutside={(e) => e.preventDefault()}>
+            <DialogHeader>
+              <DialogTitle>Did you forget to commit and push your code from your local directory? 🤔</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                You can use the commands below to push your code before submitting your work:
+              </p>
+              {gitCommands.map((item, index) => (
+                <div key={index} className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <code className="flex-1 p-2 bg-secondary/30 rounded-md font-mono text-sm">
+                      {item.command}
+                    </code>
+                    <Button 
+                      size="sm" 
+                      variant="ghost" 
+                      onClick={() => handleCopyCommand(item.command)}
+                    >
+                      <ClipboardCopy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <p className="text-sm text-muted-foreground">{item.description}</p>
+                </div>
+              ))}
+            </div>
+            <DialogFooter>
+              <Button onClick={() => setIsPRDialogOpen(false)}>
+                Continue
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );
