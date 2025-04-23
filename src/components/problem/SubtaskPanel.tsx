@@ -417,6 +417,7 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
         title: `Making PR from ${head} to ${base}`
       });
 
+      // PR was created successfully
       setPrCreated(true);
       setShowPRFeedback(true);
       
@@ -426,7 +427,10 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
       });
 
     } catch (error: any) {
+      console.error("PR creation error:", error);
       const errorMsg = error.message || '';
+      
+      // Check specifically for "Validation Failed" error message
       if (errorMsg.includes('Validation Failed')) {
         setIsPRDialogOpen(true);
       } else {
