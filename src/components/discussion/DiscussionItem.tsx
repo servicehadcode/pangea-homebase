@@ -33,7 +33,7 @@ export const DiscussionItem = ({ comment, onReply, onUpvote }: DiscussionItemPro
         content: replyContent,
         userId: 'current-user', // This should come from auth context
         username: 'Current User', // This should come from auth context
-        parentId: comment.id
+        parentId: comment.id // This correctly sets the parentId for the reply
       });
 
       onReply(newReply);
@@ -57,6 +57,11 @@ export const DiscussionItem = ({ comment, onReply, onUpvote }: DiscussionItemPro
     try {
       await upvoteComment(comment.id);
       onUpvote(comment.id);
+      
+      toast({
+        title: "Upvoted",
+        description: "You upvoted this comment."
+      });
     } catch (error) {
       toast({
         title: "Error",
