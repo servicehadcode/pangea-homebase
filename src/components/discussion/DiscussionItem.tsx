@@ -32,9 +32,9 @@ export const DiscussionItem = ({ comment, onReply, onUpvote }: DiscussionItemPro
       const newReply = await addDiscussionComment({
         problemId: comment.problemId,
         content: replyContent,
-        userId: 'current-user', // This should come from auth context
-        username: 'Current User', // This should come from auth context
-        parentId: comment.id // Pass the parent comment ID
+        userId: 'current-user',
+        username: 'Current User',
+        parentId: comment.id
       });
 
       onReply(newReply);
@@ -54,11 +54,11 @@ export const DiscussionItem = ({ comment, onReply, onUpvote }: DiscussionItemPro
     }
   };
 
-  const handleUpvote = async () => {
+  const handleUpvote = async (commentId: string) => {
     try {
-      console.log(`Upvoting comment with ID: ${comment.id}`);
-      await upvoteComment(comment.id);
-      onUpvote(comment.id);
+      console.log(`Upvoting comment with ID: ${commentId}`);
+      await upvoteComment(commentId);
+      onUpvote(commentId);
       
       toast({
         title: "Upvoted",
@@ -87,7 +87,7 @@ export const DiscussionItem = ({ comment, onReply, onUpvote }: DiscussionItemPro
         <Button 
           variant="ghost" 
           size="sm"
-          onClick={handleUpvote}
+          onClick={() => handleUpvote(comment.id)}
           className="flex items-center gap-1"
         >
           <ThumbsUp className="h-4 w-4" />
@@ -139,7 +139,16 @@ export const DiscussionItem = ({ comment, onReply, onUpvote }: DiscussionItemPro
                   {new Date(reply.timestamp).toLocaleString()}
                 </div>
               </div>
-              <div>{reply.content}</div>
+              <div className="mb-2">{reply.content}</div>
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => handleUpvote(reply.id)}
+                className="flex items-center gap-1"
+              >
+                <ThumbsUp className="h-4 w-4" />
+                {reply.votes || 0}
+              </Button>
             </div>
           ))}
         </div>
