@@ -416,6 +416,7 @@ const ProblemDetails = () => {
   };
 
   const handleReply = (newReply: DiscussionComment) => {
+    console.log('Handling reply:', newReply);
     setDiscussions(prev => prev.map(d => 
       d.id === newReply.parentId 
         ? { ...d, replies: [...(d.replies || []), newReply] }
@@ -424,6 +425,7 @@ const ProblemDetails = () => {
   };
 
   const handleUpvote = (commentId: string) => {
+    console.log('Handling upvote for comment ID:', commentId);
     setDiscussions(prev => prev.map(d => 
       d.id === commentId 
         ? { ...d, votes: (d.votes || 0) + 1 }

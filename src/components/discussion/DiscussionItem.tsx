@@ -28,12 +28,13 @@ export const DiscussionItem = ({ comment, onReply, onUpvote }: DiscussionItemPro
     }
 
     try {
+      console.log(`Submitting reply to comment ID: ${comment.id}`);
       const newReply = await addDiscussionComment({
         problemId: comment.problemId,
         content: replyContent,
         userId: 'current-user', // This should come from auth context
         username: 'Current User', // This should come from auth context
-        parentId: comment.id // This correctly sets the parentId for the reply
+        parentId: comment.id // Pass the parent comment ID
       });
 
       onReply(newReply);
@@ -55,6 +56,7 @@ export const DiscussionItem = ({ comment, onReply, onUpvote }: DiscussionItemPro
 
   const handleUpvote = async () => {
     try {
+      console.log(`Upvoting comment with ID: ${comment.id}`);
       await upvoteComment(comment.id);
       onUpvote(comment.id);
       

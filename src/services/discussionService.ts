@@ -30,7 +30,29 @@ export const getDiscussionComments = async (problemId: string): Promise<Discussi
     if (!response.ok) {
       throw new Error('Failed to fetch discussions');
     }
-    return await response.json();
+    
+    // Transform the response to match our frontend interface
+    const comments = await response.json();
+    return comments.map((comment: any) => ({
+      id: comment._id,
+      problemId: comment.problemId,
+      userId: comment.userId,
+      username: comment.username || 'Anonymous',
+      content: comment.content,
+      timestamp: comment.createdAt,
+      votes: comment.votes || 0,
+      replies: comment.replies ? comment.replies.map((reply: any) => ({
+        id: reply._id,
+        problemId: reply.problemId,
+        userId: reply.userId,
+        username: reply.username || 'Anonymous',
+        content: reply.content,
+        timestamp: reply.createdAt,
+        votes: reply.votes || 0,
+        parentId: reply.parentId
+      })) : [],
+      parentId: comment.parentId
+    }));
   } catch (error) {
     console.error('Error fetching discussions:', error);
     throw error;
@@ -54,7 +76,18 @@ export const addDiscussionComment = async (request: CreateCommentRequest): Promi
       throw new Error('Failed to add comment');
     }
 
-    return await response.json();
+    const comment = await response.json();
+    // Transform backend response to match frontend interface
+    return {
+      id: comment._id,
+      problemId: comment.problemId,
+      userId: comment.userId,
+      username: comment.username || 'Anonymous',
+      content: comment.content,
+      timestamp: comment.createdAt,
+      votes: comment.votes || 0,
+      parentId: comment.parentId
+    };
   } catch (error) {
     console.error('Error adding comment:', error);
     throw error;
@@ -64,9 +97,10 @@ export const addDiscussionComment = async (request: CreateCommentRequest): Promi
 /**
  * Upvotes a discussion comment
  */
-export const upvoteComment = async (discussionId: string): Promise<void> => {
+export const upvoteComment = async (commentId: string): Promise<void> => {
   try {
-    const response = await fetch(`http://localhost:5000/api/discussions/${discussionId}/vote`, {
+    console.log(`Upvoting comment with ID: ${commentId}`);
+    const response = await fetch(`http://localhost:5000/api/discussions/${commentId}/vote`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
