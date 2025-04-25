@@ -440,7 +440,15 @@ const ProblemDetails = () => {
     
     try {
       const comments = await getDiscussionComments(id);
-      setDiscussions(comments);
+      const sortedComments = comments.sort((a, b) => 
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      ).map(comment => ({
+        ...comment,
+        replies: (comment.replies || []).sort((a, b) => 
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+        )
+      }));
+      setDiscussions(sortedComments);
     } catch (error) {
       console.error('Error fetching discussions:', error);
       toast({
