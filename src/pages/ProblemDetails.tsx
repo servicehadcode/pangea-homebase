@@ -91,7 +91,7 @@ const ProblemDetails = () => {
   const [inviterName, setInviterName] = useState('Pangea Admin');
   const [collaborationMode, setCollaborationMode] = useState<'solo' | 'pair'>('solo');
   const [showAchievement, setShowAchievement] = useState(false);
-  const [discussions, setDiscussions] = useState<any[]>([]);
+  const [discussions, setDiscussions] = useState<DiscussionComment[]>([]);
   const [resources, setResources] = useState<any[]>([]);
   const [newComment, setNewComment] = useState('');
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
@@ -381,7 +381,7 @@ const ProblemDetails = () => {
       toast({
         title: "Empty Comment",
         description: "Please enter a comment before submitting.",
-        variant: "destructive",
+        variant: "destructive"
       });
       return;
     }
@@ -389,31 +389,47 @@ const ProblemDetails = () => {
     setIsSubmittingComment(true);
     
     try {
-      const comment = await addDiscussionComment(
-        id || "1",
-        "user123",
-        username,
-        newComment
-      );
+      const comment = await addDiscussionComment({
+        problemId: id || "1",
+        content: newComment,
+        userId: "user123",
+        username: username
+      });
       
       setDiscussions(prev => [comment, ...prev]);
       setNewComment('');
       
       toast({
         title: "Comment Posted",
-        description: "Your comment has been posted successfully.",
+        description: "Your comment has been posted successfully."
       });
     } catch (error) {
       toast({
         title: "Error",
         description: "Failed to post your comment. Please try again.",
-        variant: "destructive",
+        variant: "destructive"
       });
     } finally {
       setIsSubmittingComment(false);
     }
   };
-  
+
+  const handleReply = (newReply: DiscussionComment) => {
+    setDiscussions(prev => prev.map(d => 
+      d.id === newReply.parentId 
+        ? { ...d, replies: [...(d.replies || []), newReply] }
+        : d
+    ));
+  };
+
+  const handleUpvote = (commentId: string) => {
+    setDiscussions(prev => prev.map(d => 
+      d.id === commentId 
+        ? { ...d, votes: (d.votes || 0) + 1 }
+        : d
+    ));
+  };
+
   const fetchDiscussions = async () => {
     if (!id) return;
     
@@ -424,11 +440,16 @@ const ProblemDetails = () => {
       setDiscussions(comments);
     } catch (error) {
       console.error('Error fetching discussions:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load discussions. Please try again.",
+        variant: "destructive"
+      });
     } finally {
       setIsLoadingDiscussions(false);
     }
   };
-  
+
   const fetchResources = async () => {
     if (!id) return;
     
@@ -443,7 +464,7 @@ const ProblemDetails = () => {
       setIsLoadingResources(false);
     }
   };
-  
+
   const handleSaveAndExit = async () => {
     setIsSaving(true);
     
@@ -486,7 +507,7 @@ const ProblemDetails = () => {
       setIsSaving(false);
     }
   };
-  
+
   useEffect(() => {
     if (activeTab === 'discussion') {
       fetchDiscussions();
@@ -788,39 +809,12 @@ const ProblemDetails = () => {
                     ) : discussions.length > 0 ? (
                       <div className="space-y-4">
                         {discussions.map(comment => (
-                          <div key={comment.id} className="border rounded-lg p-4">
-                            <div className="flex justify-between mb-1">
-                              <div className="font-semibold">{comment.username}</div>
-                              <div className="text-sm text-muted-foreground">
-                                {new Date(comment.timestamp).toLocaleString()}
-                              </div>
-                            </div>
-                            <div className="mb-3">{comment.content}</div>
-                            
-                            {comment.replies && comment.replies.length > 0 && (
-                              <div className="space-y-3 mt-3 pl-4 border-l-2 border-gray-200">
-                                {comment.replies.map(reply => (
-                                  <div key={reply.id} className="p-3 bg-secondary/20 rounded-md">
-                                    <div className="flex justify-between mb-1">
-                                      <div className="font-medium">{reply.username}</div>
-                                      <div className="text-xs text-muted-foreground">
-                                        {new Date(reply.timestamp).toLocaleString()}
-                                      </div>
-                                    </div>
-                                    <div>{reply.content}</div>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                            
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              className="mt-2"
-                            >
-                              Reply
-                            </Button>
-                          </div>
+                          <DiscussionItem 
+                            key={comment.id}
+                            comment={comment}
+                            onReply={handleReply}
+                            onUpvote={handleUpvote}
+                          />
                         ))}
                       </div>
                     ) : (
