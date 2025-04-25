@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
@@ -16,6 +15,14 @@ export const DiscussionItem = ({ comment, onReply, onUpvote }: DiscussionItemPro
   const [isReplying, setIsReplying] = useState(false);
   const [replyContent, setReplyContent] = useState('');
   const { toast } = useToast();
+  const [upvotedItems, setUpvotedItems] = useState<{ [key: string]: boolean }>({});
+
+  useEffect(() => {
+    const savedUpvotes = localStorage.getItem('upvotedItems');
+    if (savedUpvotes) {
+      setUpvotedItems(JSON.parse(savedUpvotes));
+    }
+  }, []);
 
   const handleReplySubmit = async () => {
     if (!replyContent.trim()) {
@@ -55,10 +62,23 @@ export const DiscussionItem = ({ comment, onReply, onUpvote }: DiscussionItemPro
   };
 
   const handleUpvote = async (commentId: string) => {
+    if (upvotedItems[commentId]) {
+      toast({
+        title: "Already Upvoted",
+        description: "You have already upvoted this item.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     try {
       console.log(`Upvoting comment with ID: ${commentId}`);
       await upvoteComment(commentId);
       onUpvote(commentId);
+      
+      const newUpvotedItems = { ...upvotedItems, [commentId]: true };
+      setUpvotedItems(newUpvotedItems);
+      localStorage.setItem('upvotedItems', JSON.stringify(newUpvotedItems));
       
       toast({
         title: "Upvoted",
@@ -88,9 +108,12 @@ export const DiscussionItem = ({ comment, onReply, onUpvote }: DiscussionItemPro
           variant="ghost" 
           size="sm"
           onClick={() => handleUpvote(comment.id)}
-          className="flex items-center gap-1"
+          className={`flex items-center gap-1 ${upvotedItems[comment.id] ? 'cursor-not-allowed opacity-50' : ''}`}
+          disabled={upvotedItems[comment.id]}
         >
-          <ThumbsUp className="h-4 w-4" />
+          <ThumbsUp 
+            className={`h-4 w-4 ${upvotedItems[comment.id] ? 'fill-current' : ''}`}
+          />
           {comment.votes || 0}
         </Button>
         <Button 
@@ -144,9 +167,12 @@ export const DiscussionItem = ({ comment, onReply, onUpvote }: DiscussionItemPro
                 variant="ghost" 
                 size="sm"
                 onClick={() => handleUpvote(reply.id)}
-                className="flex items-center gap-1"
+                className={`flex items-center gap-1 ${upvotedItems[reply.id] ? 'cursor-not-allowed opacity-50' : ''}`}
+                disabled={upvotedItems[reply.id]}
               >
-                <ThumbsUp className="h-4 w-4" />
+                <ThumbsUp 
+                  className={`h-4 w-4 ${upvotedItems[reply.id] ? 'fill-current' : ''}`}
+                />
                 {reply.votes || 0}
               </Button>
             </div>
