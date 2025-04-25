@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { 
@@ -29,7 +30,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
@@ -60,6 +61,7 @@ import SubtaskPanel from '@/components/problem/SubtaskPanel';
 import CollaborationSetupPanel from '@/components/problem/CollaborationSetupPanel';
 import SubtaskAssignmentPanel from '@/components/problem/SubtaskAssignmentPanel';
 import AchievementPanel from '@/components/problem/AchievementPanel';
+import { DiscussionItem } from '@/components/discussion/DiscussionItem';
 import { 
   recordUserSession, 
   updateSessionProgress, 
@@ -68,7 +70,7 @@ import {
   getDownloadableItems,
   saveUserProgress
 } from '@/services/databaseService';
-import { getDiscussionComments, addDiscussionComment } from '@/services/discussionService';
+import { getDiscussionComments, addDiscussionComment, DiscussionComment } from '@/services/discussionService';
 import { getResources } from '@/services/resourceService';
 import { getAllSubtaskAssignments } from '@/services/collaborationService';
 import { getProblemById } from '@/services/problemService';

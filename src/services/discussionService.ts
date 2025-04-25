@@ -1,7 +1,7 @@
 
 // Discussion service for problem discussions
 
-interface DiscussionComment {
+export interface DiscussionComment {
   id: string;
   problemId: string;
   userId: string;
@@ -10,9 +10,10 @@ interface DiscussionComment {
   timestamp: string;
   votes?: number;
   replies?: DiscussionComment[];
+  parentId?: string;
 }
 
-interface CreateCommentRequest {
+export interface CreateCommentRequest {
   problemId: string;
   content: string;
   userId: string;
@@ -81,4 +82,3 @@ export const upvoteComment = async (discussionId: string): Promise<void> => {
     throw error;
   }
 };
-

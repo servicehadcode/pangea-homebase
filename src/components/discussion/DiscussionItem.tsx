@@ -4,8 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { MessageCircle, ThumbsUp } from "lucide-react";
-import { addDiscussionComment, upvoteComment } from '@/services/discussionService';
-import type { DiscussionComment } from '@/services/discussionService';
+import { addDiscussionComment, upvoteComment, DiscussionComment } from '@/services/discussionService';
 
 interface DiscussionItemProps {
   comment: DiscussionComment;
@@ -141,4 +140,3 @@ export const DiscussionItem = ({ comment, onReply, onUpvote }: DiscussionItemPro
     </div>
   );
 };
-
