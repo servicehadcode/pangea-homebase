@@ -70,8 +70,7 @@ export const upvoteComment = async (discussionId: string): Promise<void> => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ type: 'upvote' })
+      }
     });
 
     if (!response.ok) {
