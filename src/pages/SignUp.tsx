@@ -1,15 +1,27 @@
+
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import { useToast } from '@/hooks/use-toast';
 
 const SignUp = () => {
   const [user, setUser] = useState<any>(null);
   const backendURL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+  const { toast } = useToast();
 
   const handleGitHubAuth = () => {
-    const currentPage = window.location.href;
-    window.location.href = `${backendURL}/login/github?redirect=${encodeURIComponent(currentPage)}`;
+    try {
+      const currentPage = window.location.href;
+      window.location.href = `${backendURL}/login/github?redirect=${encodeURIComponent(currentPage)}`;
+    } catch (err) {
+      console.error('GitHub auth error:', err);
+      toast({
+        title: "Authentication Error",
+        description: "Failed to initiate GitHub login. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleLogout = async () => {
@@ -19,9 +31,18 @@ const SignUp = () => {
         credentials: 'include',
       });
       setUser(null);
-      window.location.href = '/'; // Redirect to home or any other page
+      toast({
+        title: "Logged Out",
+        description: "You have been successfully logged out.",
+      });
+      window.location.href = '/'; // Redirect to home
     } catch (err) {
       console.error('Logout error:', err);
+      toast({
+        title: "Logout Error",
+        description: "Failed to log out. Please try again.",
+        variant: "destructive"
+      });
     }
   };
 
@@ -34,9 +55,14 @@ const SignUp = () => {
         if (!res.ok) throw new Error('Unauthenticated');
         return res.json();
       })
-      .then((data) => setUser(data))
-      .catch((err) => console.error('Error fetching user info:', err));
-  }, []);
+      .then((data) => {
+        console.log('User authenticated:', data);
+        setUser(data);
+      })
+      .catch((err) => {
+        console.error('Error fetching user info:', err);
+      });
+  }, [backendURL]);
 
   return (
     <div className="min-h-screen flex flex-col">

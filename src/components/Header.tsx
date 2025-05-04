@@ -4,6 +4,7 @@ import { Menu, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useToast } from '@/hooks/use-toast';
 
 const Header = () => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -11,6 +12,7 @@ const Header = () => {
   const [user, setUser] = useState<any>(null);
   const isMobile = useIsMobile();
   const backendURL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+  const { toast } = useToast();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -29,22 +31,55 @@ const Header = () => {
         if (!res.ok) throw new Error('Unauthenticated');
         return res.json();
       })
-      .then((data) => setUser(data))
-      .catch(() => setUser(null));
-  }, []);
+      .then((data) => {
+        console.log('Header: User authenticated:', data);
+        setUser(data);
+      })
+      .catch(() => {
+        console.log('Header: User not authenticated');
+        setUser(null);
+      });
+  }, [backendURL]);
 
   const handleLogin = () => {
-    const currentUrl = window.location.href;
-    window.location.href = `${backendURL}/login/github?redirect=${encodeURIComponent(currentUrl)}`;
+    try {
+      const currentUrl = window.location.href;
+      window.location.href = `${backendURL}/login/github?redirect=${encodeURIComponent(currentUrl)}`;
+    } catch (err) {
+      console.error('GitHub auth error:', err);
+      toast({
+        title: "Authentication Error", 
+        description: "Failed to initiate GitHub login. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleLogout = async () => {
-    await fetch(`${backendURL}/logout`, {
-      method: 'POST',
-      credentials: 'include',
-    });
-    setUser(null);
-    window.location.href = '/';
+    try {
+      const response = await fetch(`${backendURL}/logout`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      
+      if (response.ok) {
+        setUser(null);
+        toast({
+          title: "Logged Out",
+          description: "You have been successfully logged out."
+        });
+        window.location.href = '/';
+      } else {
+        throw new Error('Logout failed');
+      }
+    } catch (err) {
+      console.error('Logout error:', err);
+      toast({
+        title: "Logout Error",
+        description: "Failed to log out. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   const scrollToAbout = (e: React.MouseEvent) => {
