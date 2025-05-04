@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
@@ -26,8 +27,12 @@ const Header = () => {
   useEffect(() => {
     fetch(`${backendURL}/me`, {
       credentials: 'include',
+      headers: {
+        'Accept': 'application/json',
+      }
     })
       .then((res) => {
+        console.log('Header: Me endpoint response status:', res.status);
         if (!res.ok) throw new Error('Unauthenticated');
         return res.json();
       })
@@ -35,8 +40,8 @@ const Header = () => {
         console.log('Header: User authenticated:', data);
         setUser(data);
       })
-      .catch(() => {
-        console.log('Header: User not authenticated');
+      .catch((err) => {
+        console.log('Header: User not authenticated', err.message);
         setUser(null);
       });
   }, [backendURL]);
@@ -60,6 +65,10 @@ const Header = () => {
       const response = await fetch(`${backendURL}/logout`, {
         method: 'POST',
         credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        }
       });
       
       if (response.ok) {

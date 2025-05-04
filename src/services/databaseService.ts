@@ -19,6 +19,33 @@ const getFromStorage = (key: string, defaultValue: any = null) => {
 const getAuthenticatedUser = () => {
   const userSession = sessionStorage.getItem('userSession');
   if (!userSession) {
+    // Try to get from backend
+    try {
+      const backendURL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+      fetch(`${backendURL}/me`, {
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+        }
+      })
+      .then(res => {
+        if (res.ok) return res.json();
+        throw new Error('Not authenticated');
+      })
+      .then(userData => {
+        if (userData) {
+          sessionStorage.setItem('userSession', JSON.stringify(userData));
+          return userData;
+        }
+        return null;
+      })
+      .catch(() => {
+        return null;
+      });
+    } catch (error) {
+      console.error('Error getting authenticated user:', error);
+      return null;
+    }
     return null;
   }
   

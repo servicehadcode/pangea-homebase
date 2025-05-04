@@ -29,6 +29,10 @@ const SignUp = () => {
       await fetch(`${backendURL}/logout`, {
         method: 'POST',
         credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        }
       });
       setUser(null);
       toast({
@@ -50,8 +54,12 @@ const SignUp = () => {
     // Fetch user details if already logged in
     fetch(`${backendURL}/me`, {
       credentials: 'include',
+      headers: {
+        'Accept': 'application/json',
+      }
     })
       .then((res) => {
+        console.log('Me endpoint response:', res.status);
         if (!res.ok) throw new Error('Unauthenticated');
         return res.json();
       })
