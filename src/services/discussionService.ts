@@ -60,35 +60,10 @@ export const getDiscussionComments = async (problemId: string): Promise<Discussi
 };
 
 /**
- * Gets the authenticated user's information from the session
- */
-export const getAuthenticatedUser = () => {
-  // Check if we have a logged in user in the session
-  const userSession = sessionStorage.getItem('userSession');
-  if (!userSession) {
-    return null;
-  }
-  
-  try {
-    return JSON.parse(userSession);
-  } catch (error) {
-    console.error('Error parsing user session:', error);
-    return null;
-  }
-};
-
-/**
  * Adds a new discussion comment
  */
 export const addDiscussionComment = async (request: CreateCommentRequest): Promise<DiscussionComment> => {
   try {
-    // Get authenticated user if not provided in request
-    const authUser = getAuthenticatedUser();
-    if (authUser && (!request.userId || request.userId === 'user123')) {
-      request.userId = authUser.id || authUser.userId;
-      request.username = authUser.username || authUser.displayName || 'User';
-    }
-    
     const response = await fetch('http://localhost:5000/api/discussions', {
       method: 'POST',
       headers: {

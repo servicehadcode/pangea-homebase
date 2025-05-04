@@ -1,29 +1,15 @@
-
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
-import { useToast } from '@/hooks/use-toast';
 
 const SignUp = () => {
   const [user, setUser] = useState<any>(null);
   const backendURL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
-  const { toast } = useToast();
 
   const handleGitHubAuth = () => {
-    try {
-      // Store current URL in localStorage to ensure we can get back here
-      localStorage.setItem('authRedirectURL', window.location.href);
-      // Using SameSite=None and secure cookies requires HTTPS
-      window.location.href = `${backendURL}/login/github?redirect=${encodeURIComponent(window.location.href)}`;
-    } catch (err) {
-      console.error('GitHub auth error:', err);
-      toast({
-        title: "Authentication Error",
-        description: "Failed to initiate GitHub login. Please try again.",
-        variant: "destructive"
-      });
-    }
+    const currentPage = window.location.href;
+    window.location.href = `${backendURL}/login/github?redirect=${encodeURIComponent(currentPage)}`;
   };
 
   const handleLogout = async () => {
@@ -31,64 +17,26 @@ const SignUp = () => {
       await fetch(`${backendURL}/logout`, {
         method: 'POST',
         credentials: 'include',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        }
       });
       setUser(null);
-      // Clear any stored auth data
-      sessionStorage.removeItem('userSession');
-      localStorage.removeItem('authRedirectURL');
-      
-      toast({
-        title: "Logged Out",
-        description: "You have been successfully logged out.",
-      });
-      window.location.href = '/'; // Redirect to home
+      window.location.href = '/'; // Redirect to home or any other page
     } catch (err) {
       console.error('Logout error:', err);
-      toast({
-        title: "Logout Error",
-        description: "Failed to log out. Please try again.",
-        variant: "destructive"
-      });
     }
   };
 
   useEffect(() => {
-    // Check if we just completed authentication
-    const urlParams = new URLSearchParams(window.location.search);
-    const authSuccess = urlParams.get('auth_success');
-    
-    if (authSuccess === 'true') {
-      console.log('Auth success parameter detected');
-      // Remove the auth_success parameter from URL
-      window.history.replaceState({}, document.title, window.location.pathname);
-    }
-    
     // Fetch user details if already logged in
     fetch(`${backendURL}/me`, {
       credentials: 'include',
-      headers: {
-        'Accept': 'application/json',
-      }
     })
       .then((res) => {
-        console.log('Me endpoint response:', res.status);
         if (!res.ok) throw new Error('Unauthenticated');
         return res.json();
       })
-      .then((data) => {
-        console.log('User authenticated:', data);
-        setUser(data);
-        // Store user data in sessionStorage for other components
-        sessionStorage.setItem('userSession', JSON.stringify(data));
-      })
-      .catch((err) => {
-        console.error('Error fetching user info:', err);
-      });
-  }, [backendURL]);
+      .then((data) => setUser(data))
+      .catch((err) => console.error('Error fetching user info:', err));
+  }, []);
 
   return (
     <div className="min-h-screen flex flex-col">

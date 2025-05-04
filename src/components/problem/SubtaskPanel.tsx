@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -56,7 +55,6 @@ interface SubtaskPanelProps {
   savedState?: any;
   onStateChange?: (state: any) => void;
   subtaskAssignments?: Record<string, any>;
-  authenticatedUser?: any;
 }
 
 const SubtaskPanel: React.FC<SubtaskPanelProps> = ({ 
