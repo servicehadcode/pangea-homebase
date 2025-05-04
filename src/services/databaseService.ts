@@ -15,6 +15,21 @@ const getFromStorage = (key: string, defaultValue: any = null) => {
   return stored ? JSON.parse(stored) : defaultValue;
 };
 
+// Get authenticated user from session
+const getAuthenticatedUser = () => {
+  const userSession = sessionStorage.getItem('userSession');
+  if (!userSession) {
+    return null;
+  }
+  
+  try {
+    return JSON.parse(userSession);
+  } catch (error) {
+    console.error('Error parsing user session:', error);
+    return null;
+  }
+};
+
 // Record a user session for a problem
 export const recordUserSession = async (sessionData: {
   userId: string;
@@ -24,6 +39,12 @@ export const recordUserSession = async (sessionData: {
 }) => {
   const sessionId = generateId();
   const sessions = getFromStorage('userSessions', []);
+  
+  // Use authenticated user if available
+  const authUser = getAuthenticatedUser();
+  if (authUser && sessionData.userId === "user123") {
+    sessionData.userId = authUser.id || authUser.userId;
+  }
   
   const newSession = {
     ...sessionData,
@@ -77,6 +98,12 @@ export const recordSubtaskCompletion = async (subtaskData: {
   deliverables: string;
   completedAt: string;
 }) => {
+  // Use authenticated user if available
+  const authUser = getAuthenticatedUser();
+  if (authUser && subtaskData.reporter === "Anonymous") {
+    subtaskData.reporter = authUser.username || authUser.displayName || "Anonymous";
+  }
+  
   const completedSubtasks = getFromStorage('completedSubtasks', []);
   completedSubtasks.push(subtaskData);
   saveToStorage('completedSubtasks', completedSubtasks);
@@ -159,6 +186,12 @@ export const saveUserProgress = async (progressData: {
   subtaskStates: Record<string, any>;
   timestamp: string;
 }) => {
+  // Use authenticated user if available
+  const authUser = getAuthenticatedUser();
+  if (authUser && progressData.userId === "user123") {
+    progressData.userId = authUser.id || authUser.userId;
+  }
+  
   // Ensure we have a stable storage key
   const storageKey = `user_${progressData.userId}_problem_${progressData.problemId}`;
   
@@ -187,6 +220,12 @@ export const saveUserProgress = async (progressData: {
 
 // Get achievement data for a problem completed by a user
 export const getAchievementData = async (problemId: string, userId: string) => {
+  // Use authenticated user if available
+  const authUser = getAuthenticatedUser();
+  if (authUser && userId === "user123") {
+    userId = authUser.id || authUser.userId;
+  }
+  
   // Simulate API call with a delay
   await new Promise(resolve => setTimeout(resolve, 800));
   
