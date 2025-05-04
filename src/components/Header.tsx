@@ -1,11 +1,9 @@
-
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { useToast } from '@/hooks/use-toast';
 
 const Header = () => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -13,7 +11,6 @@ const Header = () => {
   const [user, setUser] = useState<any>(null);
   const isMobile = useIsMobile();
   const backendURL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
-  const { toast } = useToast();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -25,95 +22,29 @@ const Header = () => {
   }, []);
 
   useEffect(() => {
-    // Try to get user from sessionStorage first
-    const storedUser = sessionStorage.getItem('userSession');
-    if (storedUser) {
-      try {
-        setUser(JSON.parse(storedUser));
-      } catch (e) {
-        console.error('Error parsing stored user session:', e);
-      }
-    }
-    
-    // Always verify with backend as well
     fetch(`${backendURL}/me`, {
       credentials: 'include',
-      headers: {
-        'Accept': 'application/json',
-        // Explicitly state we're making a client-side request
-        'X-Requested-With': 'XMLHttpRequest'
-      }
     })
       .then((res) => {
-        console.log('Header: Me endpoint response status:', res.status);
         if (!res.ok) throw new Error('Unauthenticated');
         return res.json();
       })
-      .then((data) => {
-        console.log('Header: User authenticated:', data);
-        setUser(data);
-        // Update sessionStorage
-        sessionStorage.setItem('userSession', JSON.stringify(data));
-      })
-      .catch((err) => {
-        console.log('Header: User not authenticated', err.message);
-        // If backend says we're not authenticated, clear local storage too
-        if (storedUser) {
-          sessionStorage.removeItem('userSession');
-        }
-        setUser(null);
-      });
-  }, [backendURL]);
+      .then((data) => setUser(data))
+      .catch(() => setUser(null));
+  }, []);
 
   const handleLogin = () => {
-    try {
-      // Store current URL in localStorage to ensure we can get back here
-      localStorage.setItem('authRedirectURL', window.location.href);
-      window.location.href = `${backendURL}/login/github?redirect=${encodeURIComponent(window.location.href)}`;
-    } catch (err) {
-      console.error('GitHub auth error:', err);
-      toast({
-        title: "Authentication Error", 
-        description: "Failed to initiate GitHub login. Please try again.",
-        variant: "destructive"
-      });
-    }
+    const currentUrl = window.location.href;
+    window.location.href = `${backendURL}/login/github?redirect=${encodeURIComponent(currentUrl)}`;
   };
 
   const handleLogout = async () => {
-    try {
-      const response = await fetch(`${backendURL}/logout`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          'X-Requested-With': 'XMLHttpRequest'
-        }
-      });
-      
-      if (response.ok) {
-        setUser(null);
-        // Clean up storage
-        sessionStorage.removeItem('userSession');
-        localStorage.removeItem('authRedirectURL');
-        
-        toast({
-          title: "Logged Out",
-          description: "You have been successfully logged out."
-        });
-        window.location.href = '/';
-      } else {
-        throw new Error('Logout failed');
-      }
-    } catch (err) {
-      console.error('Logout error:', err);
-      toast({
-        title: "Logout Error",
-        description: "Failed to log out. Please try again.",
-        variant: "destructive"
-      });
-    }
+    await fetch(`${backendURL}/logout`, {
+      method: 'POST',
+      credentials: 'include',
+    });
+    setUser(null);
+    window.location.href = '/';
   };
 
   const scrollToAbout = (e: React.MouseEvent) => {

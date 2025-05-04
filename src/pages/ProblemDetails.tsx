@@ -69,7 +69,7 @@ import {
   getDownloadableItems,
   saveUserProgress
 } from '@/services/databaseService';
-import { getDiscussionComments, addDiscussionComment, DiscussionComment, getAuthenticatedUser } from '@/services/discussionService';
+import { getDiscussionComments, addDiscussionComment, DiscussionComment } from '@/services/discussionService';
 import { getResources } from '@/services/resourceService';
 import { getAllSubtaskAssignments } from '@/services/collaborationService';
 import { getProblemById } from '@/services/problemService';
@@ -111,16 +111,9 @@ const ProblemDetails = () => {
   });
   const [subtaskStates, setSubtaskStates] = useState<Record<string, any>>({});
   const [subtaskAssignments, setSubtaskAssignments] = useState<Record<string, any>>({});
-  const [authenticatedUser, setAuthenticatedUser] = useState<any>(null);
 
   useEffect(() => {
-    // Get the authenticated user from the session
-    const authUser = getAuthenticatedUser();
-    if (authUser) {
-      console.log("Found authenticated user:", authUser);
-      setAuthenticatedUser(authUser);
-      setUsername(authUser.username || authUser.displayName || 'Anonymous User');
-    }
+    window.scrollTo(0, 0);
     
     const fetchData = async () => {
       setIsLoading(true);
@@ -217,13 +210,8 @@ const ProblemDetails = () => {
         
         setProblem(transformedData);
         
-        // Get authenticated user or use fallback
-        const authUser = getAuthenticatedUser();
-        const userId = authUser ? (authUser.id || authUser.userId) : "user123";
-        setUsername(authUser ? (authUser.username || authUser.displayName || 'Anonymous User') : 'Anonymous User');
-        
         const newSessionId = await recordUserSession({
-          userId: userId,
+          userId: "user123",
           problemId: id || "1",
           category: category || "data-science",
           startTime: new Date().toISOString()
@@ -231,12 +219,9 @@ const ProblemDetails = () => {
         
         setSessionId(newSessionId);
         
-        // If no authenticated user, use localStorage fallback
-        if (!authUser) {
-          const savedUsername = localStorage.getItem('username');
-          if (savedUsername) {
-            setUsername(savedUsername);
-          }
+        const savedUsername = localStorage.getItem('username');
+        if (savedUsername) {
+          setUsername(savedUsername);
         }
         
         const savedInviter = localStorage.getItem('inviterName');
@@ -405,16 +390,11 @@ const ProblemDetails = () => {
     setIsSubmittingComment(true);
     
     try {
-      // Get authenticated user info or use default
-      const authUser = getAuthenticatedUser();
-      const userId = authUser ? (authUser.id || authUser.userId) : "user123";
-      const displayName = authUser ? (authUser.username || authUser.displayName || username) : username;
-      
       const comment = await addDiscussionComment({
         problemId: id || "1",
         content: newComment,
-        userId: userId,
-        username: displayName
+        userId: "user123",
+        username: username
       });
       
       setDiscussions(prev => [comment, ...prev]);
@@ -512,12 +492,8 @@ const ProblemDetails = () => {
       
       localStorage.setItem(`problem-${id}-state`, JSON.stringify(currentState));
       
-      // Get authenticated user or use default
-      const authUser = getAuthenticatedUser();
-      const userId = authUser ? (authUser.id || authUser.userId) : "user123";
-      
       await saveUserProgress({
-        userId: userId,
+        userId: "user123",
         problemId: id || "1",
         category: category || "data-science",
         progress: currentState,
@@ -608,7 +584,7 @@ const ProblemDetails = () => {
             <div className="max-w-3xl mx-auto">
               <AchievementPanel 
                 problemId={id || "1"} 
-                userId={authenticatedUser ? (authenticatedUser.id || authenticatedUser.userId) : "user123"}
+                userId="user123" 
                 category={category || "data-science"}
               />
             </div>
@@ -704,7 +680,6 @@ const ProblemDetails = () => {
                   onComplete={handleCollaborationComplete}
                   onBack={() => setActiveTab('overview')}
                   problem={problem}
-                  authenticatedUser={authenticatedUser}
                 />
               </TabsContent>
               
@@ -780,7 +755,6 @@ const ProblemDetails = () => {
                           [currentSubtask.id]: state
                         }));
                       }}
-                      authenticatedUser={authenticatedUser}
                     />
                   </div>
                 </div>
@@ -802,7 +776,6 @@ const ProblemDetails = () => {
                   username={username}
                   inviterName={inviterName}
                   subtaskAssignments={subtaskAssignments}
-                  authenticatedUser={authenticatedUser}
                 />
               </TabsContent>
 
@@ -852,7 +825,6 @@ const ProblemDetails = () => {
                             comment={comment}
                             onReply={handleReply}
                             onUpvote={handleUpvote}
-                            authenticatedUser={authenticatedUser}
                           />
                         ))}
                       </div>
