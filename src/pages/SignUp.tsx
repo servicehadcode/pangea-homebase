@@ -1,11 +1,16 @@
+
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import { useNavigate } from 'react-router-dom';
+import { useToast } from '@/components/ui/use-toast';
 
 const SignUp = () => {
   const [user, setUser] = useState<any>(null);
   const backendURL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+  const navigate = useNavigate();
+  const { toast } = useToast();
 
   const handleGitHubAuth = () => {
     const currentPage = window.location.href;
@@ -34,9 +39,27 @@ const SignUp = () => {
         if (!res.ok) throw new Error('Unauthenticated');
         return res.json();
       })
-      .then((data) => setUser(data))
+      .then((data) => {
+        setUser(data);
+        
+        // Check if there's a return URL stored in localStorage
+        const returnUrl = localStorage.getItem('returnAfterLogin');
+        if (returnUrl) {
+          // Clear the stored URL
+          localStorage.removeItem('returnAfterLogin');
+          
+          // Show a success toast
+          toast({
+            title: "Successfully Signed In",
+            description: "You're now being redirected to continue.",
+          });
+          
+          // Navigate to the stored URL
+          navigate(returnUrl);
+        }
+      })
       .catch((err) => console.error('Error fetching user info:', err));
-  }, []);
+  }, [backendURL, navigate, toast]);
 
   return (
     <div className="min-h-screen flex flex-col">

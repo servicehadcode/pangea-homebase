@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -17,6 +17,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
+import { useNavigate } from 'react-router-dom';
 
 interface OverviewPanelProps {
   problem: any;
@@ -34,7 +35,30 @@ const OverviewPanel: React.FC<OverviewPanelProps> = ({
   onBack
 }) => {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [isLoadingItems, setIsLoadingItems] = useState<boolean>(false);
+  const [user, setUser] = useState<any>(null);
+  const backendURL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+
+  // Check authentication status when component mounts
+  useEffect(() => {
+    const checkAuthStatus = async () => {
+      try {
+        const response = await fetch(`${backendURL}/me`, {
+          credentials: 'include',
+        });
+        
+        if (response.ok) {
+          const userData = await response.json();
+          setUser(userData);
+        }
+      } catch (error) {
+        console.error('Error checking authentication status:', error);
+      }
+    };
+    
+    checkAuthStatus();
+  }, [backendURL]);
 
   // Transform downloadable items from the problem data
   const downloadableItems = problem.downloadableItems?.map((item: string, index: number) => ({
@@ -63,6 +87,23 @@ const OverviewPanel: React.FC<OverviewPanelProps> = ({
   const progressPercentage = actualSubtasks.length > 0 
     ? (completedSteps / actualSubtasks.length) * 100 
     : 0;
+
+  const handleReviewComplete = () => {
+    if (!user) {
+      // If user is not logged in, redirect to sign up page and store the return URL
+      const currentURL = window.location.pathname;
+      localStorage.setItem('returnAfterLogin', currentURL);
+      toast({
+        title: "Authentication Required",
+        description: "Please sign in to continue with this problem.",
+      });
+      navigate('/sign-up');
+      return;
+    }
+    
+    // If user is logged in, proceed as normal
+    onComplete();
+  };
 
   const handleDownload = (item: any) => {
     toast({
@@ -336,7 +377,7 @@ const OverviewPanel: React.FC<OverviewPanelProps> = ({
       <CardFooter className="flex justify-end pt-6">
         <Button 
           className="pangea-button-primary"
-          onClick={onComplete}
+          onClick={handleReviewComplete}
         >
           I've Reviewed the Overview
         </Button>
