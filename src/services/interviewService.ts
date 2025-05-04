@@ -181,7 +181,7 @@ export const evaluateAnswer = async (
   
   try {
     // Connect to API endpoint
-    const response = await fetch('http://localhost:5000/api/v1/transcribe/evaluate', {
+    const response = await fetch('http://localhost:5000/api/v1/feedback/transcribe', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

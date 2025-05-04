@@ -26,19 +26,21 @@ interface CollaborationSetupPanelProps {
   onComplete: (mode: 'solo' | 'pair') => void;
   onBack: () => void;
   problem: any;
+  authenticatedUser?: any; // Add authenticated user prop
 }
 
 const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ 
   onComplete, 
   onBack, 
-  problem 
+  problem,
+  authenticatedUser
 }) => {
   const { toast } = useToast();
   const [mode, setMode] = useState<'solo' | 'pair'>('solo');
   const [collaboratorEmail, setCollaboratorEmail] = useState('');
   const [isInviting, setIsInviting] = useState(false);
   const [invitedEmails, setInvitedEmails] = useState<string[]>([]);
-  const [ownerName, setOwnerName] = useState(localStorage.getItem('username') || '');
+  const [ownerName, setOwnerName] = useState('');
   const [gitUsername, setGitUsername] = useState('');
   const [isNameSaved, setIsNameSaved] = useState(false);
   const [instanceId, setInstanceId] = useState<string | null>(null);
@@ -46,8 +48,26 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({
   const [showCollaboratorSection, setShowCollaboratorSection] = useState(false);
   const [isLoadingInstance, setIsLoadingInstance] = useState(true);
   const [existingInstance, setExistingInstance] = useState<ProblemInstance | null>(null);
-  const [userId, setUserId] = useState(localStorage.getItem('userId') || '');
+  const [userId, setUserId] = useState('');
   const [isSettingUpGit, setIsSettingUpGit] = useState(false);
+
+  // Set up the authenticated user information when component mounts
+  useEffect(() => {
+    if (authenticatedUser) {
+      setUserId(authenticatedUser.id || authenticatedUser.userId || '');
+      setOwnerName(authenticatedUser.username || authenticatedUser.displayName || '');
+      
+      // If user has github username, set it and you could disable editing
+      if (authenticatedUser.githubUsername) {
+        setGitUsername(authenticatedUser.githubUsername);
+      }
+      
+      localStorage.setItem('username', ownerName);
+    } else {
+      setUserId(localStorage.getItem('userId') || '');
+      setOwnerName(localStorage.getItem('username') || '');
+    }
+  }, [authenticatedUser]);
 
   const getProblemNumber = () => {
     if (!problem) return null;
@@ -70,7 +90,14 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({
           return;
         }
         
-        let currentUserId = localStorage.getItem('userId');
+        let currentUserId = userId || localStorage.getItem('userId');
+        
+        // Use authenticated user ID if available
+        if (authenticatedUser && authenticatedUser.id) {
+          currentUserId = authenticatedUser.id;
+        }
+        
+        // If still no userId, generate one
         if (!currentUserId) {
           currentUserId = uuidv4();
           localStorage.setItem('userId', currentUserId);
@@ -88,7 +115,14 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({
             setMode(instance.collaborationMode || 'solo');
             setIsNameSaved(true);
             setOwnerName(instance.owner.username);
-            setGitUsername(instance.owner.gitUsername || instance.gitUsername || '');
+            
+            // If we have a github username from the authenticated user, use it
+            // otherwise fall back to instance data
+            if (authenticatedUser && authenticatedUser.githubUsername) {
+              setGitUsername(authenticatedUser.githubUsername);
+            } else {
+              setGitUsername(instance.owner.gitUsername || instance.gitUsername || '');
+            }
             
             if (instance.collaborationMode === 'pair') {
               setShowCollaboratorSection(true);
@@ -107,8 +141,16 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({
             setExistingInstance(null);
             setInstanceId(null);
             setIsNameSaved(false);
-            setOwnerName(localStorage.getItem('username') || '');
-            setGitUsername('');
+            
+            // Set the authenticated user's name if available
+            if (authenticatedUser) {
+              setOwnerName(authenticatedUser.username || authenticatedUser.displayName || '');
+              if (authenticatedUser.githubUsername) {
+                setGitUsername(authenticatedUser.githubUsername);
+              }
+            } else {
+              setOwnerName(localStorage.getItem('username') || '');
+            }
           }
         } catch (error: any) {
           console.log("Error or no instance found:", error);
@@ -124,7 +166,7 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({
     };
     
     fetchExistingInstance();
-  }, [problem, toast]);
+  }, [problem, toast, userId, authenticatedUser]);
 
   const handleInviteCollaborator = async () => {
     if (!collaboratorEmail || !collaboratorEmail.includes('@')) {
@@ -230,6 +272,13 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({
         }
       } else {
         let currentUserId = userId;
+        
+        // Use authenticated user if available
+        if (authenticatedUser) {
+          currentUserId = authenticatedUser.id || authenticatedUser.userId || currentUserId;
+        }
+        
+        // If still no userId, generate one
         if (!currentUserId) {
           currentUserId = uuidv4();
           localStorage.setItem('userId', currentUserId);
@@ -241,7 +290,7 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({
           owner: {
             userId: currentUserId,
             username: ownerName,
-            email: "john@example.com",
+            email: authenticatedUser?.email || "john@example.com",
             gitUsername: gitUsername
           },
           collaborationMode: mode,
@@ -383,6 +432,9 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({
     );
   }
 
+  // Check if we have an authenticated user with a GitHub username
+  const hasAuthenticatedGithubUsername = authenticatedUser && authenticatedUser.githubUsername;
+
   return (
     <Card>
       <CardHeader>
@@ -415,14 +467,26 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({
           </Alert>
         )}
         
+        {authenticatedUser && (
+          <Alert>
+            <AlertTitle>Authenticated User</AlertTitle>
+            <AlertDescription>
+              You are signed in as {authenticatedUser.username || authenticatedUser.displayName || authenticatedUser.email}.
+              {hasAuthenticatedGithubUsername && (
+                <p className="mt-1">GitHub username: {authenticatedUser.githubUsername}</p>
+              )}
+            </AlertDescription>
+          </Alert>
+        )}
+        
         <div className="space-y-3">
           <Label>Your Name</Label>
           <Input 
             value={ownerName}
             onChange={(e) => setOwnerName(e.target.value)}
             placeholder="Enter your name"
-            disabled={isCreatingInstance || isNameSaved}
-            className={isNameSaved ? "bg-gray-100" : ""}
+            disabled={isCreatingInstance || isNameSaved || (authenticatedUser && !!authenticatedUser.username)}
+            className={isNameSaved || (authenticatedUser && !!authenticatedUser.username) ? "bg-gray-100" : ""}
           />
         </div>
 
@@ -432,9 +496,14 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({
             value={gitUsername}
             onChange={(e) => setGitUsername(e.target.value)}
             placeholder="Enter your GitHub username"
-            disabled={isCreatingInstance || existingInstance !== null || isNameSaved}
-            className={isNameSaved || existingInstance ? "bg-gray-100" : ""}
+            disabled={isCreatingInstance || existingInstance !== null || isNameSaved || hasAuthenticatedGithubUsername}
+            className={isNameSaved || existingInstance || hasAuthenticatedGithubUsername ? "bg-gray-100" : ""}
           />
+          {hasAuthenticatedGithubUsername && (
+            <p className="text-sm text-muted-foreground">
+              Using GitHub username from your account
+            </p>
+          )}
         </div>
 
         <RadioGroup 

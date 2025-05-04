@@ -5,24 +5,116 @@ import { Menu, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useToast } from '@/hooks/use-toast';
 
 const Header = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [user, setUser] = useState<any>(null);
   const isMobile = useIsMobile();
+  const backendURL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+  const { toast } = useToast();
 
   useEffect(() => {
     const handleScroll = () => {
-      if (window.scrollY > 10) {
-        setIsScrolled(true);
-      } else {
-        setIsScrolled(false);
-      }
+      setIsScrolled(window.scrollY > 10);
     };
 
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  useEffect(() => {
+    // Try to get user from sessionStorage first
+    const storedUser = sessionStorage.getItem('userSession');
+    if (storedUser) {
+      try {
+        setUser(JSON.parse(storedUser));
+      } catch (e) {
+        console.error('Error parsing stored user session:', e);
+      }
+    }
+    
+    // Always verify with backend as well
+    fetch(`${backendURL}/me`, {
+      credentials: 'include',
+      headers: {
+        'Accept': 'application/json',
+        // Explicitly state we're making a client-side request
+        'X-Requested-With': 'XMLHttpRequest'
+      }
+    })
+      .then((res) => {
+        console.log('Header: Me endpoint response status:', res.status);
+        if (!res.ok) throw new Error('Unauthenticated');
+        return res.json();
+      })
+      .then((data) => {
+        console.log('Header: User authenticated:', data);
+        setUser(data);
+        // Update sessionStorage
+        sessionStorage.setItem('userSession', JSON.stringify(data));
+      })
+      .catch((err) => {
+        console.log('Header: User not authenticated', err.message);
+        // If backend says we're not authenticated, clear local storage too
+        if (storedUser) {
+          sessionStorage.removeItem('userSession');
+        }
+        setUser(null);
+      });
+  }, [backendURL]);
+
+  const handleLogin = () => {
+    try {
+      // Store current URL in localStorage to ensure we can get back here
+      localStorage.setItem('authRedirectURL', window.location.href);
+      window.location.href = `${backendURL}/login/github?redirect=${encodeURIComponent(window.location.href)}`;
+    } catch (err) {
+      console.error('GitHub auth error:', err);
+      toast({
+        title: "Authentication Error", 
+        description: "Failed to initiate GitHub login. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      const response = await fetch(`${backendURL}/logout`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      });
+      
+      if (response.ok) {
+        setUser(null);
+        // Clean up storage
+        sessionStorage.removeItem('userSession');
+        localStorage.removeItem('authRedirectURL');
+        
+        toast({
+          title: "Logged Out",
+          description: "You have been successfully logged out."
+        });
+        window.location.href = '/';
+      } else {
+        throw new Error('Logout failed');
+      }
+    } catch (err) {
+      console.error('Logout error:', err);
+      toast({
+        title: "Logout Error",
+        description: "Failed to log out. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
 
   const scrollToAbout = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -79,14 +171,20 @@ const Header = () => {
                 </Button>
               ))}
 
-              <Button
-                className={cn(
-                  "ml-3 pangea-button-primary animate-fade-in [animation-delay:700ms]",
-                )}
-                asChild
-              >
-                <Link to="/signup">Sign Up / Sign In</Link>
-              </Button>
+              {user ? (
+                <div className="flex items-center gap-4 ml-3 animate-fade-in [animation-delay:700ms]">
+                  <img src={user.avatar} alt="avatar" className="w-8 h-8 rounded-full" />
+                  <span>{user.username}</span>
+                  <Button variant="ghost" onClick={handleLogout}>Logout</Button>
+                </div>
+              ) : (
+                <Button
+                  className="ml-3 pangea-button-primary animate-fade-in [animation-delay:700ms]"
+                  onClick={handleLogin}
+                >
+                  Sign Up / Sign In
+                </Button>
+              )}
             </nav>
           )}
 
@@ -125,11 +223,20 @@ const Header = () => {
                   )}
                 </Button>
               ))}
-              <Button className="w-full pangea-button-primary" asChild>
-                <Link to="/signup" onClick={() => setMobileMenuOpen(false)}>
+
+              {user ? (
+                <>
+                  <div className="flex items-center gap-3 px-2">
+                    <img src={user.avatar} alt="avatar" className="w-8 h-8 rounded-full" />
+                    <span>{user.username}</span>
+                  </div>
+                  <Button className="w-full" onClick={handleLogout}>Logout</Button>
+                </>
+              ) : (
+                <Button className="w-full pangea-button-primary" onClick={handleLogin}>
                   Sign Up / Sign In
-                </Link>
-              </Button>
+                </Button>
+              )}
             </div>
           </nav>
         )}

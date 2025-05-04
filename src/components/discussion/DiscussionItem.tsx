@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -9,9 +10,10 @@ interface DiscussionItemProps {
   comment: DiscussionComment;
   onReply: (comment: DiscussionComment) => void;
   onUpvote: (commentId: string) => void;
+  authenticatedUser?: any;
 }
 
-export const DiscussionItem = ({ comment, onReply, onUpvote }: DiscussionItemProps) => {
+export const DiscussionItem = ({ comment, onReply, onUpvote, authenticatedUser }: DiscussionItemProps) => {
   const [isReplying, setIsReplying] = useState(false);
   const [replyContent, setReplyContent] = useState('');
   const { toast } = useToast();
@@ -39,8 +41,8 @@ export const DiscussionItem = ({ comment, onReply, onUpvote }: DiscussionItemPro
       const newReply = await addDiscussionComment({
         problemId: comment.problemId,
         content: replyContent,
-        userId: 'current-user',
-        username: 'Current User',
+        userId: authenticatedUser ? (authenticatedUser.id || authenticatedUser.userId) : 'current-user',
+        username: authenticatedUser ? (authenticatedUser.username || authenticatedUser.displayName || 'Current User') : 'Current User',
         parentId: comment.id
       });
 
