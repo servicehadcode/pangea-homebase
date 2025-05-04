@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
@@ -8,44 +9,20 @@ import { useIsMobile } from '@/hooks/use-mobile';
 const Header = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [user, setUser] = useState<any>(null);
   const isMobile = useIsMobile();
-  const backendURL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
 
   useEffect(() => {
     const handleScroll = () => {
-      setIsScrolled(window.scrollY > 10);
+      if (window.scrollY > 10) {
+        setIsScrolled(true);
+      } else {
+        setIsScrolled(false);
+      }
     };
 
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
-
-  useEffect(() => {
-    fetch(`${backendURL}/me`, {
-      credentials: 'include',
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error('Unauthenticated');
-        return res.json();
-      })
-      .then((data) => setUser(data))
-      .catch(() => setUser(null));
-  }, []);
-
-  const handleLogin = () => {
-    const currentUrl = window.location.href;
-    window.location.href = `${backendURL}/login/github?redirect=${encodeURIComponent(currentUrl)}`;
-  };
-
-  const handleLogout = async () => {
-    await fetch(`${backendURL}/logout`, {
-      method: 'POST',
-      credentials: 'include',
-    });
-    setUser(null);
-    window.location.href = '/';
-  };
 
   const scrollToAbout = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -102,20 +79,14 @@ const Header = () => {
                 </Button>
               ))}
 
-              {user ? (
-                <div className="flex items-center gap-4 ml-3 animate-fade-in [animation-delay:700ms]">
-                  <img src={user.avatar} alt="avatar" className="w-8 h-8 rounded-full" />
-                  <span>{user.username}</span>
-                  <Button variant="ghost" onClick={handleLogout}>Logout</Button>
-                </div>
-              ) : (
-                <Button
-                  className="ml-3 pangea-button-primary animate-fade-in [animation-delay:700ms]"
-                  onClick={handleLogin}
-                >
-                  Sign Up / Sign In
-                </Button>
-              )}
+              <Button
+                className={cn(
+                  "ml-3 pangea-button-primary animate-fade-in [animation-delay:700ms]",
+                )}
+                asChild
+              >
+                <Link to="/signup">Sign Up / Sign In</Link>
+              </Button>
             </nav>
           )}
 
@@ -154,20 +125,11 @@ const Header = () => {
                   )}
                 </Button>
               ))}
-
-              {user ? (
-                <>
-                  <div className="flex items-center gap-3 px-2">
-                    <img src={user.avatar} alt="avatar" className="w-8 h-8 rounded-full" />
-                    <span>{user.username}</span>
-                  </div>
-                  <Button className="w-full" onClick={handleLogout}>Logout</Button>
-                </>
-              ) : (
-                <Button className="w-full pangea-button-primary" onClick={handleLogin}>
+              <Button className="w-full pangea-button-primary" asChild>
+                <Link to="/signup" onClick={() => setMobileMenuOpen(false)}>
                   Sign Up / Sign In
-                </Button>
-              )}
+                </Link>
+              </Button>
             </div>
           </nav>
         )}
