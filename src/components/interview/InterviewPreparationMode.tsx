@@ -1,5 +1,4 @@
 
-import { Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -38,18 +37,6 @@ export const InterviewPreparationMode = ({ onSelectMode }: InterviewModeProps) =
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2">
               Professional Supervised
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span className="inline-flex items-center justify-center rounded-full bg-yellow-100 px-1.5 py-0.5 text-xs font-medium text-yellow-800 ml-2">
-                      BETA
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>This feature is currently in beta.</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
             </CardTitle>
             <CardDescription>Live interviews with professionals</CardDescription>
           </CardHeader>
