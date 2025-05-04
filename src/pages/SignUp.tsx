@@ -12,8 +12,10 @@ const SignUp = () => {
 
   const handleGitHubAuth = () => {
     try {
-      const currentPage = window.location.href;
-      window.location.href = `${backendURL}/login/github?redirect=${encodeURIComponent(currentPage)}`;
+      // Store current URL in localStorage to ensure we can get back here
+      localStorage.setItem('authRedirectURL', window.location.href);
+      // Using SameSite=None and secure cookies requires HTTPS
+      window.location.href = `${backendURL}/login/github?redirect=${encodeURIComponent(window.location.href)}`;
     } catch (err) {
       console.error('GitHub auth error:', err);
       toast({
@@ -35,6 +37,10 @@ const SignUp = () => {
         }
       });
       setUser(null);
+      // Clear any stored auth data
+      sessionStorage.removeItem('userSession');
+      localStorage.removeItem('authRedirectURL');
+      
       toast({
         title: "Logged Out",
         description: "You have been successfully logged out.",
@@ -51,6 +57,16 @@ const SignUp = () => {
   };
 
   useEffect(() => {
+    // Check if we just completed authentication
+    const urlParams = new URLSearchParams(window.location.search);
+    const authSuccess = urlParams.get('auth_success');
+    
+    if (authSuccess === 'true') {
+      console.log('Auth success parameter detected');
+      // Remove the auth_success parameter from URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+    
     // Fetch user details if already logged in
     fetch(`${backendURL}/me`, {
       credentials: 'include',
@@ -66,6 +82,8 @@ const SignUp = () => {
       .then((data) => {
         console.log('User authenticated:', data);
         setUser(data);
+        // Store user data in sessionStorage for other components
+        sessionStorage.setItem('userSession', JSON.stringify(data));
       })
       .catch((err) => {
         console.error('Error fetching user info:', err);

@@ -19,13 +19,14 @@ const getFromStorage = (key: string, defaultValue: any = null) => {
 const getAuthenticatedUser = () => {
   const userSession = sessionStorage.getItem('userSession');
   if (!userSession) {
-    // Try to get from backend
+    // Try to get from backend with explicit SameSite handling
     try {
       const backendURL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
-      fetch(`${backendURL}/me`, {
+      return fetch(`${backendURL}/me`, {
         credentials: 'include',
         headers: {
           'Accept': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
         }
       })
       .then(res => {
@@ -46,13 +47,13 @@ const getAuthenticatedUser = () => {
       console.error('Error getting authenticated user:', error);
       return null;
     }
-    return null;
   }
   
   try {
     return JSON.parse(userSession);
   } catch (error) {
     console.error('Error parsing user session:', error);
+    sessionStorage.removeItem('userSession'); // Clear invalid data
     return null;
   }
 };
