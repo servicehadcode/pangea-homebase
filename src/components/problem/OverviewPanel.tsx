@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -93,11 +92,15 @@ const OverviewPanel: React.FC<OverviewPanelProps> = ({
       // If user is not logged in, redirect to sign up page and store the return URL
       const currentURL = window.location.pathname;
       localStorage.setItem('returnAfterLogin', currentURL);
+      
+      // Show toast notification
       toast({
         title: "Authentication Required",
         description: "Please sign in to continue with this problem.",
       });
-      navigate('/sign-up');
+      
+      // Use absolute path for navigation to prevent 404 errors
+      navigate('/signup', { replace: false });
       return;
     }
     
