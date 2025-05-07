@@ -6,10 +6,9 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { 
-  CheckCircle, 
-  UserPlus, 
-  Users, 
+import {
+  UserPlus,
+  Users,
   User,
   ChevronLeft,
   Loader2,
@@ -17,6 +16,7 @@ import {
   Save,
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
+import { useUser } from '@/contexts/UserContext';
 import { sendCollaborationInvite } from '@/services/collaborationService';
 import { createProblemInstance, addCollaborator, getProblemInstance, updateProblemInstanceCollaboration, ProblemInstance } from '@/services/problemService';
 import { v4 as uuidv4 } from 'uuid';
@@ -28,34 +28,35 @@ interface CollaborationSetupPanelProps {
   problem: any;
 }
 
-const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({ 
-  onComplete, 
-  onBack, 
-  problem 
+const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({
+  onComplete,
+  onBack,
+  problem
 }) => {
   const { toast } = useToast();
+  const { user } = useUser();
   const [mode, setMode] = useState<'solo' | 'pair'>('solo');
   const [collaboratorEmail, setCollaboratorEmail] = useState('');
   const [isInviting, setIsInviting] = useState(false);
   const [invitedEmails, setInvitedEmails] = useState<string[]>([]);
-  const [ownerName, setOwnerName] = useState(localStorage.getItem('username') || '');
-  const [gitUsername, setGitUsername] = useState('');
+  const [ownerName, setOwnerName] = useState(localStorage.getItem('username') || user?.username || '');
+  const [gitUsername, setGitUsername] = useState(user?.username || '');
   const [isNameSaved, setIsNameSaved] = useState(false);
   const [instanceId, setInstanceId] = useState<string | null>(null);
   const [isCreatingInstance, setIsCreatingInstance] = useState(false);
   const [showCollaboratorSection, setShowCollaboratorSection] = useState(false);
   const [isLoadingInstance, setIsLoadingInstance] = useState(true);
   const [existingInstance, setExistingInstance] = useState<ProblemInstance | null>(null);
-  const [userId, setUserId] = useState(localStorage.getItem('userId') || '');
+  const [userId, setUserId] = useState(localStorage.getItem('userId') || user?.id || '');
   const [isSettingUpGit, setIsSettingUpGit] = useState(false);
 
   const getProblemNumber = () => {
     if (!problem) return null;
-    
+
     if (problem.problem_num) {
       return String(problem.problem_num);
     }
-    
+
     return problem.id ? String(problem.id) : null;
   };
 
@@ -63,23 +64,27 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({
     const fetchExistingInstance = async () => {
       try {
         const problemNum = getProblemNumber();
-        
+
         if (!problemNum) {
           console.error("Problem number missing");
           setIsLoadingInstance(false);
           return;
         }
-        
+
         let currentUserId = localStorage.getItem('userId');
-        if (!currentUserId) {
+        if (!currentUserId && user?.id) {
+          currentUserId = user.id;
+          localStorage.setItem('userId', currentUserId);
+          setUserId(currentUserId);
+        } else if (!currentUserId) {
           currentUserId = uuidv4();
           localStorage.setItem('userId', currentUserId);
           setUserId(currentUserId);
         }
-        
+
         try {
           const instance = await getProblemInstance(problemNum, currentUserId);
-          
+
           if (instance && instance._id) {
             console.log("Found existing instance:", instance);
             setExistingInstance(instance);
@@ -88,8 +93,11 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({
             setMode(instance.collaborationMode || 'solo');
             setIsNameSaved(true);
             setOwnerName(instance.owner.username);
-            setGitUsername(instance.owner.gitUsername || instance.gitUsername || '');
-            
+
+            // Always use the authenticated user's GitHub username if available
+            const githubUser = user?.username || instance.owner.gitUsername || instance.gitUsername || '';
+            setGitUsername(githubUser);
+
             if (instance.collaborationMode === 'pair') {
               setShowCollaboratorSection(true);
               const emails = (instance.collaborators || [])
@@ -97,7 +105,7 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({
                 .filter(Boolean);
               setInvitedEmails(emails);
             }
-            
+
             toast({
               title: "Previous Work Found",
               description: "We found your previous work on this problem",
@@ -107,14 +115,22 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({
             setExistingInstance(null);
             setInstanceId(null);
             setIsNameSaved(false);
-            setOwnerName(localStorage.getItem('username') || '');
-            setGitUsername('');
+            setOwnerName(localStorage.getItem('username') || user?.username || '');
+
+            // Always use the authenticated user's GitHub username if available
+            setGitUsername(user?.username || '');
           }
         } catch (error: any) {
           console.log("Error or no instance found:", error);
           setExistingInstance(null);
           setInstanceId(null);
           setIsNameSaved(false);
+
+          // Set default values from authenticated user if available
+          if (user?.username) {
+            setOwnerName(user.username);
+            setGitUsername(user.username);
+          }
         }
       } catch (error) {
         console.error("Error in fetchExistingInstance:", error);
@@ -122,9 +138,9 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({
         setIsLoadingInstance(false);
       }
     };
-    
+
     fetchExistingInstance();
-  }, [problem, toast]);
+  }, [problem, toast, user]);
 
   const handleInviteCollaborator = async () => {
     if (!collaboratorEmail || !collaboratorEmail.includes('@')) {
@@ -146,10 +162,10 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({
     }
 
     setIsInviting(true);
-    
+
     try {
       const response = await sendCollaborationInvite(collaboratorEmail);
-      
+
       if (response.success) {
         const collaboratorResponse = await addCollaborator(instanceId, {
           userId: `user-${Date.now()}`,
@@ -161,7 +177,7 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({
           title: "Invitation Sent",
           description: collaboratorResponse.message || "Collaborator added successfully",
         });
-        
+
         setInvitedEmails([...invitedEmails, collaboratorEmail]);
         setCollaboratorEmail('');
       } else {
@@ -192,39 +208,32 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({
       });
       return;
     }
-    
-    if (!gitUsername.trim()) {
-      toast({
-        title: "Invalid GitHub Username",
-        description: "Please enter a valid GitHub username.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
+
+    // We don't validate GitHub username anymore since it's non-editable
+
     setIsCreatingInstance(true);
 
     try {
       localStorage.setItem('username', ownerName);
       localStorage.setItem('inviterName', ownerName);
-      
+
       const problemNum = getProblemNumber();
-      
+
       if (!problemNum) {
         throw new Error('Problem number is missing or invalid');
       }
 
       if (existingInstance && instanceId) {
         console.log("Updating existing instance:", instanceId);
-        
+
         const response = await updateProblemInstanceCollaboration(instanceId, mode);
-        
+
         if (response) {
           toast({
             title: "Settings Updated",
             description: "Your collaboration settings have been updated successfully.",
           });
-          
+
           setMode(mode);
           setShowCollaboratorSection(mode === 'pair');
         }
@@ -241,28 +250,28 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({
           owner: {
             userId: currentUserId,
             username: ownerName,
-            email: "john@example.com",
-            gitUsername: gitUsername
+            email: user?.email || "john@example.com",
+            gitUsername: user?.username || gitUsername
           },
           collaborationMode: mode,
           status: 'in-progress',
         };
-        
+
         console.log("Creating new problem instance:", instanceData);
-        
+
         const response = await createProblemInstance(instanceData);
-        
+
         if ('instanceId' in response) {
           const newInstanceId = response.instanceId;
           setInstanceId(newInstanceId);
           localStorage.setItem(`problemInstance_${problemNum}`, newInstanceId);
           console.log("Created new instance:", response);
-          
+
           toast({
             title: "Settings Saved",
             description: "Your settings have been saved successfully.",
           });
-          
+
           setIsNameSaved(true);
         } else {
           throw new Error('Failed to create instance: No instanceId returned');
@@ -274,7 +283,7 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({
       } else {
         setShowCollaboratorSection(false);
       }
-      
+
     } catch (error) {
       console.error("Error saving settings:", error);
       toast({
@@ -312,7 +321,7 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({
       const problemNum = getProblemNumber();
       const problemDetails = await getProblemById(problemNum || '');
       console.log('Problem details for git setup:', problemDetails);
-      
+
       const repoUrl = problemDetails.metadata?.gitRepo;
       console.log('Repository URL from problem metadata:', repoUrl);
 
@@ -322,17 +331,11 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({
         return;
       }
 
-      if (!gitUsername) {
-        toast({
-          title: "GitHub Username Required",
-          description: "Please save your GitHub username before proceeding.",
-          variant: "destructive",
-        });
-        return;
-      }
+      // We always have a GitHub username now since it's populated from the authenticated user
+      // This validation is no longer needed
 
       console.log('Setting up git branch with repo:', repoUrl, 'and username:', gitUsername);
-      
+
       const branchSetupRequest = {
         repoUrl,
         username: gitUsername,
@@ -342,15 +345,15 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({
 
       console.log('Sending branch setup request:', branchSetupRequest);
       const result = await setupGitBranch(branchSetupRequest);
-      
+
       console.log('Git setup completed successfully:', result);
-      
+
       let toastDescription = result.message;
       if (result.gitCommands && result.gitCommands.length > 0) {
         toastDescription += ` Use: ${result.gitCommands[0]}`;
         console.log('Git commands for user:', result.gitCommands);
       }
-      
+
       toast({
         title: "Git Setup Success",
         description: toastDescription,
@@ -388,8 +391,8 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="text-2xl">Collaboration Setup</CardTitle>
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             size="sm"
             onClick={onBack}
             className="flex items-center gap-1"
@@ -399,7 +402,7 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({
           </Button>
         </div>
         <CardDescription>
-          {existingInstance && existingInstance.startedAt 
+          {existingInstance && existingInstance.startedAt
             ? `Update your collaboration settings for this problem (Started on ${new Date(existingInstance.startedAt).toLocaleDateString()})`
             : "Choose how you want to work on this problem and set up your collaboration preferences"}
         </CardDescription>
@@ -409,36 +412,37 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({
           <Alert>
             <AlertTitle>Previous work found</AlertTitle>
             <AlertDescription>
-              You started working on this problem on {new Date(existingInstance.startedAt).toLocaleDateString()}. 
+              You started working on this problem on {new Date(existingInstance.startedAt).toLocaleDateString()}.
               You can update your collaboration mode below.
             </AlertDescription>
           </Alert>
         )}
-        
+
         <div className="space-y-3">
           <Label>Your Name</Label>
-          <Input 
+          <Input
             value={ownerName}
             onChange={(e) => setOwnerName(e.target.value)}
             placeholder="Enter your name"
-            disabled={isCreatingInstance || isNameSaved}
+            disabled={isCreatingInstance}
             className={isNameSaved ? "bg-gray-100" : ""}
           />
         </div>
 
         <div className="space-y-3">
           <Label>Your GitHub Username</Label>
-          <Input 
+          <Input
             value={gitUsername}
             onChange={(e) => setGitUsername(e.target.value)}
             placeholder="Enter your GitHub username"
-            disabled={isCreatingInstance || existingInstance !== null || isNameSaved}
-            className={isNameSaved || existingInstance ? "bg-gray-100" : ""}
+            disabled={true}
+            className="bg-gray-100"
+            readOnly
           />
         </div>
 
-        <RadioGroup 
-          value={mode} 
+        <RadioGroup
+          value={mode}
           onValueChange={(value: 'solo' | 'pair') => setMode(value)}
           className="space-y-4"
           disabled={isCreatingInstance}
@@ -450,7 +454,7 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({
               Solo Mode
             </Label>
           </div>
-          
+
           <div className="flex items-center space-x-2">
             <RadioGroupItem value="pair" id="pair" disabled={isCreatingInstance} />
             <Label htmlFor="pair" className="flex items-center gap-2">
@@ -461,7 +465,7 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({
         </RadioGroup>
 
         <div className="pt-2">
-          <Button 
+          <Button
             variant="outline"
             onClick={handleSaveOwnerName}
             disabled={isCreatingInstance}
@@ -480,13 +484,13 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({
             )}
           </Button>
         </div>
-        
+
         {!isNameSaved && (
           <p className="text-sm text-amber-600 mt-2">
             *You must save your settings before proceeding
           </p>
         )}
-        
+
         <Separator />
 
         {mode === 'pair' && (isNameSaved || showCollaboratorSection) && (
@@ -494,13 +498,13 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({
             <div className="space-y-3">
               <Label>Invite Collaborators</Label>
               <div className="flex gap-2">
-                <Input 
+                <Input
                   value={collaboratorEmail}
                   onChange={(e) => setCollaboratorEmail(e.target.value)}
                   placeholder="Enter collaborator's email"
                   disabled={isInviting}
                 />
-                <Button 
+                <Button
                   onClick={handleInviteCollaborator}
                   disabled={isInviting || !collaboratorEmail}
                   className="flex items-center gap-1"
@@ -523,7 +527,7 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({
                 <div className="space-y-2">
                   <Label>Invited Collaborators:</Label>
                   {invitedEmails.map((email, index) => (
-                    <div 
+                    <div
                       key={index}
                       className="flex items-center gap-2 p-2 rounded-md bg-muted"
                     >
@@ -551,7 +555,7 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({
         )}
       </CardContent>
       <CardFooter className="flex justify-between pt-6">
-        <Button 
+        <Button
           variant="outline"
           onClick={onBack}
           className="flex items-center gap-1"
@@ -559,8 +563,8 @@ const CollaborationSetupPanel: React.FC<CollaborationSetupPanelProps> = ({
           <ChevronLeft className="h-4 w-4" />
           Back
         </Button>
-        
-        <Button 
+
+        <Button
           onClick={handleContinue}
           className="pangea-button-primary"
           disabled={!isNameSaved || (mode === 'pair' && showCollaboratorSection && invitedEmails.length === 0) || isSettingUpGit}

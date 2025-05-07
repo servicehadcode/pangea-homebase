@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { 
-  Code, 
-  Database, 
-  ChevronRight, 
+import { useUser } from '@/contexts/UserContext';
+import {
+  Code,
+  Database,
+  ChevronRight,
   BarChart,
   List,
   Clock,
@@ -61,11 +62,11 @@ import CollaborationSetupPanel from '@/components/problem/CollaborationSetupPane
 import SubtaskAssignmentPanel from '@/components/problem/SubtaskAssignmentPanel';
 import AchievementPanel from '@/components/problem/AchievementPanel';
 import { DiscussionItem } from '@/components/discussion/DiscussionItem';
-import { 
-  recordUserSession, 
-  updateSessionProgress, 
-  completeSession, 
-  checkDatasetAvailability, 
+import {
+  recordUserSession,
+  updateSessionProgress,
+  completeSession,
+  checkDatasetAvailability,
   getDownloadableItems,
   saveUserProgress
 } from '@/services/databaseService';
@@ -79,6 +80,7 @@ const ProblemDetails = () => {
   const navigate = useNavigate();
   const { state } = useLocation();
   const { toast } = useToast();
+  const { user } = useUser();
   const [problem, setProblem] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
   const [isCompleted, setIsCompleted] = useState(false);
@@ -114,13 +116,13 @@ const ProblemDetails = () => {
 
   useEffect(() => {
     window.scrollTo(0, 0);
-    
+
     const fetchData = async () => {
       setIsLoading(true);
-      
+
       try {
         const problemData = await getProblemById(id || '1');
-        
+
         const systemSteps = [
           {
             id: 'setup',
@@ -168,7 +170,7 @@ const ProblemDetails = () => {
             ]
           }
         ];
-        
+
         const actualSteps = problemData.steps.map((step: any, index: number) => ({
           id: String(index + 1),
           title: `Step ${step.step}: ${step.description.split(':')[0] || 'Task'}`,
@@ -184,7 +186,7 @@ const ProblemDetails = () => {
           assignedTo: null,
           step: step.step
         }));
-        
+
         const transformedData = {
           id: parseInt(problemData.problem_num, 10),
           problem_num: problemData.problem_num,
@@ -198,42 +200,52 @@ const ProblemDetails = () => {
             software: problemData.requirements?.skills?.join(', ') || "Required software"
           },
           steps: [...systemSteps, ...actualSteps],
-          resources: problemData.resources.map((resource: any) => ({ 
-            title: resource.description, 
-            url: resource.url 
+          resources: problemData.resources.map((resource: any) => ({
+            title: resource.description,
+            url: resource.url
           })),
           downloadableItems: problemData.downloadableItems || [],
           preparationSteps: problemData.preparationSteps || [],
           repoUrl: problemData.metadata?.gitRepo || "https://github.com/example/repo",
           isCompleted: false,
         };
-        
+
         setProblem(transformedData);
-        
+
+        // Use authenticated user ID if available, otherwise fallback to "user123"
+        const userId = user?.id || "user123";
+
         const newSessionId = await recordUserSession({
-          userId: "user123",
+          userId,
           problemId: id || "1",
           category: category || "data-science",
           startTime: new Date().toISOString()
         });
-        
+
         setSessionId(newSessionId);
-        
-        const savedUsername = localStorage.getItem('username');
-        if (savedUsername) {
-          setUsername(savedUsername);
+
+        // Set username from authenticated user if available
+        if (user?.username) {
+          setUsername(user.username);
+          // Also store in localStorage for consistency
+          localStorage.setItem('username', user.username);
+        } else {
+          const savedUsername = localStorage.getItem('username');
+          if (savedUsername) {
+            setUsername(savedUsername);
+          }
         }
-        
+
         const savedInviter = localStorage.getItem('inviterName');
         if (savedInviter) {
           setInviterName(savedInviter);
         }
-        
+
         const savedSteps = localStorage.getItem(`problem-${transformedData.id}-steps`);
         if (savedSteps) {
           setStepsCompleted(JSON.parse(savedSteps));
         }
-        
+
         const savedState = localStorage.getItem(`problem-${id}-state`);
         if (savedState) {
           const state = JSON.parse(savedState);
@@ -250,15 +262,15 @@ const ProblemDetails = () => {
             resources: true,
           });
           setShowTaskAssignment(state.showTaskAssignment || false);
-          
+
           if (state.subtaskStates) {
             setSubtaskStates(state.subtaskStates);
           }
         }
-        
+
         const assignments = await getAllSubtaskAssignments();
         setSubtaskAssignments(assignments);
-        
+
       } catch (error) {
         console.error('Error fetching problem details:', error);
         toast({
@@ -271,12 +283,12 @@ const ProblemDetails = () => {
         setIsLoading(false);
       }
     };
-    
+
     fetchData();
-    
+
     const completedProblems = JSON.parse(localStorage.getItem('completedProblems') || '{}');
     setIsCompleted(completedProblems[`${category}-${id}`] || false);
-  }, [category, id, navigate, toast, state]);
+  }, [category, id, navigate, toast, state, user]);
 
   useEffect(() => {
     if (problem) {
@@ -296,72 +308,72 @@ const ProblemDetails = () => {
     if (sessionId) {
       await completeSession(sessionId);
     }
-    
+
     const completedProblems = JSON.parse(localStorage.getItem('completedProblems') || '{}');
     completedProblems[`${category}-${id}`] = true;
     localStorage.setItem('completedProblems', JSON.stringify(completedProblems));
-    
+
     setIsCompleted(true);
     setShowAchievement(true);
-    
+
     toast({
       title: "Problem Completed!",
       description: "Congratulations on completing this problem.",
     });
   };
-  
+
   const handleNextStep = () => {
     const actualSubtasks = getActualSubtasks();
     if (currentStepIndex < actualSubtasks.length - 1) {
       setCurrentStepIndex(currentStepIndex + 1);
     }
   };
-  
+
   const handlePrevStep = () => {
     if (currentStepIndex > 0) {
       setCurrentStepIndex(currentStepIndex - 1);
     }
   };
-  
+
   const handleCompleteStep = () => {
     const actualSubtasks = getActualSubtasks();
     const currentSubtask = actualSubtasks[currentStepIndex];
-    
+
     setStepsCompleted(prev => ({ ...prev, [currentSubtask.id]: true }));
-    
+
     if (currentStepIndex < actualSubtasks.length - 1) {
       setCurrentStepIndex(currentStepIndex + 1);
     } else if (allStepsCompleted) {
       handleCompleteProblem();
     }
   };
-  
+
   const handleSkipStep = () => {
     const actualSubtasks = getActualSubtasks();
     if (currentStepIndex < actualSubtasks.length - 1) {
       setCurrentStepIndex(currentStepIndex + 1);
     }
   };
-  
+
   const handleDatasetTab = async () => {
     setLastSubtaskIndex(currentStepIndex);
     setIsDatasetMode(true);
     setActiveTab('dataset');
   };
-  
+
   const handleBackToSubtasks = () => {
     setIsDatasetMode(false);
     setActiveTab('subtasks');
   };
-  
+
   const handleStartSubtasks = () => {
     setTabsEnabled(prev => ({ ...prev, collaboration: true }));
     setActiveTab('collaboration');
   };
-  
+
   const handleCollaborationComplete = (mode: 'solo' | 'pair') => {
     setCollaborationMode(mode);
-    
+
     if (mode === 'pair') {
       setTabsEnabled(prev => ({ ...prev, taskAssignment: true }));
       setShowTaskAssignment(true);
@@ -371,12 +383,12 @@ const ProblemDetails = () => {
       setActiveTab('subtasks');
     }
   };
-  
+
   const handleTaskAssignmentComplete = () => {
     setTabsEnabled(prev => ({ ...prev, subtasks: true }));
     setActiveTab('subtasks');
   };
-  
+
   const handleSubmitComment = async () => {
     if (!newComment.trim()) {
       toast({
@@ -386,20 +398,20 @@ const ProblemDetails = () => {
       });
       return;
     }
-    
+
     setIsSubmittingComment(true);
-    
+
     try {
       const comment = await addDiscussionComment({
         problemId: id || "1",
         content: newComment,
-        userId: "user123",
-        username: username
+        userId: user?.id || "user123",
+        username: user?.username || username
       });
-      
+
       setDiscussions(prev => [comment, ...prev]);
       setNewComment('');
-      
+
       toast({
         title: "Comment Posted",
         description: "Your comment has been posted successfully."
@@ -417,8 +429,8 @@ const ProblemDetails = () => {
 
   const handleReply = (newReply: DiscussionComment) => {
     console.log('Handling reply:', newReply);
-    setDiscussions(prev => prev.map(d => 
-      d.id === newReply.parentId 
+    setDiscussions(prev => prev.map(d =>
+      d.id === newReply.parentId
         ? { ...d, replies: [...(d.replies || []), newReply] }
         : d
     ));
@@ -426,8 +438,8 @@ const ProblemDetails = () => {
 
   const handleUpvote = (commentId: string) => {
     console.log('Handling upvote for comment ID:', commentId);
-    setDiscussions(prev => prev.map(d => 
-      d.id === commentId 
+    setDiscussions(prev => prev.map(d =>
+      d.id === commentId
         ? { ...d, votes: (d.votes || 0) + 1 }
         : d
     ));
@@ -435,16 +447,16 @@ const ProblemDetails = () => {
 
   const fetchDiscussions = async () => {
     if (!id) return;
-    
+
     setIsLoadingDiscussions(true);
-    
+
     try {
       const comments = await getDiscussionComments(id);
-      const sortedComments = comments.sort((a, b) => 
+      const sortedComments = comments.sort((a, b) =>
         new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
       ).map(comment => ({
         ...comment,
-        replies: (comment.replies || []).sort((a, b) => 
+        replies: (comment.replies || []).sort((a, b) =>
           new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
         )
       }));
@@ -463,9 +475,9 @@ const ProblemDetails = () => {
 
   const fetchResources = async () => {
     if (!id) return;
-    
+
     setIsLoadingResources(true);
-    
+
     try {
       const resourceItems = await getResources(id);
       setResources(resourceItems);
@@ -478,7 +490,7 @@ const ProblemDetails = () => {
 
   const handleSaveAndExit = async () => {
     setIsSaving(true);
-    
+
     try {
       const currentState = {
         activeTab,
@@ -489,11 +501,11 @@ const ProblemDetails = () => {
         stepsCompleted,
         subtaskStates
       };
-      
+
       localStorage.setItem(`problem-${id}-state`, JSON.stringify(currentState));
-      
+
       await saveUserProgress({
-        userId: "user123",
+        userId: user?.id || "user123",
         problemId: id || "1",
         category: category || "data-science",
         progress: currentState,
@@ -501,12 +513,12 @@ const ProblemDetails = () => {
         subtaskStates,
         timestamp: new Date().toISOString()
       });
-      
+
       toast({
         title: "Progress Saved",
         description: "Your progress has been saved. You can continue from where you left off when you return.",
       });
-      
+
       navigate('/problems');
     } catch (error) {
       toast({
@@ -568,11 +580,11 @@ const ProblemDetails = () => {
   const currentSubtask = filteredSteps[currentStepIndex];
   const isFirstSubtask = currentStepIndex === 0;
   const isLastSubtask = currentStepIndex === filteredSteps.length - 1;
-  
+
   const completedSubtasksCount = Object.values(stepsCompleted).filter(Boolean).length;
   const totalSubtasksCount = filteredSteps.length;
-  const completionPercentage = totalSubtasksCount > 0 
-    ? (completedSubtasksCount / totalSubtasksCount) * 100 
+  const completionPercentage = totalSubtasksCount > 0
+    ? (completedSubtasksCount / totalSubtasksCount) * 100
     : 0;
 
   if (showAchievement) {
@@ -582,9 +594,9 @@ const ProblemDetails = () => {
         <main className="flex-grow pt-28 pb-16">
           <div className="pangea-container">
             <div className="max-w-3xl mx-auto">
-              <AchievementPanel 
-                problemId={id || "1"} 
-                userId="user123" 
+              <AchievementPanel
+                problemId={id || "1"}
+                userId={user?.id || "user123"}
                 category={category || "data-science"}
               />
             </div>
@@ -598,19 +610,19 @@ const ProblemDetails = () => {
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      
+
       <main className="flex-grow pt-28 pb-16">
         <div className="pangea-container">
           <div className="flex justify-between items-center mb-4">
-            <Button 
-              variant="ghost" 
+            <Button
+              variant="ghost"
               onClick={() => navigate('/problems')}
             >
               ← Back to Problems
             </Button>
-            
-            <Button 
-              variant="outline" 
+
+            <Button
+              variant="outline"
               className="flex items-center gap-2"
               onClick={handleSaveAndExit}
               disabled={isSaving}
@@ -663,29 +675,29 @@ const ProblemDetails = () => {
                   </div>
                 </TabsTrigger>
               </TabsList>
-              
+
               <Separator className="my-4" />
 
               <TabsContent value="overview">
-                <OverviewPanel 
+                <OverviewPanel
                   problem={problem}
                   currentStepIndex={currentStepIndex}
                   onStepChange={setCurrentStepIndex}
                   onComplete={handleStartSubtasks}
                 />
               </TabsContent>
-              
+
               <TabsContent value="collaboration">
-                <CollaborationSetupPanel 
+                <CollaborationSetupPanel
                   onComplete={handleCollaborationComplete}
                   onBack={() => setActiveTab('overview')}
                   problem={problem}
                 />
               </TabsContent>
-              
+
               {showTaskAssignment && (
                 <TabsContent value="taskAssignment">
-                  <SubtaskAssignmentPanel 
+                  <SubtaskAssignmentPanel
                     subtasks={filteredSteps}
                     onComplete={handleTaskAssignmentComplete}
                     onBack={() => setActiveTab('collaboration')}
@@ -708,16 +720,16 @@ const ProblemDetails = () => {
                           </div>
                           <Progress value={completionPercentage} className="h-2" />
                         </div>
-                        
+
                         <Separator className="my-4" />
-                        
+
                         <ScrollArea className="h-[250px] pr-4">
                           <div className="space-y-2">
                             {filteredSteps.map((step, index) => (
-                              <div 
-                                key={step.id} 
+                              <div
+                                key={step.id}
                                 className={`p-2 rounded-md cursor-pointer ${
-                                  currentStepIndex === index ? 'bg-primary/90 text-primary-foreground' : 
+                                  currentStepIndex === index ? 'bg-primary/90 text-primary-foreground' :
                                   stepsCompleted[step.id] ? 'bg-primary/20' : 'bg-secondary/50'
                                 }`}
                                 onClick={() => setCurrentStepIndex(index)}
@@ -733,9 +745,9 @@ const ProblemDetails = () => {
                       </CardContent>
                     </Card>
                   </div>
-                  
+
                   <div className="md:col-span-3">
-                    <SubtaskPanel 
+                    <SubtaskPanel
                       step={currentSubtask}
                       onPrev={handlePrevStep}
                       onNext={handleNextStep}
@@ -761,7 +773,7 @@ const ProblemDetails = () => {
               </TabsContent>
 
               <TabsContent value="dataset">
-                <SubtaskPanel 
+                <SubtaskPanel
                   step={currentSubtask}
                   onPrev={handlePrevStep}
                   onNext={handleNextStep}
@@ -788,14 +800,14 @@ const ProblemDetails = () => {
                   <CardContent className="space-y-4">
                     <div className="space-y-3 mb-6">
                       <Label htmlFor="new-comment">Add a Comment</Label>
-                      <Textarea 
+                      <Textarea
                         id="new-comment"
                         placeholder="Share your thoughts, questions, or insights..."
                         value={newComment}
                         onChange={(e) => setNewComment(e.target.value)}
                         className="min-h-[100px]"
                       />
-                      <Button 
+                      <Button
                         onClick={handleSubmitComment}
                         disabled={isSubmittingComment || !newComment.trim()}
                         className="flex items-center gap-1"
@@ -810,9 +822,9 @@ const ProblemDetails = () => {
                         )}
                       </Button>
                     </div>
-                    
+
                     <Separator />
-                    
+
                     {isLoadingDiscussions ? (
                       <div className="flex justify-center p-6">
                         <Loader2 className="h-6 w-6 animate-spin" />
@@ -820,7 +832,7 @@ const ProblemDetails = () => {
                     ) : discussions.length > 0 ? (
                       <div className="space-y-4">
                         {discussions.map(comment => (
-                          <DiscussionItem 
+                          <DiscussionItem
                             key={comment.id}
                             comment={comment}
                             onReply={handleReply}
@@ -837,7 +849,7 @@ const ProblemDetails = () => {
                   </CardContent>
                 </Card>
               </TabsContent>
-              
+
               <TabsContent value="resources" className="space-y-4">
                 <Card>
                   <CardHeader>
@@ -857,8 +869,8 @@ const ProblemDetails = () => {
                             <p className="text-sm text-muted-foreground mb-3">{resource.description}</p>
                             <div className="flex justify-between items-center">
                               <Badge variant="outline">{resource.type}</Badge>
-                              <Button 
-                                variant="outline" 
+                              <Button
+                                variant="outline"
                                 size="sm"
                                 onClick={() => window.open(resource.url, '_blank')}
                                 className="flex items-center gap-1"

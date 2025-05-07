@@ -4,11 +4,12 @@ import { Menu, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useUser } from '@/contexts/UserContext';
 
 const Header = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [user, setUser] = useState<any>(null);
+  const { user, logout } = useUser();
   const isMobile = useIsMobile();
   const backendURL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
 
@@ -21,30 +22,13 @@ const Header = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  useEffect(() => {
-    fetch(`${backendURL}/me`, {
-      credentials: 'include',
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error('Unauthenticated');
-        return res.json();
-      })
-      .then((data) => setUser(data))
-      .catch(() => setUser(null));
-  }, []);
-
   const handleLogin = () => {
     const currentUrl = window.location.href;
     window.location.href = `${backendURL}/login/github?redirect=${encodeURIComponent(currentUrl)}`;
   };
 
   const handleLogout = async () => {
-    await fetch(`${backendURL}/logout`, {
-      method: 'POST',
-      credentials: 'include',
-    });
-    setUser(null);
-    window.location.href = '/';
+    await logout();
   };
 
   const scrollToAbout = (e: React.MouseEvent) => {
@@ -72,8 +56,8 @@ const Header = () => {
     >
       <div className="pangea-container">
         <div className="flex items-center justify-between">
-          <Link 
-            to="/" 
+          <Link
+            to="/"
             className="flex items-center space-x-2 text-2xl font-bold text-pangea-dark"
           >
             <span className="animate-fade-in">Pangea Education</span>

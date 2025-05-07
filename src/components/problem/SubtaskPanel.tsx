@@ -8,12 +8,13 @@ import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogClose, DialogFooter } from '@/components/ui/dialog';
-import { 
-  ChevronLeft, 
-  ChevronRight, 
-  Clock, 
-  User, 
-  GitBranch, 
+import { useUser } from '@/contexts/UserContext';
+import {
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  User,
+  GitBranch,
   GitPullRequest,
   CheckSquare,
   HelpCircle,
@@ -28,9 +29,9 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { updateCollaboratorName, getInvitedCollaborators, getSubtaskAssignment } from '@/services/collaborationService';
-import { 
-  updateSessionProgress, 
-  recordSubtaskCompletion, 
+import {
+  updateSessionProgress,
+  recordSubtaskCompletion,
   getPRFeedback,
   updatePRFeedbackStatus,
   getNextSubtaskData
@@ -57,7 +58,7 @@ interface SubtaskPanelProps {
   subtaskAssignments?: Record<string, any>;
 }
 
-const SubtaskPanel: React.FC<SubtaskPanelProps> = ({ 
+const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
   step,
   onPrev,
   onNext,
@@ -76,6 +77,7 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
   subtaskAssignments = {}
 }) => {
   const { toast } = useToast();
+  const { user } = useUser();
   const [branchCreated, setBranchCreated] = useState(false);
   const [prCreated, setPrCreated] = useState(false);
   const [deliverables, setDeliverables] = useState('');
@@ -102,23 +104,24 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
     { command: 'git push', description: 'Use this command to push all your changes so that Pangea can see it and help you out 😊' }
   ];
 
-  const defaultReporter = isSoloMode ? username : inviterName;
-  const defaultAssignee = isSoloMode ? username : (step.assignedTo || 'Unassigned');
-  
+  // Use authenticated user information if available
+  const defaultReporter = user?.username ? user.username : (isSoloMode ? username : inviterName);
+  const defaultAssignee = user?.username ? user.username : (isSoloMode ? username : (step.assignedTo || 'Unassigned'));
+
   const [reporter, setReporter] = useState(defaultReporter);
   const [assignee, setAssignee] = useState(defaultAssignee);
   const [isEditingReporter, setIsEditingReporter] = useState(false);
   const [isEditingAssignee, setIsEditingAssignee] = useState(false);
-  
+
   const [acceptanceCriteria, setAcceptanceCriteria] = useState<{id: string; text: string; completed: boolean}[]>([]);
   const [isStateInitialized, setIsStateInitialized] = useState(false);
-  
+
   useEffect(() => {
     const fetchProblemData = async () => {
       try {
         const urlParts = window.location.pathname.split('/');
         const problemNum = urlParts[urlParts.length - 1];
-        
+
         if (problemNum) {
           setIsLoadingProblemData(true);
           const data = await getProblemById(problemNum);
@@ -130,7 +133,7 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
         setIsLoadingProblemData(false);
       }
     };
-    
+
     fetchProblemData();
   }, []);
 
@@ -140,7 +143,7 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
         setIsLoadingCollaborators(true);
         const fetchedCollaborators = await getInvitedCollaborators();
         setCollaborators(fetchedCollaborators);
-        
+
         if (step && step.id && !isSoloMode) {
           const assignment = subtaskAssignments[step.id];
           if (assignment) {
@@ -153,7 +156,7 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
               const assignedCollaborator = fetchedCollaborators.find(
                 (collab: any) => collab.email === step.assignedTo || collab.id === step.assignedTo
               );
-              
+
               if (assignedCollaborator) {
                 setAssignee(assignedCollaborator.name);
               }
@@ -166,10 +169,10 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
         setIsLoadingCollaborators(false);
       }
     };
-    
+
     fetchCollaborators();
   }, [step, isSoloMode, subtaskAssignments]);
-  
+
   useEffect(() => {
     if (!isStateInitialized) {
       if (savedState) {
@@ -178,9 +181,14 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
         setDeliverables(savedState.deliverables || '');
         setPRFeedback(savedState.prFeedback || []);
         setShowPRFeedback(savedState.showPRFeedback || false);
-        setReporter(savedState.reporter || defaultReporter);
-        setAssignee(savedState.assignee || defaultAssignee);
-        
+
+        // Prefer authenticated user info, then saved state, then default values
+        const reporterValue = user?.username ? user.username : (savedState.reporter || defaultReporter);
+        const assigneeValue = user?.username ? user.username : (savedState.assignee || defaultAssignee);
+
+        setReporter(reporterValue);
+        setAssignee(assigneeValue);
+
         if (savedState.acceptanceCriteria && savedState.acceptanceCriteria.length > 0) {
           setAcceptanceCriteria(savedState.acceptanceCriteria);
         } else if (step && step.acceptanceCriteria && step.acceptanceCriteria.length > 0) {
@@ -201,20 +209,21 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
         setPRFeedback([]);
         setShowPRFeedback(false);
         setHasAttemptedSubmit(false);
-        
-        setReporter(defaultReporter);
-        setAssignee(defaultAssignee);
-        
+
+        // Use authenticated user info if available
+        setReporter(user?.username || defaultReporter);
+        setAssignee(user?.username || defaultAssignee);
+
         setIsEditingReporter(false);
         setIsEditingAssignee(false);
-        
+
         setAcceptanceCriteria([]);
       }
-      
+
       setIsStateInitialized(true);
     }
-  }, [savedState, step, defaultReporter, defaultAssignee, isStateInitialized]);
-  
+  }, [savedState, step, defaultReporter, defaultAssignee, isStateInitialized, user]);
+
   useEffect(() => {
     if (isStateInitialized && onStateChange) {
       onStateChange({
@@ -230,26 +239,26 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
     }
   }, [
     isStateInitialized,
-    branchCreated, 
-    prCreated, 
-    deliverables, 
-    prFeedback, 
-    showPRFeedback, 
-    reporter, 
-    assignee, 
+    branchCreated,
+    prCreated,
+    deliverables,
+    prFeedback,
+    showPRFeedback,
+    reporter,
+    assignee,
     acceptanceCriteria,
     onStateChange
   ]);
-  
+
   useEffect(() => {
     if (step && step.acceptanceCriteria && isStateInitialized) {
-      const hasNoSavedCriteria = !acceptanceCriteria.length || 
+      const hasNoSavedCriteria = !acceptanceCriteria.length ||
         (savedState && (!savedState.acceptanceCriteria || !savedState.acceptanceCriteria.length));
-      
-      const isCriteriaFromDifferentStep = acceptanceCriteria.length > 0 && 
-        acceptanceCriteria[0].id && 
+
+      const isCriteriaFromDifferentStep = acceptanceCriteria.length > 0 &&
+        acceptanceCriteria[0].id &&
         !acceptanceCriteria[0].id.includes(`criteria-${step.id}`);
-      
+
       if (hasNoSavedCriteria || isCriteriaFromDifferentStep) {
         setAcceptanceCriteria(
           step.acceptanceCriteria.map((criteria: string, index: number) => ({
@@ -261,13 +270,13 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
       }
     }
   }, [step, isStateInitialized, savedState, acceptanceCriteria]);
-  
+
   const handleCreateBranch = async () => {
     if (branchCreated) return;
     setIsCreatingBranch(true);
     try {
       let repoUrl = "";
-      
+
       if (step?.repoUrl || step?.repo_url || step?.repository || step?.metadata?.gitRepo) {
         repoUrl = step.repoUrl || step.repo_url || step.repository || step.metadata?.gitRepo;
       } else if (problemData?.metadata?.gitRepo) {
@@ -275,17 +284,17 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
       } else if (step?.metadata?.gitRepo) {
         repoUrl = step.metadata.gitRepo;
       }
-      
+
       if (!repoUrl) {
         throw new Error("Repository URL is missing. Make sure the problem has a valid Git repository URL.");
       }
-      
+
       const urlParts = window.location.pathname.split('/');
       const problemNum = urlParts[urlParts.length - 1];
       const userId = localStorage.getItem('userId');
-      
+
       let gitUsername = "";
-      
+
       try {
         if (userId && problemNum) {
           const instance = await getProblemInstance(problemNum, userId);
@@ -297,12 +306,12 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
       } catch (error) {
         console.error("Error fetching problem instance:", error);
       }
-      
+
       if (!gitUsername) {
         gitUsername = "user";
         console.warn("No GitHub username found, using default:", gitUsername);
       }
-      
+
       const sanitizedUsername = gitUsername.replace(/[^a-zA-Z0-9_-]/g, '');
       const branchOff = "main";
       const branchTo = `${sanitizedUsername}-feature`;
@@ -377,7 +386,7 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
 
     try {
       let repoUrl = "";
-      
+
       if (step?.repoUrl || step?.repo_url || step?.repository || step?.metadata?.gitRepo) {
         repoUrl = step.repoUrl || step.repo_url || step.repository || step.metadata?.gitRepo;
       } else if (problemData?.metadata?.gitRepo) {
@@ -387,12 +396,12 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
       if (!repoUrl) {
         throw new Error("Repository URL is missing.");
       }
-      
+
       const urlParts = window.location.pathname.split('/');
       const problemNum = urlParts[urlParts.length - 1];
       const userId = localStorage.getItem('userId');
       let gitUsername = "";
-      
+
       try {
         if (userId && problemNum) {
           const instance = await getProblemInstance(problemNum, userId);
@@ -403,13 +412,13 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
       } catch (error) {
         console.error("Error fetching problem instance:", error);
       }
-      
+
       gitUsername = gitUsername || "user";
       const sanitizedUsername = gitUsername.replace(/[^a-zA-Z0-9_-]/g, '');
 
       const head = `${sanitizedUsername}-feature`;
       const base = `${sanitizedUsername}-main`;
-      
+
       const result = await createPullRequest({
         repoUrl,
         head,
@@ -420,7 +429,7 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
       // PR was created successfully
       setPrCreated(true);
       setShowPRFeedback(true);
-      
+
       toast({
         title: "Success",
         description: `Pull request #${result.pr_number} created successfully!`
@@ -429,7 +438,7 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
     } catch (error: any) {
       console.error("PR creation error:", error);
       const errorMsg = error.message || '';
-      
+
       // Check specifically for "Validation Failed" error message
       if (errorMsg.includes('Validation Failed')) {
         setIsPRDialogOpen(true);
@@ -464,10 +473,10 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
   const handleUpdateName = async (type: 'reporter' | 'assignee', newName: string) => {
     try {
       const response = await updateCollaboratorName(
-        type === 'reporter' ? 'reporter@example.com' : 'assignee@example.com', 
+        type === 'reporter' ? 'reporter@example.com' : 'assignee@example.com',
         newName
       );
-      
+
       if (response.success) {
         toast({ title: "Name Updated", description: response.message });
         if (type === 'reporter') {
@@ -478,27 +487,27 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
           setIsEditingAssignee(false);
         }
       } else {
-        toast({ 
-          title: "Update Failed", 
+        toast({
+          title: "Update Failed",
           description: response.message,
           variant: "destructive"
         });
       }
     } catch (error) {
-      toast({ 
-        title: "Error", 
+      toast({
+        title: "Error",
         description: "Failed to update name. Please try again.",
         variant: "destructive"
       });
     }
   };
-  
+
   const handleToggleFeedbackResolution = async (feedbackId: string, resolved: boolean) => {
     try {
       await updatePRFeedbackStatus(feedbackId, resolved);
-      
-      setPRFeedback(prevFeedback => 
-        prevFeedback.map(item => 
+
+      setPRFeedback(prevFeedback =>
+        prevFeedback.map(item =>
           item.id === feedbackId ? { ...item, resolved } : item
         )
       );
@@ -511,7 +520,7 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
       });
     }
   };
-  
+
   const handleToggleAcceptanceCriteria = (criteriaId: string, completed: boolean) => {
     setAcceptanceCriteria(prevCriteria =>
       prevCriteria.map(criteria =>
@@ -519,20 +528,20 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
       )
     );
   };
-  
+
   const refreshSubtaskData = async () => {
     try {
       if (!step || !step.id) return;
-      
+
       const nextSubtaskData = await getNextSubtaskData(step.id);
-      
+
       setBranchCreated(false);
       setPrCreated(false);
       setDeliverables('');
       setPRFeedback([]);
       setShowPRFeedback(false);
       setHasAttemptedSubmit(false);
-      
+
       if (nextSubtaskData.acceptanceCriteria && nextSubtaskData.acceptanceCriteria.length > 0) {
         setAcceptanceCriteria(
           nextSubtaskData.acceptanceCriteria.map((criteria: string, index: number) => ({
@@ -556,7 +565,7 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
       console.error('Error refreshing subtask data:', error);
     }
   };
-  
+
   const handleComplete = async () => {
     if (!prCreated) {
       toast({
@@ -566,9 +575,9 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
       });
       return;
     }
-    
+
     const hasUnresolvedFeedback = prFeedback.some(item => !item.resolved);
-    
+
     if (hasUnresolvedFeedback && !hasAttemptedSubmit) {
       setHasAttemptedSubmit(true);
       toast({
@@ -577,7 +586,7 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
       });
       return;
     }
-    
+
     if (!deliverables.trim()) {
       toast({
         title: "Comments Required",
@@ -586,48 +595,52 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
       });
       return;
     }
-    
+
     setIsCompletingSubtask(true);
-    
+
     try {
       if (sessionId) {
         const subtaskId = Math.random().toString(36).substring(2, 15);
-        
+
         await updateSessionProgress(sessionId, 50);
-        
+
+        // Use authenticated user information if available
+        const actualAssignee = user?.username ? user.username : assignee;
+        const actualReporter = user?.username ? user.username : reporter;
+
         await recordSubtaskCompletion({
           subtaskId,
           sessionId,
           title: step.title,
-          assignee,
-          reporter,
+          assignee: actualAssignee,
+          reporter: actualReporter,
           prComments: JSON.stringify(prFeedback),
           deliverables,
           completedAt: new Date().toISOString()
         });
-        
+
         console.log('Subtask completed and stored in database:', {
           subtaskId,
           sessionId,
           title: step.title,
-          assignee,
-          reporter,
+          assignee: actualAssignee,
+          reporter: actualReporter,
           prFeedback,
           deliverables
         });
       }
-      
+
       toast({
         title: isLast ? "Solution Submitted" : "Subtask Completed",
-        description: isLast 
-          ? "Your solution has been submitted successfully." 
+        description: isLast
+          ? "Your solution has been submitted successfully."
           : `You have completed: ${step.title}`
       });
-      
+
       if (!isLast) {
         await refreshSubtaskData();
       }
-      
+
       onComplete();
     } catch (error) {
       console.error('Error completing subtask:', error);
@@ -640,16 +653,16 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
       setIsCompletingSubtask(false);
     }
   };
-  
+
   const handleSkip = () => {
     toast({
       title: "Subtask Skipped",
       description: `You have skipped: ${step.title}`
     });
-    
+
     onSkip();
   };
-  
+
   if (isDatasetMode) {
     return (
       <Card>
@@ -663,7 +676,7 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
           </div>
         </CardContent>
         <CardFooter>
-          <Button 
+          <Button
             variant="outline"
             onClick={onBackToSubtasks}
             className="flex items-center"
@@ -675,7 +688,7 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
       </Card>
     );
   }
-  
+
   if (!isStateInitialized) {
     return (
       <Card className="min-h-[400px] flex items-center justify-center">
@@ -686,7 +699,7 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
       </Card>
     );
   }
-  
+
   return (
     <div className="space-y-6 relative" style={{ pointerEvents: showGitDialog ? "none" : "auto", opacity: showGitDialog ? "0.6" : "1" }}>
       <Card className="overflow-hidden">
@@ -698,15 +711,15 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
             <h3 className="text-lg font-medium mb-2">{step.title}</h3>
             <p className="text-muted-foreground">{step.description}</p>
           </div>
-          
+
           <Separator />
-          
+
           <div className="space-y-3">
             <h4 className="font-medium mb-2">Details</h4>
             {step.details && step.details.length > 0 ? (
               <div className="grid gap-3">
                 {step.details.map((detail: string, index: number) => (
-                  <div 
+                  <div
                     key={index}
                     className="p-3 bg-secondary/30 rounded-lg flex items-start gap-3"
                   >
@@ -720,7 +733,7 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
             ) : (
               <div className="grid gap-3">
                 {step.subproblems && step.subproblems.map((subproblem: string, index: number) => (
-                  <div 
+                  <div
                     key={index}
                     className="p-3 bg-secondary/30 rounded-lg flex items-start gap-3"
                   >
@@ -733,23 +746,23 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
               </div>
             )}
           </div>
-          
+
           {acceptanceCriteria.length > 0 ? (
             <>
               <Separator />
-              
+
               <div className="space-y-3">
                 <h4 className="font-medium mb-2">Acceptance Criteria</h4>
                 <div className="grid gap-2">
                   {acceptanceCriteria.map((criteria) => (
-                    <div 
+                    <div
                       key={criteria.id}
                       className="flex items-start gap-2 p-2 border rounded-md"
                     >
                       <Checkbox
                         id={criteria.id}
                         checked={criteria.completed}
-                        onCheckedChange={(checked) => 
+                        onCheckedChange={(checked) =>
                           handleToggleAcceptanceCriteria(criteria.id, checked === true)
                         }
                         className="mt-0.5"
@@ -768,7 +781,7 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
           ) : null}
         </CardContent>
       </Card>
-      
+
       <Card className="overflow-hidden">
         <CardHeader>
           <CardTitle>Implementation</CardTitle>
@@ -781,13 +794,13 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
                 <User className="h-4 w-4 mr-1 text-pangea" />
                 {isEditingReporter ? (
                   <div className="flex gap-2 items-center w-full">
-                    <Input 
-                      value={reporter} 
+                    <Input
+                      value={reporter}
                       onChange={(e) => setReporter(e.target.value)}
                       className="h-7 py-1 text-sm"
                     />
-                    <Button 
-                      size="sm" 
+                    <Button
+                      size="sm"
                       className="h-7 px-2"
                       onClick={() => handleUpdateName('reporter', reporter)}
                     >
@@ -797,9 +810,9 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
                 ) : (
                   <>
                     <span className="font-medium">{reporter}</span>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 ml-1"
                       onClick={() => setIsEditingReporter(true)}
                     >
@@ -809,20 +822,20 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
                 )}
               </div>
             </div>
-            
+
             <div className="flex-1 min-w-[120px]">
               <span className="text-sm text-muted-foreground">Assignee</span>
               <div className="flex items-center mt-1 group">
                 <User className="h-4 w-4 mr-1 text-pangea" />
                 {isEditingAssignee ? (
                   <div className="flex gap-2 items-center w-full">
-                    <Input 
-                      value={assignee} 
+                    <Input
+                      value={assignee}
                       onChange={(e) => setAssignee(e.target.value)}
                       className="h-7 py-1 text-sm"
                     />
-                    <Button 
-                      size="sm" 
+                    <Button
+                      size="sm"
                       className="h-7 px-2"
                       onClick={() => handleUpdateName('assignee', assignee)}
                     >
@@ -834,9 +847,9 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
                     <span className="font-medium">
                       {isLoadingCollaborators ? 'Loading...' : assignee}
                     </span>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 ml-1"
                       onClick={() => setIsEditingAssignee(true)}
                     >
@@ -847,9 +860,9 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
               </div>
             </div>
           </div>
-          
+
           <Separator />
-          
+
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h4 className="font-medium">Development</h4>
@@ -857,10 +870,10 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
                 {branchCreated ? "Branch Created" : "Not Started"}
               </Badge>
             </div>
-            
+
             <div className="flex flex-col gap-2">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 className="w-full"
                 onClick={handleCreateBranch}
                 disabled={branchCreated || isCreatingBranch || showGitDialog}
@@ -877,9 +890,9 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
                   </>
                 )}
               </Button>
-              
-              <Button 
-                variant="outline" 
+
+              <Button
+                variant="outline"
                 className="w-full"
                 onClick={handleCreatePR}
                 disabled={!branchCreated || prCreated || isCreatingPR}
@@ -889,13 +902,13 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
               </Button>
             </div>
           </div>
-          
+
           <Separator />
-          
+
           {showPRFeedback && (
             <div className="space-y-3">
               <h4 className="font-medium">PR Feedback</h4>
-              
+
               {isLoadingFeedback ? (
                 <div className="flex items-center justify-center p-4">
                   <Loader2 className="h-5 w-5 animate-spin mr-2" />
@@ -904,14 +917,14 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
               ) : prFeedback.length > 0 ? (
                 <div className="grid gap-2">
                   {prFeedback.map((feedback) => (
-                    <div 
+                    <div
                       key={feedback.id}
                       className="flex items-start gap-2 p-3 border rounded-md"
                     >
                       <Checkbox
                         id={feedback.id}
                         checked={feedback.resolved}
-                        onCheckedChange={(checked) => 
+                        onCheckedChange={(checked) =>
                           handleToggleFeedbackResolution(feedback.id, checked === true)
                         }
                         className="mt-0.5"
@@ -935,7 +948,7 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
               )}
             </div>
           )}
-          
+
           <div className="space-y-3">
             <h4 className="font-medium">Comments</h4>
             <Textarea
@@ -947,7 +960,7 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
           </div>
         </CardContent>
         <CardFooter className="flex justify-between pt-4">
-          <Button 
+          <Button
             variant="outline"
             onClick={onPrev}
             disabled={isFirst}
@@ -956,13 +969,13 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
             <ChevronLeft className="h-4 w-4 mr-1" />
             Previous Subtask
           </Button>
-          
+
           <div className="flex gap-2 items-center">
             {!isSoloMode && (
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button 
+                    <Button
                       variant="outline"
                       onClick={handleSkip}
                       className="flex items-center gap-1"
@@ -977,9 +990,9 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
                 </Tooltip>
               </TooltipProvider>
             )}
-            
+
             {isLast ? (
-              <Button 
+              <Button
                 className="pangea-button-primary flex items-center"
                 onClick={handleComplete}
                 disabled={isCompletingSubtask}
@@ -997,7 +1010,7 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
                 )}
               </Button>
             ) : (
-              <Button 
+              <Button
                 className="pangea-button-primary flex items-center"
                 onClick={handleComplete}
                 disabled={isCompletingSubtask}
@@ -1018,7 +1031,7 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
           </div>
         </CardFooter>
       </Card>
-      
+
       {showGitDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 pointer-events-auto">
           <div className="bg-white dark:bg-zinc-900 rounded-lg shadow-xl p-8 flex flex-col items-center gap-6 relative min-w-[300px]">
@@ -1042,7 +1055,7 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
           </div>
         </div>
       )}
-      
+
       {isPRDialogOpen && (
         <Dialog open={true} onOpenChange={setIsPRDialogOpen}>
           <DialogContent className="sm:max-w-md" onInteractOutside={(e) => e.preventDefault()}>
@@ -1059,9 +1072,9 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
                     <code className="flex-1 p-2 bg-secondary/30 rounded-md font-mono text-sm">
                       {item.command}
                     </code>
-                    <Button 
-                      size="sm" 
-                      variant="ghost" 
+                    <Button
+                      size="sm"
+                      variant="ghost"
                       onClick={() => handleCopyCommand(item.command)}
                     >
                       <ClipboardCopy className="h-4 w-4" />

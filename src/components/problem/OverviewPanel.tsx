@@ -1,12 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { 
-  CheckCircle, 
+import {
+  CheckCircle,
   CheckSquare,
   ChevronLeft,
   Download,
@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { useNavigate } from 'react-router-dom';
+import { useUser } from '@/contexts/UserContext';
 
 interface OverviewPanelProps {
   problem: any;
@@ -26,9 +27,9 @@ interface OverviewPanelProps {
   onBack?: () => void;
 }
 
-const OverviewPanel: React.FC<OverviewPanelProps> = ({ 
-  problem, 
-  currentStepIndex, 
+const OverviewPanel: React.FC<OverviewPanelProps> = ({
+  problem,
+  currentStepIndex,
   onStepChange,
   onComplete,
   onBack
@@ -36,28 +37,7 @@ const OverviewPanel: React.FC<OverviewPanelProps> = ({
   const { toast } = useToast();
   const navigate = useNavigate();
   const [isLoadingItems, setIsLoadingItems] = useState<boolean>(false);
-  const [user, setUser] = useState<any>(null);
-  const backendURL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
-
-  // Check authentication status when component mounts
-  useEffect(() => {
-    const checkAuthStatus = async () => {
-      try {
-        const response = await fetch(`${backendURL}/me`, {
-          credentials: 'include',
-        });
-        
-        if (response.ok) {
-          const userData = await response.json();
-          setUser(userData);
-        }
-      } catch (error) {
-        console.error('Error checking authentication status:', error);
-      }
-    };
-    
-    checkAuthStatus();
-  }, [backendURL]);
+  const { user } = useUser();
 
   // Transform downloadable items from the problem data
   const downloadableItems = problem.downloadableItems?.map((item: string, index: number) => ({
@@ -65,26 +45,26 @@ const OverviewPanel: React.FC<OverviewPanelProps> = ({
     name: item,
     description: `Resource for problem ${problem.id}`,
     size: "500KB", // Sample size (could be dynamic in future)
-    fileType: item.toLowerCase().endsWith('.pdf') ? 'pdf' : 
+    fileType: item.toLowerCase().endsWith('.pdf') ? 'pdf' :
               item.toLowerCase().endsWith('.csv') ? 'csv' : 'file',
     uploadDate: new Date().toLocaleDateString() // Sample date
   })) || [];
-  
+
   // Filter out system tasks (setup, collaboration, problem analysis)
   const systemTasks = ['setup', 'collaboration', 'analysis'];
-  const actualSubtasks = problem.steps.filter((step: any) => 
+  const actualSubtasks = problem.steps.filter((step: any) =>
     !systemTasks.includes(step.id)
   );
-  
-  // Get preparation steps separately 
+
+  // Get preparation steps separately
   const setupStep = problem.steps.find((step: any) => step.id === 'setup');
   const collaborationStep = problem.steps.find((step: any) => step.id === 'collaboration');
   const analysisStep = problem.steps.find((step: any) => step.id === 'analysis');
-  
+
   // Calculate progress based on actual subtasks only
   const completedSteps = actualSubtasks.filter((step: any) => step.isCompleted).length;
-  const progressPercentage = actualSubtasks.length > 0 
-    ? (completedSteps / actualSubtasks.length) * 100 
+  const progressPercentage = actualSubtasks.length > 0
+    ? (completedSteps / actualSubtasks.length) * 100
     : 0;
 
   const handleReviewComplete = () => {
@@ -92,18 +72,18 @@ const OverviewPanel: React.FC<OverviewPanelProps> = ({
       // If user is not logged in, redirect to sign up page and store the return URL
       const currentURL = window.location.pathname;
       localStorage.setItem('returnAfterLogin', currentURL);
-      
+
       // Show toast notification
       toast({
         title: "Authentication Required",
         description: "Please sign in to continue with this problem.",
       });
-      
+
       // Use absolute path for navigation to prevent 404 errors
       navigate('/signup', { replace: false });
       return;
     }
-    
+
     // If user is logged in, proceed as normal
     onComplete();
   };
@@ -113,7 +93,7 @@ const OverviewPanel: React.FC<OverviewPanelProps> = ({
       title: "Download Started",
       description: `Downloading ${item.name}...`,
     });
-    
+
     // Simulate download
     setTimeout(() => {
       toast({
@@ -137,15 +117,15 @@ const OverviewPanel: React.FC<OverviewPanelProps> = ({
       });
     }
   };
-  
+
   return (
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="text-2xl">Project Overview</CardTitle>
           {onBack && (
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               size="sm"
               onClick={onBack}
               className="flex items-center gap-1"
@@ -174,17 +154,17 @@ const OverviewPanel: React.FC<OverviewPanelProps> = ({
             </div>
           </div>
         </div>
-        
+
         <Separator />
-        
+
         {/* Project Description */}
         <div className="space-y-3">
           <h3 className="text-lg font-medium">Problem Description</h3>
           <p className="whitespace-pre-line">{problem.longDescription}</p>
         </div>
-        
+
         <Separator />
-        
+
         {/* Requirements */}
         <div className="space-y-3">
           <h3 className="text-lg font-medium">Requirements</h3>
@@ -199,15 +179,15 @@ const OverviewPanel: React.FC<OverviewPanelProps> = ({
             </div>
           </div>
         </div>
-        
+
         <Separator />
-        
+
         {/* Downloadable Items Section */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-medium">Downloadable Items</h3>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               size="sm"
               onClick={handleCheckDownloadableItems}
               className="flex items-center gap-1"
@@ -244,8 +224,8 @@ const OverviewPanel: React.FC<OverviewPanelProps> = ({
                         <span className="text-xs text-muted-foreground">Uploaded: {item.uploadDate}</span>
                       </div>
                     </div>
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       size="sm"
                       onClick={() => handleDownload(item)}
                       className="flex items-center gap-1"
@@ -267,13 +247,13 @@ const OverviewPanel: React.FC<OverviewPanelProps> = ({
             </Alert>
           )}
         </div>
-        
+
         <Separator />
-        
+
         {/* Preparation Steps Section */}
         <div className="space-y-3">
           <h3 className="text-lg font-medium">Preparation Steps</h3>
-          
+
           {problem.preparationSteps && problem.preparationSteps.length > 0 ? (
             <div className="space-y-2">
               {problem.preparationSteps.map((step: string, index: number) => (
@@ -296,8 +276,8 @@ const OverviewPanel: React.FC<OverviewPanelProps> = ({
                 <div className="p-4 border rounded-lg">
                   <div className="flex items-start gap-3">
                     <div className={`flex-shrink-0 h-6 w-6 rounded-full flex items-center justify-center ${
-                      setupStep.isCompleted 
-                        ? 'bg-green-500 text-white' 
+                      setupStep.isCompleted
+                        ? 'bg-green-500 text-white'
                         : 'bg-gray-200 text-gray-700'
                     }`}>
                       {setupStep.isCompleted ? <CheckCircle className="h-4 w-4" /> : 1}
@@ -309,14 +289,14 @@ const OverviewPanel: React.FC<OverviewPanelProps> = ({
                   </div>
                 </div>
               )}
-              
+
               {/* Collaboration */}
               {collaborationStep && (
                 <div className="p-4 border rounded-lg">
                   <div className="flex items-start gap-3">
                     <div className={`flex-shrink-0 h-6 w-6 rounded-full flex items-center justify-center ${
-                      collaborationStep.isCompleted 
-                        ? 'bg-green-500 text-white' 
+                      collaborationStep.isCompleted
+                        ? 'bg-green-500 text-white'
                         : 'bg-gray-200 text-gray-700'
                     }`}>
                       {collaborationStep.isCompleted ? <CheckCircle className="h-4 w-4" /> : 2}
@@ -328,14 +308,14 @@ const OverviewPanel: React.FC<OverviewPanelProps> = ({
                   </div>
                 </div>
               )}
-              
+
               {/* Analysis */}
               {analysisStep && (
                 <div className="p-4 border rounded-lg">
                   <div className="flex items-start gap-3">
                     <div className={`flex-shrink-0 h-6 w-6 rounded-full flex items-center justify-center ${
-                      analysisStep.isCompleted 
-                        ? 'bg-green-500 text-white' 
+                      analysisStep.isCompleted
+                        ? 'bg-green-500 text-white'
                         : 'bg-gray-200 text-gray-700'
                     }`}>
                       {analysisStep.isCompleted ? <CheckCircle className="h-4 w-4" /> : 3}
@@ -350,9 +330,9 @@ const OverviewPanel: React.FC<OverviewPanelProps> = ({
             </>
           )}
         </div>
-        
+
         <Separator />
-        
+
         {/* Subtasks Section */}
         <div className="space-y-3">
           <h3 className="text-lg font-medium">Implementation Subtasks</h3>
@@ -361,8 +341,8 @@ const OverviewPanel: React.FC<OverviewPanelProps> = ({
               <div key={index} className="p-4 border rounded-lg">
                 <div className="flex items-start gap-3">
                   <div className={`flex-shrink-0 h-6 w-6 rounded-full flex items-center justify-center ${
-                    step.isCompleted 
-                      ? 'bg-green-500 text-white' 
+                    step.isCompleted
+                      ? 'bg-green-500 text-white'
                       : 'bg-gray-200 text-gray-700'
                   }`}>
                     {step.isCompleted ? <CheckCircle className="h-4 w-4" /> : index + 1}
@@ -378,7 +358,7 @@ const OverviewPanel: React.FC<OverviewPanelProps> = ({
         </div>
       </CardContent>
       <CardFooter className="flex justify-end pt-6">
-        <Button 
+        <Button
           className="pangea-button-primary"
           onClick={handleReviewComplete}
         >
