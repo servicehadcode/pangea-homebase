@@ -576,6 +576,17 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
       return;
     }
 
+    // Check if all acceptance criteria are completed
+    const hasUncompletedCriteria = acceptanceCriteria.some(criteria => !criteria.completed);
+    if (hasUncompletedCriteria) {
+      toast({
+        title: "Acceptance Criteria Required",
+        description: "You need to check off all acceptance criteria before completing this subtask.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     const hasUnresolvedFeedback = prFeedback.some(item => !item.resolved);
 
     if (hasUnresolvedFeedback && !hasAttemptedSubmit) {
@@ -747,38 +758,7 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
             )}
           </div>
 
-          {acceptanceCriteria.length > 0 ? (
-            <>
-              <Separator />
 
-              <div className="space-y-3">
-                <h4 className="font-medium mb-2">Acceptance Criteria</h4>
-                <div className="grid gap-2">
-                  {acceptanceCriteria.map((criteria) => (
-                    <div
-                      key={criteria.id}
-                      className="flex items-start gap-2 p-2 border rounded-md"
-                    >
-                      <Checkbox
-                        id={criteria.id}
-                        checked={criteria.completed}
-                        onCheckedChange={(checked) =>
-                          handleToggleAcceptanceCriteria(criteria.id, checked === true)
-                        }
-                        className="mt-0.5"
-                      />
-                      <label
-                        htmlFor={criteria.id}
-                        className={`text-sm flex-1 ${criteria.completed ? 'line-through text-muted-foreground' : ''}`}
-                      >
-                        {criteria.text}
-                      </label>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </>
-          ) : null}
         </CardContent>
       </Card>
 
@@ -902,6 +882,37 @@ const SubtaskPanel: React.FC<SubtaskPanelProps> = ({
               </Button>
             </div>
           </div>
+
+          <Separator />
+
+          {acceptanceCriteria.length > 0 && (
+            <div className="space-y-3">
+              <h4 className="font-medium mb-2">Acceptance Criteria</h4>
+              <div className="grid gap-2">
+                {acceptanceCriteria.map((criteria) => (
+                  <div
+                    key={criteria.id}
+                    className="flex items-start gap-2 p-2 border rounded-md"
+                  >
+                    <Checkbox
+                      id={criteria.id}
+                      checked={criteria.completed}
+                      onCheckedChange={(checked) =>
+                        handleToggleAcceptanceCriteria(criteria.id, checked === true)
+                      }
+                      className="mt-0.5"
+                    />
+                    <label
+                      htmlFor={criteria.id}
+                      className={`text-sm flex-1 ${criteria.completed ? 'line-through text-muted-foreground' : ''}`}
+                    >
+                      {criteria.text}
+                    </label>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <Separator />
 
